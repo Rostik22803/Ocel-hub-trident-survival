@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.4 (FINAL MASTERPIECE)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.5 (MASTERPIECE + HIGHLIGHTS)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК | Сверхбыстрый и без лагов
 -- ================================================================
@@ -161,6 +161,36 @@ local function GetClassesTable()
 end
 
 -- ================================================================
+--  ФОРМАТИРОВАНИЕ ИМЕН ДЛЯ КРАСИВОГО ОТОБРАЖЕНИЯ
+-- ================================================================
+local function CleanName(name)
+    local cleaned = name:gsub("[Mm]esh", ""):gsub("[Mm]odel", ""):gsub("[Cc]lient", ""):gsub("[Gg]host", "")
+    cleaned = cleaned:gsub("(%l)(%u)", "%1 %2") -- BearTrap -> Bear Trap
+    cleaned = cleaned:gsub("_", " ")
+    cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
+    return cleaned
+end
+
+local function GetSpecialName(model)
+    local standardNames = {
+        part = true, meshpart = true, union = true, model = true,
+        handle = true, main = true, root = true, humanoidrootpart = true,
+        head = true, torso = true, leftarm = true, rightarm = true,
+        leftleg = true, rightleg = true, base = true, lid = true,
+        lock = true, seat = true, vehicleseat = true, display = true,
+        light = true, attachment = true, weld = true, motor = true
+    }
+    
+    for _, child in ipairs(model:GetChildren()) do
+        local nameLower = child.Name:lower()
+        if not standardNames[nameLower] and #child.Name > 2 then
+            return child.Name
+        end
+    end
+    return nil
+end
+
+-- ================================================================
 --  КЛАССИФИКАТОР ПО ИМЕНИ МОДЕЛИ (ДЛЯ СТАНДАРТНЫХ ОБЪЕКТОВ)
 -- ================================================================
 local function ClassifyByName(model)
@@ -197,14 +227,15 @@ local function ClassifyByName(model)
 end
 
 -- ================================================================
---  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ)
+--  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ — РЕКУРСИВНЫЙ)
 -- ================================================================
 local function HeuristicClassify(model)
     local modelNameLower = model.Name:lower()
 
-    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat
-    if model:FindFirstChildWhichIsA("VehicleSeat") then
-        local name = "Vehicle"
+    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat рекурсивно
+    if model:FindFirstChildWhichIsA("VehicleSeat", true) or model:FindFirstChildWhichIsA("Seat", true) then
+        local name = GetSpecialName(model) or "Vehicle"
+        name = CleanName(name)
         if modelNameLower:find("boat") then name = "Boat"
         elseif modelNameLower:find("heli") or modelNameLower:find("copter") then name = "Helicopter"
         elseif modelNameLower:find("atv") then name = "ATV" end
@@ -212,25 +243,26 @@ local function HeuristicClassify(model)
     end
     
     -- 2. NPC (Мутанты, Зомби, Солдаты)
-    if model:FindFirstChild("AnimationController") or model:FindFirstChildOfClass("Humanoid") then
+    if model:FindFirstChildOfClass("AnimationController", true) or model:FindFirstChildOfClass("Humanoid", true) then
         local isPlayer = false
         for _, p in ipairs(Players:GetPlayers()) do
             if p.Name == model.Name then isPlayer = true; break end
         end
         if not isPlayer then
-            local hasWeapon = model:FindFirstChild("RightHand") and model.RightHand:FindFirstChildOfClass("Model")
-            local name = hasWeapon and "NPC Soldier" or "Ghoul / Mutant"
+            local hasWeapon = model:FindFirstChild("RightHand", true) and model:FindFirstChild("RightHand", true):FindFirstChildOfClass("Model", true)
+            local name = GetSpecialName(model) or (hasWeapon and "NPC Soldier" or "Ghoul / Mutant")
+            name = CleanName(name)
             local color = hasWeapon and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(120, 255, 50)
             return "npc", { n = name, c = color, hp = 150 }
         end
     end
     
     -- 3. Выпавший предмет (Dropped Item)
-    local display = model:FindFirstChild("Display")
-    if display and display:FindFirstChildOfClass("SurfaceGui") then
+    local display = model:FindFirstChild("Display", true)
+    if display and display:FindFirstChildOfClass("SurfaceGui", true) then
         local name = "Dropped Item"
         pcall(function()
-            local textLabel = display.SurfaceGui:FindFirstChildOfClass("TextLabel")
+            local textLabel = display.SurfaceGui:FindFirstChildOfClass("TextLabel", true)
             if textLabel and textLabel.Text ~= "" then
                 name = textLabel.Text
             end
@@ -239,8 +271,9 @@ local function HeuristicClassify(model)
     end
     
     -- 4. Аирдроп (Supply Drop)
-    if model:FindFirstChild("Parachute") or model:FindFirstChild("Cables") or modelNameLower:find("supply") then
-        return "loot", { n = "Supply Drop", c = Color3.fromRGB(255, 50, 255) }
+    if model:FindFirstChild("Parachute", true) or model:FindFirstChild("Cables", true) or modelNameLower:find("supply") then
+        local name = GetSpecialName(model) or "Supply Drop"
+        return "loot", { n = CleanName(name), c = Color3.fromRGB(255, 50, 255) }
     end
     
     -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКИЙ СКОРИНГ ЦВЕТОВ)
@@ -252,16 +285,15 @@ local function HeuristicClassify(model)
     for _, child in ipairs(model:GetChildren()) do
         if child:IsA("BasePart") then
             local mat = child.Material
-            -- Проверяем любые части руды
             if mat == Enum.Material.Rock or mat == Enum.Material.Slate or mat == Enum.Material.Plastic or mat == Enum.Material.SmoothPlastic or child:IsA("MeshPart") then
                 hasOreVisual = true
                 local c = child.Color
                 local r, g, b = c.R, c.G, c.B
                 
-                -- Желтый (Нитраты/Сера): R и G высокие, B низкий
+                -- Желтый (Нитраты/Сера)
                 if r > 0.55 and g > 0.55 and b < 0.5 and (r - b) > 0.15 then
                     nitrateCount = nitrateCount + 1
-                -- Красно-коричневый (Железо): R высокий, G низкий/средний
+                -- Красно-коричневый (Железо)
                 elseif r > 0.4 and (r - g) > 0.12 then
                     ironCount = ironCount + 1
                 else
@@ -286,28 +318,33 @@ local function HeuristicClassify(model)
     end
     
     -- 6. Деревья
-    if model:FindFirstChild("Leaves") or model:FindFirstChild("Branch") or model:FindFirstChild("Trunk") or modelNameLower:find("tree") then
-        return "res", { n = "Tree", c = Color3.fromRGB(50, 200, 50) }
+    if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then
+        local name = GetSpecialName(model) or "Tree"
+        return "res", { n = CleanName(name), c = Color3.fromRGB(50, 200, 50) }
     end
     
     -- 7. Кусты ягод
-    if model:FindFirstChild("Berries") or model:FindFirstChild("Berry") or modelNameLower:find("bush") then
-        return "res", { n = "Berry Bush", c = Color3.fromRGB(200, 50, 200) }
+    if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then
+        local name = GetSpecialName(model) or "Berry Bush"
+        return "res", { n = CleanName(name), c = Color3.fromRGB(200, 50, 200) }
     end
     
     -- 8. Сундуки / Контейнеры лута
-    if model:FindFirstChild("Lid") or model:FindFirstChild("Lock") or modelNameLower:find("crate") or modelNameLower:find("chest") then
-        local name = "Loot Crate"
-        if model:FindFirstChild("Safe") or modelNameLower:find("safe") then name = "Loot Safe" end
+    if model:FindFirstChild("Lid", true) or model:FindFirstChild("Lock", true) or modelNameLower:find("crate") or modelNameLower:find("chest") then
+        local name = GetSpecialName(model) or "Loot Crate"
+        name = CleanName(name)
+        if model:FindFirstChild("Safe", true) or modelNameLower:find("safe") then name = "Loot Safe" end
         return "loot", { n = name, c = Color3.fromRGB(255, 215, 0) }
     end
 
     -- 9. Опасности (Капканы, Тесла)
-    if model:FindFirstChild("BearTrap") or model:FindFirstChild("Jaw") or modelNameLower:find("trap") then
-        return "dng", { n = "Bear Trap", c = Color3.fromRGB(255, 0, 0) }
+    if model:FindFirstChild("BearTrap", true) or model:FindFirstChild("Jaw", true) or modelNameLower:find("trap") then
+        local name = GetSpecialName(model) or "Bear Trap"
+        return "dng", { n = CleanName(name), c = Color3.fromRGB(255, 0, 0) }
     end
-    if model:FindFirstChild("Tesla") or model:FindFirstChild("Pylon") or modelNameLower:find("tesla") then
-        return "dng", { n = "Tesla Pylon", c = Color3.fromRGB(255, 255, 0) }
+    if model:FindFirstChild("Tesla", true) or model:FindFirstChild("Pylon", true) or modelNameLower:find("tesla") then
+        local name = GetSpecialName(model) or "Tesla Pylon"
+        return "dng", { n = CleanName(name), c = Color3.fromRGB(255, 255, 0) }
     end
     
     return nil, nil
@@ -334,23 +371,23 @@ local Entities = {}       -- [model] = { cat = string, info = table }
 local TrackedPlayers = {} -- [model] = player
 
 -- ================================================================
---  ИНСТАНТ-СКАНИРОВАНИЕ И СОБЫТИЯ (0% НАГРУЗКИ НА ЦП)
+--  ИНСТАНТ-СКАНИРОВАНИЕ И СОБЫТИЯ
 -- ================================================================
 local function ProcessModel(child)
     if not child:IsA("Model") then return end
     if child == LP.Character then return end
 
-    -- 1. Сначала пытаемся по имени
+    -- 1. Сначала пытаемся классифицировать по имени
     local cat, info = ClassifyByName(child)
     if not cat then
-        -- 2. Если имя общее (например "Model"), классифицируем по эвристике
+        -- 2. Если имя общее, сканируем по структуре (Heuristic)
         cat, info = HeuristicClassify(child)
     end
     
     if cat and info then
         Entities[child] = { cat = cat, info = info }
     else
-        -- 3. Проверка на игрока по имени
+        -- 3. Проверка на игрока
         local plr = Players:FindFirstChild(child.Name)
         if plr and plr ~= LP then
             TrackedPlayers[child] = plr
@@ -374,7 +411,7 @@ end
 local connections = {}
 
 table.insert(connections, workspace.ChildAdded:Connect(function(child)
-    task.wait(0.15) -- даем игре время применить имя / собрать модель
+    task.wait(0.2) -- даем время прогрузить дочерние элементы
     ProcessModel(child)
 end))
 
@@ -400,7 +437,7 @@ for _, plr in ipairs(Players:GetPlayers()) do
     if plr ~= LP then
         if plr.Character then TrackedPlayers[plr.Character] = plr end
         plr.CharacterAdded:Connect(function(char)
-            task.wait(0.2)
+            task.wait(0.25)
             TrackedPlayers[char] = plr
         end)
         plr.CharacterRemoving:Connect(function(char)
@@ -413,7 +450,7 @@ end
 table.insert(connections, Players.PlayerAdded:Connect(function(plr)
     if plr ~= LP then
         plr.CharacterAdded:Connect(function(char)
-            task.wait(0.2)
+            task.wait(0.25)
             TrackedPlayers[char] = plr
         end)
         plr.CharacterRemoving:Connect(function(char)
@@ -454,7 +491,7 @@ fovStroke.Thickness = 1.5
 fovStroke.Transparency = 0.4
 
 -- ================================================================
---  ОБНОВЛЕНИЕ ESP (Фоновый цикл)
+--  ОБНОВЛЕНИЕ ESP
 -- ================================================================
 local ActiveESP = {} -- [instance] = { bb = BillboardGui, hl = Highlight, type = string }
 
@@ -462,7 +499,10 @@ local function ClearESP(instance)
     local data = ActiveESP[instance]
     if data then
         pcall(function() data.bb:Destroy() end)
-        pcall(function() if data.hl then data.hl:Destroy() end end)
+        pcall(function()
+            local oldH = instance:FindFirstChild("_H")
+            if oldH then oldH:Destroy() end
+        end)
         ActiveESP[instance] = nil
     end
 end
@@ -539,17 +579,19 @@ local function UpdateESP()
                         hpFill.Parent = hpBg
                         Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
 
-                        local hl
-                        pcall(function()
-                            hl = Instance.new("Highlight")
-                            hl.Name = "_H"
-                            hl.FillTransparency = 0.8
-                            hl.OutlineTransparency = 0.2
-                            hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
-                            hl.FillColor3 = Color3.fromRGB(255, 60, 60)
-                            hl.Adornee = model
-                            hl.Parent = SG
-                        end)
+                        local hl = model:FindFirstChild("_H")
+                        if not hl then
+                            pcall(function()
+                                hl = Instance.new("Highlight")
+                                hl.Name = "_H"
+                                hl.FillTransparency = 0.6 -- Красивая полупрозрачная заливка
+                                hl.OutlineTransparency = 0.15
+                                hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
+                                hl.FillColor3 = Color3.fromRGB(255, 60, 60)
+                                hl.Adornee = model
+                                hl.Parent = model
+                            end)
+                        end
 
                         data = { bb = bb, hl = hl, type = "player", root = root }
                         ActiveESP[model] = data
@@ -557,7 +599,12 @@ local function UpdateESP()
 
                     data.bb.Enabled = true
                     data.bb.Adornee = root
-                    if data.hl then data.hl.Enabled = true; data.hl.Adornee = model end
+                    
+                    -- Контролируем лимит подсветки Roblox (до 500 метров для игроков)
+                    local hl = model:FindFirstChild("_H")
+                    if hl then
+                        hl.Enabled = dist <= 500
+                    end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = plr.DisplayName end
@@ -580,14 +627,15 @@ local function UpdateESP()
                 else
                     if data then
                         data.bb.Enabled = false
-                        if data.hl then data.hl.Enabled = false end
+                        local hl = model:FindFirstChild("_H")
+                        if hl then hl.Enabled = false end
                     end
                 end
             end
         end
     end
 
-    -- 2. Сущности
+    -- 2. Сущности (NPC, Loot, Res...)
     for model, ent in pairs(Entities) do
         if model.Parent then
             currentActive[model] = true
@@ -653,17 +701,19 @@ local function UpdateESP()
                             Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
                         end
 
-                        local hl
-                        pcall(function()
-                            hl = Instance.new("Highlight")
-                            hl.Name = "_H"
-                            hl.FillTransparency = 0.85
-                            hl.OutlineTransparency = 0.2
-                            hl.OutlineColor3 = info.c
-                            hl.FillColor3 = info.c
-                            hl.Adornee = model
-                            hl.Parent = SG
-                        end)
+                        local hl = model:FindFirstChild("_H")
+                        if not hl then
+                            pcall(function()
+                                hl = Instance.new("Highlight")
+                                hl.Name = "_H"
+                                hl.FillTransparency = 0.65 -- Отличная видимость через стены!
+                                hl.OutlineTransparency = 0.15
+                                hl.OutlineColor3 = info.c
+                                hl.FillColor3 = info.c
+                                hl.Adornee = model
+                                hl.Parent = model
+                            end)
+                        end
 
                         data = { bb = bb, hl = hl, type = cat, part = part }
                         ActiveESP[model] = data
@@ -671,7 +721,13 @@ local function UpdateESP()
 
                     data.bb.Enabled = true
                     data.bb.Adornee = part
-                    if data.hl then data.hl.Enabled = true; data.hl.Adornee = model end
+                    
+                    -- Контроль лимита Highlights для сущностей (до 150 метров)
+                    local hl = model:FindFirstChild("_H")
+                    if hl then
+                        local maxHlDist = (cat == "npc") and 400 or 150
+                        hl.Enabled = dist <= maxHlDist
+                    end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. info.n end
@@ -693,7 +749,8 @@ local function UpdateESP()
                 else
                     if data then
                         data.bb.Enabled = false
-                        if data.hl then data.hl.Enabled = false end
+                        local hl = model:FindFirstChild("_H")
+                        if hl then hl.Enabled = false end
                     end
                 end
             end
@@ -737,11 +794,11 @@ local function UpdateDiag()
     DiagLabel.Text = msg
 end
 
--- Фоновый поток с проверкой ID сессии (чтобы старые потоки умирали!)
+-- Фоновый поток с проверкой ID сессии
 task.spawn(function()
     while task.wait(0.25) do
         if _G._TESP_SESSION_ID ~= sessionID then
-            break -- Убиваем этот поток, запущен новый скрипт!
+            break
         end
         pcall(UpdateESP)
         pcall(UpdateDiag)
@@ -1167,7 +1224,7 @@ Instance.new("UICorner", DiagLabel).CornerRadius = UDim.new(0, 4)
 --  CLEANUP FUNCTION / DISCONNECTION
 -- ================================================================
 _G._TESP_CLEANUP = function()
-    _G._TESP_SESSION_ID = nil -- сигнализируем старым потокам завершить работу
+    _G._TESP_SESSION_ID = nil
     for _, conn in ipairs(connections) do
         pcall(function() conn:Disconnect() end)
     end
@@ -1178,6 +1235,6 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.4 (MASTERPIECE) — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.5 — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print("==========================================")
