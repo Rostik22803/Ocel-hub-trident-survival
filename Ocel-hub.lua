@@ -1,29 +1,65 @@
 -- ================================================================
---  TRIDENT SURVIVAL вЂ” ESP + AIMBOT v4.0 (FULL CHAMS & VIEWMODEL CHAMS)
---  100% Roblox UI вЂ” СЂР°Р±РѕС‚Р°РµС‚ РІРµР·РґРµ | РЎРІРµСЂС…Р±С‹СЃС‚СЂС‹Р№ Рё Р±РµР· Р»Р°РіРѕРІ
+--  TRIDENT SURVIVAL — ESP + AIMBOT v4.1 (ULTRA-ROBUST & COMPATIBLE)
+--  Сверхстабильная версия с авто-определением консоли и защитой от вылетов
 -- ================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
 local LP = Players.LocalPlayer
+while not LP do
+    task.wait(0.1)
+    LP = Players.LocalPlayer
+end
+
+-- Безопасное получение Камеры
 local Cam = workspace.CurrentCamera
+while not Cam do
+    task.wait(0.1)
+    Cam = workspace.CurrentCamera
+end
+
 local MOBILE = UIS.TouchEnabled
 
+print("[TESP] Инициализация... Проверяем среду выполнения.")
+
 -- ================================================================
---  РЈРќРРљРђР›Р¬РќР«Р™ РЎР•РЎРЎРРћРќРќР«Р™ ID Р”Р›РЇ Р“РћР РЇР§Р•Р™ РџР•Р Р•Р—РђР“Р РЈР—РљР (РђРќРўР-РќРђР›РћР–Р•РќРР•)
+--  ГДЕ СОЗДАЕМ GUI (CoreGui приоритетнее для обхода защиты игры)
+-- ================================================================
+local ParentGui = nil
+local successCore, errCore = pcall(function()
+    if CoreGui and typeof(CoreGui) == "Instance" then
+        ParentGui = CoreGui
+    end
+end)
+
+if not ParentGui then
+    pcall(function()
+        ParentGui = LP:WaitForChild("PlayerGui", 15)
+    end)
+end
+
+if not ParentGui then
+    warn("[TESP ERROR] Не удалось найти PlayerGui или CoreGui! Запуск невозможен.")
+    return
+end
+
+-- ================================================================
+--  УНИКАЛЬНЫЙ СЕССИОННЫЙ ID ДЛЯ ГОРЯЧЕЙ ПЕРЕЗАГРУЗКИ (АНТИ-НАЛОЖЕНИЕ)
 -- ================================================================
 local sessionID = os.clock()
 _G._TESP_SESSION_ID = sessionID
 
--- РЈРґР°Р»РµРЅРёРµ РІСЃРµС… СЃС‚Р°СЂС‹С… РјРµРЅСЋ
-for _, child in ipairs(LP.PlayerGui:GetChildren()) do
+-- Удаление всех старых меню
+for _, child in ipairs(ParentGui:GetChildren()) do
     if child:IsA("ScreenGui") and (child.Name:find("TESP") or child.Name:find("TridentESP")) then
         pcall(function() child:Destroy() end)
     end
 end
 
--- РЈРґР°Р»РµРЅРёРµ СЃС‚Р°СЂС‹С… Chams-РїРѕРґСЃРІРµС‚РѕРє
+-- Удаление старых Chams-подсветок
 local function RemoveAllHighlights()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr.Character then
@@ -35,9 +71,8 @@ local function RemoveAllHighlights()
         local old = child:FindFirstChild("TChams")
         if old then pcall(function() old:Destroy() end) end
     end
-    local cam = workspace.CurrentCamera
-    if cam then
-        for _, child in ipairs(cam:GetChildren()) do
+    if Cam then
+        for _, child in ipairs(Cam:GetChildren()) do
             local old = child:FindFirstChild("TChams") or child:FindFirstChild("TChamsVM")
             if old then pcall(function() old:Destroy() end) end
             if child:IsA("Highlight") and (child.Name == "TChams" or child.Name == "TChamsVM") then
@@ -46,10 +81,10 @@ local function RemoveAllHighlights()
         end
     end
 end
-RemoveAllHighlights()
+pcall(RemoveAllHighlights)
 
 -- ================================================================
---  РќРђРЎРўР РћР™РљР (РљРћРќР¤РР“)
+--  НАСТРОЙКИ (КОНФИГ)
 -- ================================================================
 local CFG = {
     ESP_Players  = true,
@@ -62,7 +97,7 @@ local CFG = {
     ShowHealth   = true,
     MaxDist      = 1000,
     
-    -- Р§Р°РјСЃС‹ (Chams)
+    -- Чамсы (Chams)
     ChamsPlayers   = true,
     ChamsNPCs      = true,
     ChamsLoot      = true,
@@ -70,22 +105,22 @@ local CFG = {
     ChamsVehicles  = true,
     ChamsDanger    = true,
     
-    -- Р§Р°РјСЃС‹ РЅР° СЃРІРѕРё СЂСѓРєРё Рё РѕСЂСѓР¶РёРµ
+    -- Чамсы на свои руки и оружие
     ChamsViewModel = true,
-    VMColor        = Color3.fromRGB(0, 255, 255), -- Р¦РІРµС‚ СЂСѓРє Рё РѕСЂСѓР¶РёСЏ (Р±РёСЂСЋР·РѕРІС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
-    VMOpt          = 0.3, -- РџСЂРѕР·СЂР°С‡РЅРѕСЃС‚СЊ Р·Р°Р»РёРІРєРё
+    VMColor        = Color3.fromRGB(0, 255, 255), -- Бирюзовый
+    VMOpt          = 0.3,
 
     Aimbot       = true,
     AimFOV       = 150,
-    AimSmooth    = 0.25,     -- СЃРєРѕСЂРѕСЃС‚СЊ РЅР°РІРµРґРµРЅРёСЏ (0.1 - РјРµРґР»РµРЅРЅРѕ, 0.5 - Р±С‹СЃС‚СЂРѕ)
-    AimPart      = "Head",   -- Head / Torso
+    AimSmooth    = 0.25,
+    AimPart      = "Head",
     AimPlayers   = true,
     AimNPCs      = true,
     ShowFOV      = true,
 }
 
 -- ================================================================
---  РўРђР‘Р›РР¦Р« РќРђРЎРўР РћР•Рљ РЎРЈР©РќРћРЎРўР•Р™
+--  ТАБЛИЦЫ НАСТРОЕК СУЩНОСТЕЙ
 -- ================================================================
 local NPC = {
     Ghoul           = {n="Ghoul",           c=Color3.fromRGB(120,255,50), hp=200},
@@ -174,16 +209,16 @@ local function CatMaxDist(cat, info)
 end
 
 local function CatIcon(cat)
-    if cat == "npc"  then return "в  " end
-    if cat == "loot" then return "в—† " end
-    if cat == "res"  then return "в›Џ " end
-    if cat == "veh"  then return "вЉ• " end
-    if cat == "dng"  then return "вљ  " end
+    if cat == "npc"  then return "☠ " end
+    if cat == "loot" then return "◆ " end
+    if cat == "res"  then return "⛏ " end
+    if cat == "veh"  then return "⊕ " end
+    if cat == "dng"  then return "⚠ " end
     return ""
 end
 
 -- ================================================================
---  РљР›РђРЎРЎРР¤РРљРђРўРћР  РџРћ РРњР•РќР РњРћР”Р•Р›Р (РРЎРџР РђР’Р›Р•РќРќР«Р™)
+--  КЛАССИФИКАТОРЫ
 -- ================================================================
 local function ClassifyByName(model)
     local name = model.Name
@@ -191,77 +226,38 @@ local function ClassifyByName(model)
     if cat then return cat, info end
 
     local nameLower = name:lower()
+    if nameLower:find("atv") or nameLower:find("quad") or nameLower:find("car") then return "veh", VEH.ATV end
+    if nameLower:find("boat") or nameLower:find("jet") then return "veh", VEH.Boat end
+    if nameLower:find("heli") or nameLower:find("copter") then return "veh", VEH.Helicopter end
+    if nameLower:find("beartrap") or nameLower:find("bear_trap") then return "dng", DNG.BearTrap end
+    if nameLower:find("tesla") then return "dng", DNG.TeslaPylon end
     
-    -- РўСЂР°РЅСЃРїРѕСЂС‚
-    if nameLower:find("atv") or nameLower:find("quad") or nameLower:find("car") then
-        return "veh", VEH.ATV
-    end
-    if nameLower:find("boat") or nameLower:find("jet") then
-        return "veh", VEH.Boat
-    end
-    if nameLower:find("heli") or nameLower:find("copter") then
-        return "veh", VEH.Helicopter
-    end
-    
-    -- РћРїР°СЃРЅРѕСЃС‚Рё
-    if nameLower:find("beartrap") or nameLower:find("bear_trap") then
-        return "dng", DNG.BearTrap
-    end
-    if nameLower:find("tesla") then
-        return "dng", DNG.TeslaPylon
-    end
-    
-    -- Р›СѓС‚
     if nameLower:find("crate") then
         if nameLower:find("transport") then return "loot", LOOT.TransportCrate end
         return "loot", LOOT.MetalCrate
     end
-    if nameLower:find("safe") then
-        return "loot", LOOT.LootSafe
-    end
-    if nameLower:find("supply") and nameLower:find("drop") then
-        return "loot", LOOT.SupplyDrop
-    end
+    if nameLower:find("safe") then return "loot", LOOT.LootSafe end
+    if nameLower:find("supply") and nameLower:find("drop") then return "loot", LOOT.SupplyDrop end
     
-    -- NPC
-    if nameLower:find("ghoul") or nameLower:find("zombie") or nameLower:find("mutant") then
-        return "npc", NPC.Ghoul
-    end
+    if nameLower:find("ghoul") or nameLower:find("zombie") or nameLower:find("mutant") then return "npc", NPC.Ghoul end
     if nameLower:find("soldier") then
         if nameLower:find("gas") or nameLower:find("mask") then return "npc", NPC.GasMaskSoldier end
         return "npc", NPC.Soldier
     end
-    if nameLower:find("officer") then
-        return "npc", NPC.Officer
-    end
+    if nameLower:find("officer") then return "npc", NPC.Officer end
     
-    -- Р РµСЃСѓСЂСЃС‹ (РЎС‚СЂРѕРіРѕРµ СЃРѕРІРїР°РґРµРЅРёРµ РёРјРµРЅ, С‡С‚РѕР±С‹ РЅРµ РїСѓС‚Р°С‚СЊ СЃ "Iron Ore" РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
-    if nameLower:find("stone_ore") or (nameLower:find("stone") and nameLower:find("ore")) then
-        return "res", RES.StoneOre
-    end
-    if nameLower:find("iron_ore") or (nameLower:find("iron") and nameLower:find("ore")) then
-        return "res", RES.IronOre
-    end
-    if nameLower:find("nitrate_ore") or (nameLower:find("nitrate") and nameLower:find("ore")) then
-        return "res", RES.NitrateOre
-    end
-    if nameLower:find("tree") then
-        return "res", RES.Tree1
-    end
-    if nameLower:find("berry") or nameLower:find("bush") then
-        return "res", RES.BerryBush
-    end
+    if nameLower:find("stone_ore") or (nameLower:find("stone") and nameLower:find("ore")) then return "res", RES.StoneOre end
+    if nameLower:find("iron_ore") or (nameLower:find("iron") and nameLower:find("ore")) then return "res", RES.IronOre end
+    if nameLower:find("nitrate_ore") or (nameLower:find("nitrate") and nameLower:find("ore")) then return "res", RES.NitrateOre end
+    if nameLower:find("tree") then return "res", RES.Tree1 end
+    if nameLower:find("berry") or nameLower:find("bush") then return "res", RES.BerryBush end
     
     return nil, nil
 end
 
--- ================================================================
---  Р­Р’Р РРЎРўРР§Р•РЎРљРР™ РљР›РђРЎРЎРР¤РРљРђРўРћР  РњРћР”Р•Р›Р•Р™ (РРЎРџР РђР’Р›Р•РќРќР«Р™ Р Р‘Р•Р—РћРџРђРЎРќР«Р™)
--- ================================================================
 local function HeuristicClassify(model)
     local modelNameLower = model.Name:lower()
 
-    -- РСЃРєР»СЋС‡Р°РµРј Р»РѕР¶РЅРѕРµ РѕРїСЂРµРґРµР»РµРЅРёРµ СЂСѓРґ Сѓ С‚РѕРіРѕ, С‡С‚Рѕ С‚РѕС‡РЅРѕ СЏРІР»СЏРµС‚СЃСЏ С‚СЂР°РЅСЃРїРѕСЂС‚РѕРј, NPC РёР»Рё СЏС‰РёРєРѕРј
     if model:FindFirstChildWhichIsA("VehicleSeat", true) or model:FindFirstChildWhichIsA("Seat", true) then
         local name = VEH.ATV
         if modelNameLower:find("boat") then name = VEH.Boat
@@ -287,24 +283,17 @@ local function HeuristicClassify(model)
         return "loot", name
     end
 
-    -- РћРїСЂРµРґРµР»РµРЅРёРµ СЂСѓРґ РїРѕ РјРµС€Р°Рј Рё С†РІРµС‚Р°Рј Р°РєС‚РёРІРёСЂСѓРµС‚СЃСЏ РўРћР›Р¬РљРћ РµСЃР»Рё РІ РёРјРµРЅРё РµСЃС‚СЊ СЃР»РѕРІРѕ "Ore", "Node", "Deposit" РёР»Рё "Rock"
     local isLikelyOre = modelNameLower:find("ore") or modelNameLower:find("node") or modelNameLower:find("deposit") or modelNameLower:find("rock")
     if isLikelyOre then
-        local nitrateCount = 0
-        local ironCount = 0
-        local stoneCount = 0
+        local nitrateCount, ironCount, stoneCount = 0, 0, 0
         local hasVisual = false
-        
         for _, child in ipairs(model:GetChildren()) do
             if child:IsA("BasePart") then
                 hasVisual = true
                 local c = child.Color
                 local r, g, b = c.R, c.G, c.B
-                
-                -- Р–РµР»С‚С‹Рµ РѕС‚С‚РµРЅРєРё (РЎРµСЂР° / РќРёС‚СЂР°С‚С‹)
                 if r > 0.55 and g > 0.55 and b < 0.5 and (r - b) > 0.15 then
                     nitrateCount = nitrateCount + 1
-                -- Р С‹Р¶Рµ-Р±СѓСЂС‹Рµ/РєРѕСЂРёС‡РЅРµРІС‹Рµ (Р–РµР»РµР·Рѕ)
                 elseif r > 0.4 and (r - g) > 0.12 and g < 0.5 then
                     ironCount = ironCount + 1
                 else
@@ -312,41 +301,26 @@ local function HeuristicClassify(model)
                 end
             end
         end
-        
         if hasVisual then
-            if nitrateCount > 0 and nitrateCount >= ironCount then
-                return "res", RES.NitrateOre
-            elseif ironCount > 0 and ironCount > nitrateCount then
-                return "res", RES.IronOre
-            else
-                return "res", RES.StoneOre
-            end
+            if nitrateCount > 0 and nitrateCount >= ironCount then return "res", RES.NitrateOre
+            elseif ironCount > 0 and ironCount > nitrateCount then return "res", RES.IronOre
+            else return "res", RES.StoneOre end
         end
     end
     
-    -- Р”РµСЂРµРІСЊСЏ
-    if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then
-        return "res", RES.Tree1
-    end
-    
-    -- РЇРіРѕРґС‹
-    if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then
-        return "res", RES.BerryBush
-    end
-
-    -- Р›РѕРІСѓС€РєРё
-    if model:FindFirstChild("BearTrap", true) or model:FindFirstChild("Jaw", true) or modelNameLower:find("trap") then
-        return "dng", DNG.BearTrap
-    end
+    if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then return "res", RES.Tree1 end
+    if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then return "res", RES.BerryBush end
+    if model:FindFirstChild("BearTrap", true) or model:FindFirstChild("Jaw", true) or modelNameLower:find("trap") then return "dng", DNG.BearTrap end
     
     return nil, nil
 end
 
 -- ================================================================
---  РџРћР›РЈР§Р•РќРР• РџРћР—РР¦РР™ Р Р”РђРќРќР«РҐ
+--  ПОЛУЧЕНИЕ ПОЗИЦИЙ И ДАННЫХ
 -- ================================================================
 local function MyPos()
-    return Cam.CFrame.Position
+    local p = Cam.CFrame.Position
+    return p
 end
 
 local function GetPart(model, name)
@@ -358,13 +332,9 @@ local function GetPart(model, name)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
--- РўР°Р±Р»РёС†С‹ РєСЌС€Р°
 local Entities = {}       
 local TrackedPlayers = {} 
 
--- ================================================================
---  РРќРЎРўРђРќРў-РЎРљРђРќРР РћР’РђРќРР• Р РЎРћР‘Р«РўРРЇ
--- ================================================================
 local function ProcessModel(child)
     if not child:IsA("Model") then return end
     if child == LP.Character then return end
@@ -384,85 +354,36 @@ local function ProcessModel(child)
     end
 end
 
-for _, child in ipairs(workspace:GetChildren()) do
-    ProcessModel(child)
-end
-
+-- Сканирование
+for _, child in ipairs(workspace:GetChildren()) do pcall(ProcessModel, child) end
 local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
 if ignoreFolder then
-    for _, child in ipairs(ignoreFolder:GetChildren()) do
-        ProcessModel(child)
-    end
+    for _, child in ipairs(ignoreFolder:GetChildren()) do pcall(ProcessModel, child) end
 end
 
 local connections = {}
-
 table.insert(connections, workspace.ChildAdded:Connect(function(child)
     task.wait(0.2)
-    ProcessModel(child)
+    pcall(ProcessModel, child)
 end))
-
 table.insert(connections, workspace.ChildRemoved:Connect(function(child)
     Entities[child] = nil
     TrackedPlayers[child] = nil
-    if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
+    if _G._TESP_CLEAR_SINGLE then pcall(_G._TESP_CLEAR_SINGLE, child) end
     local oldChams = child:FindFirstChild("TChams")
     if oldChams then pcall(function() oldChams:Destroy() end) end
 end))
 
-if ignoreFolder then
-    table.insert(connections, ignoreFolder.ChildAdded:Connect(function(child)
-        task.wait(0.2)
-        ProcessModel(child)
-    end))
-    table.insert(connections, ignoreFolder.ChildRemoved:Connect(function(child)
-        TrackedPlayers[child] = nil
-        if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
-        local oldChams = child:FindFirstChild("TChams")
-        if oldChams then pcall(function() oldChams:Destroy() end) end
-    end))
-end
-
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= LP then
-        if plr.Character then TrackedPlayers[plr.Character] = plr end
-        plr.CharacterAdded:Connect(function(char)
-            task.wait(0.25)
-            TrackedPlayers[char] = plr
-        end)
-        plr.CharacterRemoving:Connect(function(char)
-            TrackedPlayers[char] = nil
-            if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(char) end
-        end)
-    end
-end
-
-table.insert(connections, Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LP then
-        plr.CharacterAdded:Connect(function(char)
-            task.wait(0.25)
-            TrackedPlayers[char] = plr
-        end)
-        plr.CharacterRemoving:Connect(function(char)
-            TrackedPlayers[char] = nil
-            if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(char) end
-        end)
-    end
-end))
-
 -- ================================================================
---  Р“Р›РђР’РќР«Р™ SCREENGUI
+--  ГЛАВНЫЙ GUI
 -- ================================================================
 local SG = Instance.new("ScreenGui")
 SG.Name = "TESP_MAIN"
 SG.ResetOnSpawn = false
 SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 SG.IgnoreGuiInset = true
-SG.Parent = LP.PlayerGui
+SG.Parent = ParentGui
 
--- ================================================================
---  FOV РљР РЈР“ (UI Р­Р»РµРјРµРЅС‚)
--- ================================================================
 local FovFrame = Instance.new("Frame")
 FovFrame.Name = "FOV"
 FovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -474,14 +395,13 @@ FovFrame.Parent = SG
 
 local fovCorner = Instance.new("UICorner", FovFrame)
 fovCorner.CornerRadius = UDim.new(0.5, 0)
-
 local fovStroke = Instance.new("UIStroke", FovFrame)
 fovStroke.Color = Color3.fromRGB(255, 255, 255)
 fovStroke.Thickness = 1.5
 fovStroke.Transparency = 0.4
 
 -- ================================================================
---  РћР‘РќРћР’Р›Р•РќРР• ESP Р CHAMS
+--  ОБНОВЛЕНИЕ ESP И CHAMS
 -- ================================================================
 local ActiveESP = {} 
 
@@ -498,9 +418,9 @@ _G._TESP_CLEAR_SINGLE = ClearESP
 
 local function ClearAllESP()
     for inst in pairs(ActiveESP) do
-        ClearESP(inst)
+        pcall(ClearESP, inst)
     end
-    RemoveAllHighlights()
+    pcall(RemoveAllHighlights)
 end
 
 local function ApplyChams(model, color, enabled, fillTrans)
@@ -521,15 +441,12 @@ local function ApplyChams(model, color, enabled, fillTrans)
     existing.OutlineColor3 = color
 end
 
--- Р¤СѓРЅРєС†РёСЏ РїСЂРёРјРµРЅРµРЅРёСЏ С‡Р°РјСЃРѕРІ РЅР° ViewModel (СЂСѓРєРё Рё РѕСЂСѓР¶РёРµ РёРіСЂРѕРєР°)
 local function UpdateViewModelChams()
     if not CFG.ChamsViewModel then
-        -- РЈРґР°Р»СЏРµРј С‡Р°РјСЃС‹ СЃ ViewModel
         if Cam then
             for _, child in ipairs(Cam:GetChildren()) do
                 local vmChams = child:FindFirstChild("TChamsVM")
                 if vmChams then pcall(function() vmChams:Destroy() end) end
-                -- РўР°РєР¶Рµ РїСЂРѕРІРµСЂСЏРµРј, РµСЃР»Рё СЃР°Рј РґРѕС‡РµСЂРЅРёР№ РѕР±СЉРµРєС‚ СЏРІР»СЏРµС‚СЃСЏ Highlight
                 if child:IsA("Highlight") and child.Name == "TChamsVM" then
                     pcall(function() child:Destroy() end)
                 end
@@ -540,7 +457,6 @@ local function UpdateViewModelChams()
 
     if Cam then
         for _, child in ipairs(Cam:GetChildren()) do
-            -- РџСЂРѕРІРµСЂСЏРµРј СЏРІР»СЏРµС‚СЃСЏ Р»Рё РѕР±СЉРµРєС‚ РјРѕРґРµР»СЊСЋ СЂСѓРє/РѕСЂСѓР¶РёСЏ (РѕР±С‹С‡РЅРѕ ViewModel, РёР»Рё Model, РёРјРµСЋС‰Р°СЏ MeshPart/Part)
             if child:IsA("Model") or child:IsA("BasePart") then
                 local vmChams = child:FindFirstChild("TChamsVM")
                 if not vmChams then
@@ -562,10 +478,9 @@ local function UpdateESP()
     local myPos = MyPos()
     local currentActive = {}
 
-    -- РћР±РЅРѕРІР»СЏРµРј С‡Р°РјСЃС‹ РЅР° СЂСѓРєР°С…/РѕСЂСѓР¶РёРё
     pcall(UpdateViewModelChams)
 
-    -- 1. РРіСЂРѕРєРё
+    -- Игроки
     for model, plr in pairs(TrackedPlayers) do
         if model.Parent then
             currentActive[model] = true
@@ -574,8 +489,7 @@ local function UpdateESP()
                 local dist = math.floor((root.Position - myPos).Magnitude)
                 local data = ActiveESP[model]
 
-                -- Chams РґР»СЏ РёРіСЂРѕРєРѕРІ
-                ApplyChams(model, Color3.fromRGB(255, 50, 50), CFG.ChamsPlayers and dist <= CFG.MaxDist)
+                pcall(ApplyChams, model, Color3.fromRGB(255, 50, 50), CFG.ChamsPlayers and dist <= CFG.MaxDist)
 
                 if CFG.ESP_Players and dist <= CFG.MaxDist then
                     if not data then
@@ -585,7 +499,6 @@ local function UpdateESP()
                         bb.Size = UDim2.new(0, 160, 0, 50)
                         bb.StudsOffset = Vector3.new(0, 3.5, 0)
                         bb.MaxDistance = CFG.MaxDist
-                        bb.LightInfluence = 0
                         bb.Adornee = root
                         bb.Parent = SG
 
@@ -661,7 +574,7 @@ local function UpdateESP()
         end
     end
 
-    -- 2. РЎСѓС‰РЅРѕСЃС‚Рё (NPC, Loot, Res...)
+    -- Сущности
     for model, ent in pairs(Entities) do
         if model.Parent then
             currentActive[model] = true
@@ -673,9 +586,8 @@ local function UpdateESP()
                 local maxD = CatMaxDist(cat, info)
                 local data = ActiveESP[model]
 
-                -- РџСЂРёРјРµРЅСЏРµРј С‡Р°РјСЃС‹ РЅР° РІСЃРµ РєР°С‚РµРіРѕСЂРёРё РѕР±СЉРµРєС‚РѕРІ (Р СѓРґС‹, Р›СѓС‚, РўСЂР°РЅСЃРїРѕСЂС‚, Р›РѕРІСѓС€РєРё)
                 local chamsEnabledForCat = CatChamsEnabled(cat)
-                ApplyChams(model, info.c, chamsEnabledForCat and dist <= maxD, cat == "res" and 0.7 or 0.5)
+                pcall(ApplyChams, model, info.c, chamsEnabledForCat and dist <= maxD, cat == "res" and 0.7 or 0.5)
 
                 if CatEnabled(cat) and dist <= maxD then
                     if not data then
@@ -738,9 +650,7 @@ local function UpdateESP()
                     data.bb.Enabled = true
                     data.bb.Adornee = part
 
-                    -- РќР°Р·РІР°РЅРёРµ Р±РµСЂРµС‚СЃСЏ РёСЃРєР»СЋС‡РёС‚РµР»СЊРЅРѕ РёР· РєРѕРЅС„РёРіР° РІРѕ РёР·Р±РµР¶Р°РЅРёРµ "Iron Ore" РЅР° РґСЂСѓРіРёС… РѕР±СЉРµРєС‚Р°С…
                     local dispName = info.n or model.Name
-
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. dispName end
 
@@ -760,58 +670,45 @@ local function UpdateESP()
                     end
                 else
                     if data then data.bb.Enabled = false end
-                    -- РЈР±РёСЂР°РµРј РїРѕРґСЃРІРµС‚РєСѓ РµСЃР»Рё РєР°С‚РµРіРѕСЂРёСЏ РІС‹РєР»СЋС‡РµРЅР°
-                    if not chamsEnabledForCat then ApplyChams(model, info.c, false) end
+                    if not chamsEnabledForCat then pcall(ApplyChams, model, info.c, false) end
                 end
             end
         end
     end
 
-    -- РћС‡РёСЃС‚РєР° РјРµСЂС‚РІС‹С… РѕР±СЉРµРєС‚РѕРІ
+    -- Очистка
     for model in pairs(ActiveESP) do
         if not currentActive[model] then
-            ClearESP(model)
+            pcall(ClearESP, model)
         end
     end
 end
 
 -- ================================================================
---  Р¤РћРќРћР’Р«Р™ РўРРљР•Р 
+--  ФОНОВЫЙ ТИКЕР
 -- ================================================================
 local DiagLabel = nil
-
 local function UpdateDiag()
     if not DiagLabel then return end
-    local msg = "DIAGNOSTICS:
-"
-    
-    local entCount = 0
+    local msg = "DIAGNOSTICS:\n"
+    local entCount, pCount, activeCount = 0, 0, 0
     for _ in pairs(Entities) do entCount = entCount + 1 end
-    msg = msg .. "вЂў Entities tracked: " .. entCount .. "\n"
-
-    local pCount = 0
     for _ in pairs(TrackedPlayers) do pCount = pCount + 1 end
-    msg = msg .. "вЂў Players tracked: " .. pCount .. "\n"
-    
-    local activeCount = 0
     for _ in pairs(ActiveESP) do activeCount = activeCount + 1 end
-    msg = msg .. "вЂў Active ESP tags: " .. activeCount .. "\n"
-
+    msg = msg .. "• Entities: " .. entCount .. "\n• Players: " .. pCount .. "\n• ESP Tags: " .. activeCount
     DiagLabel.Text = msg
 end
 
 task.spawn(function()
-    while task.wait(0.25) do
-        if _G._TESP_SESSION_ID ~= sessionID then
-            break
-        end
+    while task.wait(0.3) do
+        if _G._TESP_SESSION_ID ~= sessionID then break end
         pcall(UpdateESP)
         pcall(UpdateDiag)
     end
 end)
 
 -- ================================================================
---  AIMBOT (RenderStepped вЂ” РєР°Р¶РґС‹Р№ РєР°РґСЂ)
+--  AIMBOT
 -- ================================================================
 local function FindBestTarget()
     local sc = Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y/2)
@@ -820,7 +717,7 @@ local function FindBestTarget()
     local bestScreenDist = CFG.AimFOV
 
     if CFG.AimPlayers then
-        for model, plr in pairs(TrackedPlayers) do
+        for model, _ in pairs(TrackedPlayers) do
             local part = GetPart(model, CFG.AimPart)
             if part then
                 local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
@@ -858,7 +755,6 @@ local function FindBestTarget()
             end
         end
     end
-
     return bestPart
 end
 
@@ -884,7 +780,7 @@ renderConn = RunService.RenderStepped:Connect(function()
 end)
 
 -- ================================================================
---  GUI РЎРљР РћР›Р›РР РЈР•РњРћР• РњР•РќР®
+--  GUI СКРОЛЛИРУЕМОЕ МЕНЮ
 -- ================================================================
 local BH = MOBILE and 42 or 30
 local FS = MOBILE and 14 or 12
@@ -915,7 +811,7 @@ local TTitle = Instance.new("TextLabel")
 TTitle.Size = UDim2.new(1, -50, 1, 0)
 TTitle.Position = UDim2.new(0, 10, 0, 0)
 TTitle.BackgroundTransparency = 1
-TTitle.Text = "вљ” TRIDENT FULL CHAMS"
+TTitle.Text = "⚔ TRIDENT ADVANCED"
 TTitle.TextColor3 = Color3.fromRGB(170, 170, 255)
 TTitle.TextSize = MOBILE and 16 or 14
 TTitle.Font = Enum.Font.GothamBold
@@ -927,7 +823,7 @@ MinBtn.Size = UDim2.new(0, MOBILE and 36 or 28, 0, MOBILE and 28 or 22)
 MinBtn.Position = UDim2.new(1, MOBILE and -40 or -32, 0.5, MOBILE and -14 or -11)
 MinBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 MinBtn.BorderSizePixel = 0
-MinBtn.Text = "в€’"
+MinBtn.Text = "−"
 MinBtn.TextSize = MOBILE and 22 or 16
 MinBtn.TextColor3 = Color3.new(1, 1, 1)
 MinBtn.Font = Enum.Font.GothamBold
@@ -959,7 +855,7 @@ local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     Scroll.Visible = not minimized
-    MinBtn.Text = minimized and "+" or "в€’"
+    MinBtn.Text = minimized and "+" or "−"
     if minimized then
         Panel.Size = UDim2.new(0, PW, 0, MOBILE and 44 or 36)
     else
@@ -989,7 +885,7 @@ do
 end
 
 -- ================================================================
---  РљРћРњРџРћРќР•РќРўР« РњР•РќР®
+--  КОМПОНЕНТЫ МЕНЮ
 -- ================================================================
 local layoutOrder = 0
 
@@ -1175,7 +1071,7 @@ local function Slider(text, min, max, get, set)
 end
 
 -- ================================================================
---  РџРћРЎРўР РћР•РќРР• РњР•РќР®
+--  ПОСТРОЕНИЕ МЕНЮ
 -- ================================================================
 
 Sec("AIMBOT")
@@ -1242,7 +1138,6 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" вљ” TRIDENT SURVIVAL ESP v4.0 вЂ” LOADED")
-print("   в… FULL CHAMS & VM CHAMS ACTIVE в…")
-print(MOBILE and " рџ“± Mobile Mode" or " рџ’» PC Mode")
+print(" ⚔ TRIDENT SURVIVAL ESP v4.1 — LOADED SUCCESSFULLY")
+print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print("==========================================") 
