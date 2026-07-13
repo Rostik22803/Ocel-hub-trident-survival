@@ -424,6 +424,22 @@ SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 SG.IgnoreGuiInset = true
 SG.Parent = LP.PlayerGui
 
+local hlFolder = Instance.new("Folder")
+hlFolder.Name = "TESP_Highlights"
+hlFolder.Parent = SG
+
+local hlPool = {}
+for i = 1, 30 do
+    local hl = Instance.new("Highlight")
+    hl.Name = "HL_" .. i
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillTransparency = 0.6
+    hl.OutlineTransparency = 0.1
+    hl.Enabled = false
+    hl.Parent = hlFolder
+    table.insert(hlPool, hl)
+end
+
 -- ================================================================
 --  FOV КРУГ (UI Элемент)
 -- ================================================================
@@ -447,16 +463,12 @@ fovStroke.Transparency = 0.4
 -- ================================================================
 --  ОБНОВЛЕНИЕ ESP
 -- ================================================================
-local ActiveESP = {} -- [instance] = { bb = BillboardGui, hl = Highlight, type = string }
+local ActiveESP = {} -- [instance] = { bb = BillboardGui, type = string }
 
 local function ClearESP(instance)
     local data = ActiveESP[instance]
     if data then
         pcall(function() data.bb:Destroy() end)
-        pcall(function()
-            local oldH = instance:FindFirstChild("_H")
-            if oldH then oldH:Destroy() end
-        end)
         ActiveESP[instance] = nil
     end
 end
@@ -471,7 +483,7 @@ end
 local function UpdateESP()
     local myPos = MyPos()
     local currentActive = {}
-    local visibleHighlights = {} -- собираем все видимые Highlights для сортировки
+    local visibleHighlights = {} -- собираем все видимые объекты для сортировки
 
     -- 1. Игроки
     for model, plr in pairs(TrackedPlayers) do
@@ -534,33 +546,14 @@ local function UpdateESP()
                         hpFill.Parent = hpBg
                         Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
 
-                        local hl = model:FindFirstChild("_H")
-                        if not hl then
-                            pcall(function()
-                                hl = Instance.new("Highlight")
-                                hl.Name = "_H"
-                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Виден сквозь стены!
-                                hl.FillTransparency = 0.55 -- Плотная заливка
-                                hl.OutlineTransparency = 0.1
-                                hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
-                                hl.FillColor3 = Color3.fromRGB(255, 60, 60)
-                                hl.Adornee = model
-                                hl.Parent = model -- Обязательно в модель в workspace!
-                            end)
-                        end
-
-                        data = { bb = bb, hl = hl, type = "player", root = root }
+                        data = { bb = bb, type = "player", root = root }
                         ActiveESP[model] = data
                     end
 
                     data.bb.Enabled = true
                     data.bb.Adornee = root
                     
-                    local hl = model:FindFirstChild("_H")
-                    if hl then
-                        hl.Enabled = false -- временно выключим, далее отсортируем и включим топ-24
-                        table.insert(visibleHighlights, { hl = hl, dist = dist })
-                    end
+                    table.insert(visibleHighlights, { model = model, color = Color3.fromRGB(255, 60, 60), dist = dist })
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = plr.DisplayName end
@@ -583,8 +576,6 @@ local function UpdateESP()
                 else
                     if data then
                         data.bb.Enabled = false
-                        local hl = model:FindFirstChild("_H")
-                        if hl then hl.Enabled = false end
                     end
                 end
             end
@@ -657,39 +648,25 @@ local function UpdateESP()
                             Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
                         end
 
-                        local hl = model:FindFirstChild("_H")
-                        if not hl then
-                            pcall(function()
-                                hl = Instance.new("Highlight")
-                                hl.Name = "_H"
-                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Виден сквозь стены!
-                                hl.FillTransparency = 0.55 -- Плотная заливка
-                                hl.OutlineTransparency = 0.1
-                                hl.OutlineColor3 = info.c
-                                hl.FillColor3 = info.c
-                                hl.Adornee = model
-                                hl.Parent = model -- Обязательно в модель в workspace!
-                            end)
-                        end
-
-                        data = { bb = bb, hl = hl, type = cat, part = part }
+                        data = { bb = bb, type = cat, part = part }
                         ActiveESP[model] = data
                     end
 
                     data.bb.Enabled = true
                     data.bb.Adornee = part
                     
-                    local hl = model:FindFirstChild("_H")
-                    if hl then
-                        hl.Enabled = false -- временно выключим для сортировки
-                        local maxHlDist = (cat == "npc") and 400 or 150
-                        if dist <= maxHlDist then
-                            table.insert(visibleHighlights, { hl = hl, dist = dist })
-                        end
+                    local maxHlDist = (cat == "npc") and 400 or 150
+                    if dist <= maxHlDist then
+                        table.insert(visibleHighlights, { model = model, color = info.c, dist = dist })
+                    end
+
+                    local dispName = model.Name
+                    if dispName == "Model" or dispName == "Folder" or dispName == "Part" or dispName == "MeshPart" or dispName == "" then
+                        dispName = info.n
                     end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
-                    if nL then nL.Text = CatIcon(cat) .. info.n end
+                    if nL then nL.Text = CatIcon(cat) .. dispName end
 
                     local dL = data.bb:FindFirstChild("DistLbl")
                     if dL then dL.Text = "[" .. dist .. "m]" end
@@ -708,8 +685,6 @@ local function UpdateESP()
                 else
                     if data then
                         data.bb.Enabled = false
-                        local hl = model:FindFirstChild("_H")
-                        if hl then hl.Enabled = false end
                     end
                 end
             end
@@ -717,11 +692,22 @@ local function UpdateESP()
     end
 
     -- Лимит Roblox: не более 31 Highlight одновременно в игре
-    -- Сортируем собранные Highlights по дистанции и включаем только 24 ближайших
+    -- Сортируем собранные Highlights по дистанции и привязываем их к нашему пулу (30 штук)
     table.sort(visibleHighlights, function(a, b) return a.dist < b.dist end)
-    for i, item in ipairs(visibleHighlights) do
-        if i <= 24 then
-            item.hl.Enabled = true
+    
+    for i = 1, 30 do
+        local hl = hlPool[i]
+        local item = visibleHighlights[i]
+        if hl then
+            if item then
+                hl.Adornee = item.model
+                hl.FillColor3 = item.color
+                hl.OutlineColor3 = item.color
+                hl.Enabled = true
+            else
+                hl.Enabled = false
+                hl.Adornee = nil
+            end
         end
     end
 
