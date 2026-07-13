@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3 (FIXED)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК
 -- ================================================================
@@ -12,26 +12,30 @@ local Cam = workspace.CurrentCamera
 local MOBILE = UIS.TouchEnabled
 
 -- ================================================================
---  НАСТРОЙКИ
+--  НАСТРОЙКИ (КОНФИГ)
 -- ================================================================
 local CFG = {
     ESP_Players  = true,
     ESP_NPCs     = true,
     ESP_Loot     = true,
-    ESP_Resources= false,
+    ESP_Resources= true,
     ESP_Vehicles = true,
     ESP_Danger   = true,
 
+    ShowHealth   = true,
+    MaxDist      = 1000,
+
     Aimbot       = true,
     AimFOV       = 150,
-    AimSmooth    = 0.2,
+    AimSmooth    = 0.25,     -- скорость наведения (0.1 - медленно, 0.5 - быстро)
+    AimPart      = "Head",   -- Head / Torso
     AimPlayers   = true,
     AimNPCs      = true,
     ShowFOV      = true,
 }
 
 -- ================================================================
---  ТАБЛИЦЫ СУЩНОСТЕЙ
+--  ТАБЛИЦЫ НАСТРОЕК СУЩНОСТЕЙ
 -- ================================================================
 local NPC = {
     Ghoul           = {n="Ghoul",           c=Color3.fromRGB(120,255,50), hp=200},
@@ -82,13 +86,12 @@ local DNG = {
     GasTrap   ={n="Gas Trap",   c=Color3.fromRGB(0,255,100)},
 }
 
-local function Classify(model)
-    local nm = model.Name
-    if NPC[nm]  then return "npc",  NPC[nm]  end
-    if LOOT[nm] then return "loot", LOOT[nm] end
-    if RES[nm]  then return "res",  RES[nm]  end
-    if VEH[nm]  then return "veh",  VEH[nm]  end
-    if DNG[nm]  then return "dng",  DNG[nm]  end
+local function ClassifyType(typeName)
+    if NPC[typeName]  then return "npc",  NPC[typeName]  end
+    if LOOT[typeName] then return "loot", LOOT[typeName] end
+    if RES[typeName]  then return "res",  RES[typeName]  end
+    if VEH[typeName]  then return "veh",  VEH[typeName]  end
+    if DNG[typeName]  then return "dng",  DNG[typeName]  end
     return nil, nil
 end
 
@@ -103,10 +106,10 @@ end
 
 local function CatMaxDist(cat, info)
     if info and info.md then return info.md end
-    if cat == "npc"  then return 500 end
+    if cat == "npc"  then return 600 end
     if cat == "loot" then return 400 end
-    if cat == "res"  then return 200 end
-    if cat == "veh"  then return 600 end
+    if cat == "res"  then return 250 end
+    if cat == "veh"  then return 800 end
     if cat == "dng"  then return 300 end
     return 400
 end
@@ -121,14 +124,14 @@ local function CatIcon(cat)
 end
 
 -- ================================================================
---  УТИЛИТЫ
+--  ПОЛУЧЕНИЕ ДАННЫХ ОТ КЛИЕНТА (САМОЕ ВАЖНОЕ)
 -- ================================================================
-local function MyRoot()
-    local ch = LP.Character
-    return ch and (ch:FindFirstChild("HumanoidRootPart") or ch.PrimaryPart)
+local function MyPos()
+    return Cam.CFrame.Position
 end
 
 local function GetPart(model, name)
+    if not model then return nil end
     return model:FindFirstChild(name or "Head")
         or model:FindFirstChild("Head")
         or model:FindFirstChild("Torso")
@@ -136,8 +139,60 @@ local function GetPart(model, name)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
+-- Сканирование сущностей через EntityMap
+local function GetEntities()
+    local list = {}
+    local EntityMap = _G.classes and _G.classes.EntityClient and _G.classes.EntityClient.EntityMap
+    
+    if EntityMap then
+        for id, ent in pairs(EntityMap) do
+            if ent.model and ent.model.Parent then
+                table.insert(list, {
+                    model = ent.model,
+                    type = ent.type,
+                    id = ent.id
+                })
+            end
+        end
+    else
+        -- Запасной вариант сканирования workspace
+        for _, child in ipairs(workspace:GetChildren()) do
+            if child:IsA("Model") and child.Name ~= "Model" and child ~= LP.Character then
+                table.insert(list, {
+                    model = child,
+                    type = child.Name
+                })
+            end
+        end
+    end
+    return list
+end
+
+-- Получение игроков (включая тех, что перенесены в Ignore)
+local function GetPlayersList()
+    local list = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP then
+            local char = plr.Character
+            if char and char.Parent then
+                table.insert(list, { player = plr, model = char })
+            else
+                -- Поиск в Ignore папке Trident Survival
+                local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+                if ignoreFolder then
+                    local charModel = ignoreFolder:FindFirstChild(plr.Name)
+                    if charModel and charModel:IsA("Model") then
+                        table.insert(list, { player = plr, model = charModel })
+                    end
+                end
+            end
+        end
+    end
+    return list
+end
+
 -- ================================================================
---  CLEANUP OLD
+--  УДАЛЕНИЕ ПРЕДЫДУЩЕГО СКРИПТА
 -- ================================================================
 if _G._TESP_CLEANUP then pcall(_G._TESP_CLEANUP) end
 
@@ -148,11 +203,11 @@ local SG = Instance.new("ScreenGui")
 SG.Name = "TESP3"
 SG.ResetOnSpawn = false
 SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-SG.IgnoreGuiInset = false
+SG.IgnoreGuiInset = true
 SG.Parent = LP.PlayerGui
 
 -- ================================================================
---  FOV CIRCLE (чистый UI — не Drawing!)
+--  FOV КРУГ (UI Элемент)
 -- ================================================================
 local FovFrame = Instance.new("Frame")
 FovFrame.Name = "FOV"
@@ -172,374 +227,257 @@ fovStroke.Thickness = 1.5
 fovStroke.Transparency = 0.4
 
 -- ================================================================
---  ESP — BILLBOARDGUI (работает ВЕЗДЕ, через стены, на любом экзекуторе)
--- ================================================================
-local Tracked = {} -- [model] = { bb=BillboardGui, lbl=TextLabel, hpBg=Frame, hpFill=Frame, hl=Highlight?, cat=str, info=tbl }
-
-local function CreateESPTag(model, cat, info)
-    if Tracked[model] then return end
-
-    local part = GetPart(model)
-    if not part then return end
-
-    local color = info.c
-    local maxDist = CatMaxDist(cat, info)
-
-    -- BillboardGui
-    local bb = Instance.new("BillboardGui")
-    bb.Name = "_E"
-    bb.AlwaysOnTop = true
-    bb.Size = UDim2.new(0, 200, 0, 50)
-    bb.StudsOffset = Vector3.new(0, 3.5, 0)
-    bb.MaxDistance = maxDist
-    bb.LightInfluence = 0
-    bb.Adornee = part
-    bb.Active = false
-
-    -- Имя + дистанция
-    local lbl = Instance.new("TextLabel")
-    lbl.Name = "T"
-    lbl.Size = UDim2.new(1, 0, 0, 20)
-    lbl.Position = UDim2.new(0, 0, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = color
-    lbl.TextStrokeTransparency = 0.3
-    lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = MOBILE and 13 or 14
-    lbl.Text = CatIcon(cat) .. info.n
-    lbl.TextScaled = false
-    lbl.Parent = bb
-
-    -- HP бар (только для NPC)
-    local hpBg, hpFill
-    if cat == "npc" then
-        hpBg = Instance.new("Frame")
-        hpBg.Size = UDim2.new(0.5, 0, 0, MOBILE and 5 or 4)
-        hpBg.Position = UDim2.new(0.25, 0, 0, 22)
-        hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        hpBg.BorderSizePixel = 0
-        hpBg.Parent = bb
-        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
-
-        hpFill = Instance.new("Frame")
-        hpFill.Size = UDim2.new(1, 0, 1, 0)
-        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        hpFill.BorderSizePixel = 0
-        hpFill.Parent = hpBg
-        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
-    end
-
-    bb.Parent = LP.PlayerGui
-
-    -- Highlight (опционально, с pcall если не поддерживается)
-    local hl = nil
-    pcall(function()
-        hl = Instance.new("Highlight")
-        hl.FillTransparency = 0.75
-        hl.OutlineTransparency = 0.1
-        hl.OutlineColor3 = color
-        hl.FillColor3 = color
-        hl.Adornee = model
-        hl.Parent = SG
-    end)
-
-    Tracked[model] = {
-        bb = bb, lbl = lbl, hpBg = hpBg, hpFill = hpFill,
-        hl = hl, cat = cat, info = info, part = part,
-    }
-end
-
-local function RemoveESPTag(model)
-    local t = Tracked[model]
-    if not t then return end
-    pcall(function() t.bb:Destroy() end)
-    if t.hl then pcall(function() t.hl:Destroy() end) end
-    Tracked[model] = nil
-end
-
--- ================================================================
---  ESP ИГРОКОВ
--- ================================================================
-local PlrTracked = {} -- [player] = { bb, lbl, hpBg, hpFill, hl }
-
-local function CreatePlayerESP(plr)
-    if plr == LP or PlrTracked[plr] then return end
-
-    local function Setup()
-        local ch = plr.Character
-        if not ch then return end
-        local root = ch:FindFirstChild("HumanoidRootPart") or ch.PrimaryPart
-        if not root then return end
-
-        -- Удалить старое если есть
-        if PlrTracked[plr] then
-            pcall(function() PlrTracked[plr].bb:Destroy() end)
-            if PlrTracked[plr].hl then pcall(function() PlrTracked[plr].hl:Destroy() end) end
-        end
-
-        local bb = Instance.new("BillboardGui")
-        bb.Name = "_P"
-        bb.AlwaysOnTop = true
-        bb.Size = UDim2.new(0, 220, 0, 60)
-        bb.StudsOffset = Vector3.new(0, 3.5, 0)
-        bb.MaxDistance = 1000
-        bb.LightInfluence = 0
-        bb.Adornee = root
-        bb.Active = false
-
-        -- Имя
-        local lbl = Instance.new("TextLabel")
-        lbl.Size = UDim2.new(1, 0, 0, 18)
-        lbl.BackgroundTransparency = 1
-        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        lbl.TextStrokeTransparency = 0.2
-        lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-        lbl.Font = Enum.Font.GothamBold
-        lbl.TextSize = MOBILE and 14 or 15
-        lbl.Text = plr.DisplayName
-        lbl.Parent = bb
-
-        -- HP бар
-        local hpBg = Instance.new("Frame")
-        hpBg.Size = UDim2.new(0.6, 0, 0, MOBILE and 5 or 4)
-        hpBg.Position = UDim2.new(0.2, 0, 0, 20)
-        hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        hpBg.BorderSizePixel = 0
-        hpBg.Parent = bb
-        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
-
-        local hpFill = Instance.new("Frame")
-        hpFill.Size = UDim2.new(1, 0, 1, 0)
-        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        hpFill.BorderSizePixel = 0
-        hpFill.Parent = hpBg
-        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
-
-        -- Дистанция
-        local distLbl = Instance.new("TextLabel")
-        distLbl.Size = UDim2.new(1, 0, 0, 14)
-        distLbl.Position = UDim2.new(0, 0, 0, 27)
-        distLbl.BackgroundTransparency = 1
-        distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-        distLbl.TextStrokeTransparency = 0.4
-        distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-        distLbl.Font = Enum.Font.Gotham
-        distLbl.TextSize = MOBILE and 11 or 12
-        distLbl.Text = ""
-        distLbl.Parent = bb
-
-        bb.Parent = LP.PlayerGui
-
-        -- Highlight
-        local hl = nil
-        pcall(function()
-            hl = Instance.new("Highlight")
-            hl.FillTransparency = 0.8
-            hl.OutlineTransparency = 0
-            hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
-            hl.FillColor3 = Color3.fromRGB(255, 60, 60)
-            hl.Adornee = ch
-            hl.Parent = SG
-        end)
-
-        PlrTracked[plr] = {
-            bb = bb, lbl = lbl, hpBg = hpBg, hpFill = hpFill,
-            distLbl = distLbl, hl = hl, root = root,
-        }
-    end
-
-    -- Подключить к текущему персонажу
-    if plr.Character then task.spawn(Setup) end
-    -- И к будущим
-    plr.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        Setup()
-    end)
-end
-
-local function RemovePlayerESP(plr)
-    local t = PlrTracked[plr]
-    if not t then return end
-    pcall(function() t.bb:Destroy() end)
-    if t.hl then pcall(function() t.hl:Destroy() end) end
-    PlrTracked[plr] = nil
-end
-
--- Инициализация игроков
-for _, p in ipairs(Players:GetPlayers()) do CreatePlayerESP(p) end
-Players.PlayerAdded:Connect(CreatePlayerESP)
-Players.PlayerRemoving:Connect(RemovePlayerESP)
-
--- ================================================================
---  СКАНЕР СУЩНОСТЕЙ
--- ================================================================
-local function ScanWorld()
-    for _, child in ipairs(workspace:GetChildren()) do
-        if child:IsA("Model") and child ~= LP.Character then
-            local cat, info = Classify(child)
-            if cat and not Tracked[child] then
-                CreateESPTag(child, cat, info)
-            end
-        end
-    end
-
-    -- Удалить мёртвые
-    for model in pairs(Tracked) do
-        if not model.Parent then
-            RemoveESPTag(model)
-        end
-    end
-end
-
-ScanWorld()
-
-workspace.ChildAdded:Connect(function(ch)
-    if not ch:IsA("Model") then return end
-    task.wait(0.2)
-    local cat, info = Classify(ch)
-    if cat then CreateESPTag(ch, cat, info) end
-end)
-
-workspace.ChildRemoved:Connect(function(ch)
-    RemoveESPTag(ch)
-end)
-
--- Периодический рескан
-task.spawn(function()
-    while task.wait(3) do
-        pcall(ScanWorld)
-    end
-end)
-
--- ================================================================
---  ЦИКЛ ОБНОВЛЕНИЯ ESP (каждые ~0.25с)
+--  ОБНОВЛЕНИЕ ESP (Фоновый цикл)
 -- ================================================================
 task.spawn(function()
     while task.wait(0.25) do
-        local myRoot = MyRoot()
-        if not myRoot then continue end
-        local myPos = myRoot.Position
+        local myPos = MyPos()
 
-        -- Обновить ESP игроков
-        for plr, t in pairs(PlrTracked) do
-            local ok = pcall(function()
-                if not CFG.ESP_Players then
-                    t.bb.Enabled = false
-                    if t.hl then t.hl.Enabled = false end
-                    return
-                end
+        -- 1. Игроки
+        local pList = GetPlayersList()
+        for _, item in ipairs(pList) do
+            local plr = item.player
+            local model = item.model
+            local root = GetPart(model, "HumanoidRootPart")
 
-                local ch = plr.Character
-                local root = ch and (ch:FindFirstChild("HumanoidRootPart") or ch.PrimaryPart)
-                if not root then
-                    t.bb.Enabled = false
-                    if t.hl then t.hl.Enabled = false end
-                    return
-                end
-
-                t.bb.Adornee = root
-                t.bb.Enabled = true
-                if t.hl then t.hl.Adornee = ch; t.hl.Enabled = true end
-
-                -- Дистанция
+            if root then
                 local dist = math.floor((root.Position - myPos).Magnitude)
-                t.lbl.Text = plr.DisplayName
-                t.distLbl.Text = "[" .. dist .. "m]"
+                local bb = root:FindFirstChild("_P")
+                local hl = model:FindFirstChild("_H")
 
-                -- HP
-                local hum = ch:FindFirstChildOfClass("Humanoid")
-                local hp, maxhp = 100, 100
-                local attr = ch:GetAttribute("Health") or ch:GetAttribute("hp")
-                if attr then hp = attr
-                elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
-                local ratio = math.clamp(hp / maxhp, 0, 1)
-                t.hpFill.Size = UDim2.new(ratio, 0, 1, 0)
-                t.hpFill.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
-            end)
-            if not ok then
-                pcall(function() t.bb.Enabled = false end)
+                if CFG.ESP_Players and dist <= CFG.MaxDist then
+                    if not bb then
+                        bb = Instance.new("BillboardGui")
+                        bb.Name = "_P"
+                        bb.AlwaysOnTop = true
+                        bb.Size = UDim2.new(0, 160, 0, 50)
+                        bb.StudsOffset = Vector3.new(0, 3.5, 0)
+                        bb.MaxDistance = CFG.MaxDist
+                        bb.LightInfluence = 0
+                        bb.Adornee = root
+
+                        local nameLbl = Instance.new("TextLabel")
+                        nameLbl.Name = "NameLbl"
+                        nameLbl.Size = UDim2.new(1, 0, 0, 16)
+                        nameLbl.BackgroundTransparency = 1
+                        nameLbl.TextColor3 = Color3.new(1, 1, 1)
+                        nameLbl.TextStrokeTransparency = 0.2
+                        nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                        nameLbl.Font = Enum.Font.GothamBold
+                        nameLbl.TextSize = MOBILE and 11 or 12
+                        nameLbl.Parent = bb
+
+                        local distLbl = Instance.new("TextLabel")
+                        distLbl.Name = "DistLbl"
+                        distLbl.Size = UDim2.new(1, 0, 0, 12)
+                        distLbl.Position = UDim2.new(0, 0, 0, 16)
+                        distLbl.BackgroundTransparency = 1
+                        distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+                        distLbl.TextStrokeTransparency = 0.3
+                        distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                        distLbl.Font = Enum.Font.Gotham
+                        distLbl.TextSize = MOBILE and 9 or 10
+                        distLbl.Parent = bb
+
+                        local hpBg = Instance.new("Frame")
+                        hpBg.Name = "HpBg"
+                        hpBg.Size = UDim2.new(0.5, 0, 0, 4)
+                        hpBg.Position = UDim2.new(0.25, 0, 0, 30)
+                        hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                        hpBg.BorderSizePixel = 0
+                        hpBg.Parent = bb
+                        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
+
+                        local hpFill = Instance.new("Frame")
+                        hpFill.Name = "HpFill"
+                        hpFill.Size = UDim2.new(1, 0, 1, 0)
+                        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        hpFill.BorderSizePixel = 0
+                        hpFill.Parent = hpBg
+                        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+
+                        bb.Parent = root
+                    end
+
+                    if not hl then
+                        pcall(function()
+                            hl = Instance.new("Highlight")
+                            hl.Name = "_H"
+                            hl.FillTransparency = 0.8
+                            hl.OutlineTransparency = 0.2
+                            hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
+                            hl.FillColor3 = Color3.fromRGB(255, 60, 60)
+                            hl.Adornee = model
+                            hl.Parent = model
+                        end)
+                    end
+
+                    bb.Enabled = true
+                    if hl then hl.Enabled = true end
+
+                    local nL = bb:FindFirstChild("NameLbl")
+                    if nL then nL.Text = plr.DisplayName end
+
+                    local dL = bb:FindFirstChild("DistLbl")
+                    if dL then dL.Text = "[" .. dist .. "m]" end
+
+                    -- HP
+                    local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
+                    if hF then
+                        local hum = model:FindFirstChildOfClass("Humanoid")
+                        local hp, maxhp = 100, 100
+                        local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
+                        if attr then hp = attr
+                        elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
+                        local ratio = math.clamp(hp / maxhp, 0, 1)
+                        hF.Size = UDim2.new(ratio, 0, 1, 0)
+                        hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                        bb.HpBg.Visible = CFG.ShowHealth
+                    end
+                else
+                    if bb then bb.Enabled = false end
+                    if hl then hl.Enabled = false end
+                end
             end
         end
 
-        -- Обновить ESP сущностей
-        for model, t in pairs(Tracked) do
-            local ok = pcall(function()
-                if not CatEnabled(t.cat) or not model.Parent then
-                    t.bb.Enabled = false
-                    if t.hl then t.hl.Enabled = false end
-                    return
-                end
+        -- 2. Сущности (NPC, Loot, Ore, Trees...)
+        local entList = GetEntities()
+        for _, ent in ipairs(entList) do
+            local model = ent.model
+            local cat, info = ClassifyType(ent.type)
 
+            if cat and info and model.Parent then
                 local part = GetPart(model)
-                if not part then
-                    t.bb.Enabled = false
-                    if t.hl then t.hl.Enabled = false end
-                    return
-                end
+                if part then
+                    local dist = math.floor((part.Position - myPos).Magnitude)
+                    local maxD = CatMaxDist(cat, info)
+                    local bb = part:FindFirstChild("_E")
+                    local hl = model:FindFirstChild("_H")
 
-                t.bb.Adornee = part
-                t.bb.Enabled = true
-                if t.hl then t.hl.Enabled = true end
+                    if CatEnabled(cat) and dist <= maxD then
+                        if not bb then
+                            bb = Instance.new("BillboardGui")
+                            bb.Name = "_E"
+                            bb.AlwaysOnTop = true
+                            bb.Size = UDim2.new(0, 150, 0, 45)
+                            bb.StudsOffset = Vector3.new(0, 3, 0)
+                            bb.MaxDistance = maxD
+                            bb.LightInfluence = 0
+                            bb.Adornee = part
 
-                -- Дистанция
-                local dist = math.floor((part.Position - myPos).Magnitude)
-                t.lbl.Text = CatIcon(t.cat) .. t.info.n .. "  [" .. dist .. "m]"
+                            local nameLbl = Instance.new("TextLabel")
+                            nameLbl.Name = "NameLbl"
+                            nameLbl.Size = UDim2.new(1, 0, 0, 16)
+                            nameLbl.BackgroundTransparency = 1
+                            nameLbl.TextColor3 = info.c
+                            nameLbl.TextStrokeTransparency = 0.2
+                            nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                            nameLbl.Font = Enum.Font.GothamBold
+                            nameLbl.TextSize = MOBILE and 10 or 11
+                            nameLbl.Parent = bb
 
-                -- HP для NPC
-                if t.cat == "npc" and t.hpFill then
-                    local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
-                    if attr then
-                        local ratio = math.clamp(attr / (t.info.hp or 100), 0, 1)
-                        t.hpFill.Size = UDim2.new(ratio, 0, 1, 0)
-                        t.hpFill.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                            local distLbl = Instance.new("TextLabel")
+                            distLbl.Name = "DistLbl"
+                            distLbl.Size = UDim2.new(1, 0, 0, 12)
+                            distLbl.Position = UDim2.new(0, 0, 0, 15)
+                            distLbl.BackgroundTransparency = 1
+                            distLbl.TextColor3 = info.c
+                            distLbl.TextStrokeTransparency = 0.3
+                            distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                            distLbl.Font = Enum.Font.Gotham
+                            distLbl.TextSize = MOBILE and 8 or 9
+                            distLbl.Parent = bb
+
+                            if cat == "npc" then
+                                local hpBg = Instance.new("Frame")
+                                hpBg.Name = "HpBg"
+                                hpBg.Size = UDim2.new(0.5, 0, 0, 4)
+                                hpBg.Position = UDim2.new(0.25, 0, 0, 28)
+                                hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                                hpBg.BorderSizePixel = 0
+                                hpBg.Parent = bb
+                                Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
+
+                                local hpFill = Instance.new("Frame")
+                                hpFill.Name = "HpFill"
+                                hpFill.Size = UDim2.new(1, 0, 1, 0)
+                                hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                                hpFill.BorderSizePixel = 0
+                                hpFill.Parent = hpBg
+                                Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+                            end
+
+                            bb.Parent = part
+                        end
+
+                        if not hl then
+                            pcall(function()
+                                hl = Instance.new("Highlight")
+                                hl.Name = "_H"
+                                hl.FillTransparency = 0.85
+                                hl.OutlineTransparency = 0.2
+                                hl.OutlineColor3 = info.c
+                                hl.FillColor3 = info.c
+                                hl.Adornee = model
+                                hl.Parent = model
+                            end)
+                        end
+
+                        bb.Enabled = true
+                        if hl then hl.Enabled = true end
+
+                        local nL = bb:FindFirstChild("NameLbl")
+                        if nL then nL.Text = CatIcon(cat) .. info.n end
+
+                        local dL = bb:FindFirstChild("DistLbl")
+                        if dL then dL.Text = "[" .. dist .. "m]" end
+
+                        if cat == "npc" then
+                            local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
+                            if hF then
+                                local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
+                                if attr then
+                                    local ratio = math.clamp(attr / (info.hp or 100), 0, 1)
+                                    hF.Size = UDim2.new(ratio, 0, 1, 0)
+                                    hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                                end
+                            end
+                        end
+                    else
+                        if bb then bb.Enabled = false end
+                        if hl then hl.Enabled = false end
                     end
                 end
-            end)
-            if not ok then
-                pcall(function() t.bb.Enabled = false end)
             end
         end
     end
 end)
 
 -- ================================================================
---  AIMBOT  (RenderStepped — каждый кадр)
---  Ищет цель от ЦЕНТРА ЭКРАНА, не от тача
---  Работает автоматически когда CFG.Aimbot = true
+--  AIMBOT (RenderStepped — каждый кадр)
 -- ================================================================
-RunService.RenderStepped:Connect(function()
-    -- Обновить FOV круг
-    FovFrame.Visible = CFG.Aimbot and CFG.ShowFOV
-    FovFrame.Size = UDim2.new(0, CFG.AimFOV * 2, 0, CFG.AimFOV * 2)
-
-    if not CFG.Aimbot then return end
-
-    local myRoot = MyRoot()
-    if not myRoot then return end
-    local myPos = myRoot.Position
-
-    local vpSize = Cam.ViewportSize
-    local center = Vector2.new(vpSize.X / 2, vpSize.Y / 2)
-
+local function FindBestTarget()
+    local sc = Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y/2)
+    local myPos = MyPos()
     local bestPart = nil
     local bestScreenDist = CFG.AimFOV
 
-    -- Поиск среди игроков
+    -- 1. Игроки
     if CFG.AimPlayers then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LP and plr.Character then
-                local part = GetPart(plr.Character, CFG.AimPart or "Head")
-                if part then
-                    local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
-                    if vis and depth > 0 then
-                        local d3 = (part.Position - myPos).Magnitude
-                        if d3 < 800 then
-                            local sd = (Vector2.new(sp.X, sp.Y) - center).Magnitude
-                            if sd < bestScreenDist then
-                                bestScreenDist = sd
-                                bestPart = part
-                            end
+        local pList = GetPlayersList()
+        for _, item in ipairs(pList) do
+            local model = item.model
+            local part = GetPart(model, CFG.AimPart)
+            if part then
+                local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
+                if vis and depth > 0 then
+                    local dist3 = (part.Position - myPos).Magnitude
+                    if dist3 <= CFG.MaxDist then
+                        local sd = (Vector2.new(sp.X, sp.Y) - sc).Magnitude
+                        if sd < bestScreenDist then
+                            bestScreenDist = sd
+                            bestPart = part
                         end
                     end
                 end
@@ -547,17 +485,19 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Поиск среди NPC
+    -- 2. NPC
     if CFG.AimNPCs then
-        for model, t in pairs(Tracked) do
-            if t.cat == "npc" and model.Parent then
-                local part = GetPart(model, "Head")
+        local entList = GetEntities()
+        for _, ent in ipairs(entList) do
+            local cat, _ = ClassifyType(ent.type)
+            if cat == "npc" and ent.model and ent.model.Parent then
+                local part = GetPart(ent.model, "Head")
                 if part then
                     local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
                     if vis and depth > 0 then
-                        local d3 = (part.Position - myPos).Magnitude
-                        if d3 < 500 then
-                            local sd = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+                        local dist3 = (part.Position - myPos).Magnitude
+                        if dist3 <= 500 then
+                            local sd = (Vector2.new(sp.X, sp.Y) - sc).Magnitude
                             if sd < bestScreenDist then
                                 bestScreenDist = sd
                                 bestPart = part
@@ -569,23 +509,31 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Наведение
-    if bestPart and bestPart.Parent then
+    return bestPart
+end
+
+RunService.RenderStepped:Connect(function()
+    FovFrame.Visible = CFG.Aimbot and CFG.ShowFOV
+    FovFrame.Size = UDim2.new(0, CFG.AimFOV*2, 0, CFG.AimFOV*2)
+
+    if not CFG.Aimbot then return end
+
+    local target = FindBestTarget()
+    if target and target.Parent then
         local camPos = Cam.CFrame.Position
-        local dir = (bestPart.Position - camPos).Unit
+        local dir = (target.Position - camPos).Unit
         local goal = CFrame.lookAt(camPos, camPos + dir)
         Cam.CFrame = Cam.CFrame:Lerp(goal, CFG.AimSmooth)
     end
 end)
 
 -- ================================================================
---  GUI МЕНЮ — СКРОЛЛИРУЕМОЕ
+--  GUI СКРОЛЛИРУЕМОЕ МЕНЮ
 -- ================================================================
 local BH = MOBILE and 42 or 30
 local FS = MOBILE and 14 or 12
 local PW = MOBILE and 280 or 240
 
--- Панель
 local Panel = Instance.new("Frame")
 Panel.Name = "Panel"
 Panel.Size = UDim2.new(0, PW, 0, MOBILE and 420 or 380)
@@ -595,10 +543,12 @@ Panel.BackgroundTransparency = 0.08
 Panel.BorderSizePixel = 0
 Panel.Parent = SG
 Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 10)
-local ps = Instance.new("UIStroke", Panel)
-ps.Color = Color3.fromRGB(80, 80, 200); ps.Thickness = 1.2
 
--- Тайтл бар (НЕ в скролле, для перетаскивания)
+local ps = Instance.new("UIStroke", Panel)
+ps.Color = Color3.fromRGB(80, 80, 200)
+ps.Thickness = 1.2
+
+-- Тайтл
 local TBar = Instance.new("Frame")
 TBar.Size = UDim2.new(1, 0, 0, MOBILE and 40 or 32)
 TBar.BackgroundColor3 = Color3.fromRGB(20, 20, 55)
@@ -617,7 +567,6 @@ TTitle.Font = Enum.Font.GothamBold
 TTitle.TextXAlignment = Enum.TextXAlignment.Left
 TTitle.Parent = TBar
 
--- Кнопка свернуть
 local MinBtn = Instance.new("TextButton")
 MinBtn.Size = UDim2.new(0, MOBILE and 36 or 28, 0, MOBILE and 28 or 22)
 MinBtn.Position = UDim2.new(1, MOBILE and -40 or -32, 0.5, MOBILE and -14 or -11)
@@ -630,7 +579,7 @@ MinBtn.Font = Enum.Font.GothamBold
 MinBtn.Parent = TBar
 Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 5)
 
--- СКРОЛЛИРУЕМАЯ ОБЛАСТЬ (вот это было сломано раньше)
+-- Скролл
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Name = "Scroll"
 Scroll.Size = UDim2.new(1, -10, 1, -(MOBILE and 48 or 38))
@@ -652,7 +601,7 @@ SList.Padding = UDim.new(0, 3)
 local SPad = Instance.new("UIPadding", Scroll)
 SPad.PaddingTop = UDim.new(0, 2); SPad.PaddingBottom = UDim.new(0, 8)
 
--- Свернуть/развернуть
+-- Свернуть / Развернуть
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -665,7 +614,7 @@ MinBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Перетаскивание
+-- Драг меню
 do
     local drag, dStart, pStart
     TBar.InputBegan:Connect(function(inp)
@@ -688,7 +637,7 @@ do
 end
 
 -- ================================================================
---  GUI — КОМПОНЕНТЫ
+--  КОМПОНЕНТЫ МЕНЮ
 -- ================================================================
 local layoutOrder = 0
 
@@ -752,7 +701,7 @@ local function Toggle(text, get, set)
     knob.BackgroundColor3 = Color3.new(1, 1, 1)
     knob.BorderSizePixel = 0
     knob.Parent = btn
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0, TH/2)
 
     local function Ref()
         local on = get()
@@ -834,7 +783,6 @@ local function Slider(text, min, max, get, set)
     end
     SetVisual((get() - min) / (max - min))
 
-    -- Зона ввода (расширенная для пальцев)
     local hitbox = Instance.new("TextButton")
     hitbox.Size = UDim2.new(1, 10, 0, MOBILE and 40 or 28)
     hitbox.Position = UDim2.new(0, -5, 0.5, MOBILE and -20 or -14)
@@ -875,27 +823,34 @@ local function Slider(text, min, max, get, set)
 end
 
 -- ================================================================
---  ЗАПОЛНЕНИЕ МЕНЮ
+--  ПОСТРОЕНИЕ МЕНЮ
 -- ================================================================
 
 Sec("AIMBOT")
-Toggle("Aimbot",         function() return CFG.Aimbot    end, function(v) CFG.Aimbot    = v end)
+Toggle("Aimbot ON",     function() return CFG.Aimbot    end, function(v) CFG.Aimbot    = v end)
 Toggle("Aim Players",   function() return CFG.AimPlayers end, function(v) CFG.AimPlayers = v end)
 Toggle("Aim NPCs",      function() return CFG.AimNPCs   end, function(v) CFG.AimNPCs    = v end)
 Toggle("Show FOV",       function() return CFG.ShowFOV   end, function(v) CFG.ShowFOV    = v end)
 Slider("FOV Radius", 30, 350,
     function() return CFG.AimFOV end,
     function(v) CFG.AimFOV = v end)
+Slider("Smoothing %", 5, 100,
+    function() return math.floor(CFG.AimSmooth * 100) end,
+    function(v) CFG.AimSmooth = v / 100 end)
 
-Sec("PLAYERS")
-Toggle("Players ESP",   function() return CFG.ESP_Players end, function(v) CFG.ESP_Players = v end)
+Sec("ESP CATEGORIES")
+Toggle("Players",       function() return CFG.ESP_Players   end, function(v) CFG.ESP_Players   = v end)
+Toggle("NPCs (HP)",     function() return CFG.ESP_NPCs      end, function(v) CFG.ESP_NPCs      = v end)
+Toggle("Loot Crates",   function() return CFG.ESP_Loot      end, function(v) CFG.ESP_Loot      = v end)
+Toggle("Vehicles",      function() return CFG.ESP_Vehicles  end, function(v) CFG.ESP_Vehicles  = v end)
+Toggle("Danger Traps",  function() return CFG.ESP_Danger    end, function(v) CFG.ESP_Danger    = v end)
+Toggle("Resources / Trees", function() return CFG.ESP_Resources end, function(v) CFG.ESP_Resources = v end)
 
-Sec("ENTITIES")
-Toggle("NPCs",          function() return CFG.ESP_NPCs       end, function(v) CFG.ESP_NPCs      = v end)
-Toggle("Loot",          function() return CFG.ESP_Loot       end, function(v) CFG.ESP_Loot      = v end)
-Toggle("Resources",     function() return CFG.ESP_Resources  end, function(v) CFG.ESP_Resources = v end)
-Toggle("Vehicles",      function() return CFG.ESP_Vehicles   end, function(v) CFG.ESP_Vehicles  = v end)
-Toggle("Danger",        function() return CFG.ESP_Danger     end, function(v) CFG.ESP_Danger    = v end)
+Sec("ESP OPTIONS")
+Toggle("Show Health",   function() return CFG.ShowHealth    end, function(v) CFG.ShowHealth    = v end)
+Slider("Max Distance", 100, 2000,
+    function() return CFG.MaxDist end,
+    function(v) CFG.MaxDist = v end)
 
 -- ================================================================
 --  ГОРЯЧИЕ КЛАВИШИ (ПК)
@@ -911,19 +866,42 @@ UIS.InputBegan:Connect(function(inp, gp)
 end)
 
 -- ================================================================
---  CLEANUP
+--  CLEANUP FUNCTION
 -- ================================================================
 _G._TESP_CLEANUP = function()
-    for model in pairs(Tracked) do RemoveESPTag(model) end
-    for plr in pairs(PlrTracked) do RemovePlayerESP(plr) end
     pcall(function() SG:Destroy() end)
-    print("[TESP] Unloaded")
+    
+    -- Чистим все BillboardGui и Highlight с объектов
+    local pList = GetPlayersList()
+    for _, item in ipairs(pList) do
+        local model = item.model
+        local root = GetPart(model, "HumanoidRootPart")
+        if root then
+            local bb = root:FindFirstChild("_P")
+            if bb then bb:Destroy() end
+        end
+        local hl = model:FindFirstChild("_H")
+        if hl then hl:Destroy() end
+    end
+
+    local entList = GetEntities()
+    for _, ent in ipairs(entList) do
+        local model = ent.model
+        local part = GetPart(model)
+        if part then
+            local bb = part:FindFirstChild("_E")
+            if bb then bb:Destroy() end
+        end
+        local hl = model:FindFirstChild("_H")
+        if hl then hl:Destroy() end
+    end
+
+    print("[TESP] Cleaned up previous session.")
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT ESP v3 — Loaded!")
+print(" ⚔ TRIDENT SURVIVAL ESP v3 (FIXED) — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
-print(" Aimbot: ON (автоматически)")
-print(" RightShift = toggle aim | Insert = menu")
-print(" _G._TESP_CLEANUP() — выгрузить")
+print(" Aimbot active when enabled.")
+print(" Insert = Toggle GUI | RightShift = Toggle Aim")
 print("==========================================")
