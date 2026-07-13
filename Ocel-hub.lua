@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3 (FIXED)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.1 (DIAGNOSTIC + FIXES)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК
 -- ================================================================
@@ -124,7 +124,7 @@ local function CatIcon(cat)
 end
 
 -- ================================================================
---  ПОЛУЧЕНИЕ ДАННЫХ ОТ КЛИЕНТА (САМОЕ ВАЖНОЕ)
+--  ПОЛУЧЕНИЕ ДАННЫХ ОТ КЛИЕНТА
 -- ================================================================
 local function MyPos()
     return Cam.CFrame.Position
@@ -142,7 +142,8 @@ end
 -- Сканирование сущностей через EntityMap
 local function GetEntities()
     local list = {}
-    local EntityMap = _G.classes and _G.classes.EntityClient and _G.classes.EntityClient.EntityMap
+    local classes = _G.classes
+    local EntityMap = classes and classes.EntityClient and classes.EntityClient.EntityMap
     
     if EntityMap then
         for id, ent in pairs(EntityMap) do
@@ -155,7 +156,7 @@ local function GetEntities()
             end
         end
     else
-        -- Запасной вариант сканирования workspace
+        -- Запасной вариант сканирования workspace, если названия не "Model"
         for _, child in ipairs(workspace:GetChildren()) do
             if child:IsA("Model") and child.Name ~= "Model" and child ~= LP.Character then
                 table.insert(list, {
@@ -168,7 +169,7 @@ local function GetEntities()
     return list
 end
 
--- Получение игроков (включая тех, что перенесены в Ignore)
+-- Получение игроков
 local function GetPlayersList()
     local list = {}
     for _, plr in ipairs(Players:GetPlayers()) do
@@ -229,228 +230,308 @@ fovStroke.Transparency = 0.4
 -- ================================================================
 --  ОБНОВЛЕНИЕ ESP (Фоновый цикл)
 -- ================================================================
-task.spawn(function()
-    while task.wait(0.25) do
-        local myPos = MyPos()
+local ActiveESP = {} -- [instance] = { bb = BillboardGui, hl = Highlight, type = string }
 
-        -- 1. Игроки
-        local pList = GetPlayersList()
-        for _, item in ipairs(pList) do
-            local plr = item.player
-            local model = item.model
-            local root = GetPart(model, "HumanoidRootPart")
+local function ClearESP(instance)
+    local data = ActiveESP[instance]
+    if data then
+        pcall(function() data.bb:Destroy() end)
+        pcall(function() if data.hl then data.hl:Destroy() end end)
+        ActiveESP[instance] = nil
+    end
+end
 
-            if root then
-                local dist = math.floor((root.Position - myPos).Magnitude)
-                local bb = root:FindFirstChild("_P")
-                local hl = model:FindFirstChild("_H")
+local function UpdateESP()
+    local myPos = MyPos()
+    local currentModels = {}
 
-                if CFG.ESP_Players and dist <= CFG.MaxDist then
-                    if not bb then
-                        bb = Instance.new("BillboardGui")
-                        bb.Name = "_P"
+    -- 1. Игроки
+    local pList = GetPlayersList()
+    for _, item in ipairs(pList) do
+        local plr = item.player
+        local model = item.model
+        local root = GetPart(model, "HumanoidRootPart")
+
+        if root and model.Parent then
+            currentModels[model] = true
+            local dist = math.floor((root.Position - myPos).Magnitude)
+            local data = ActiveESP[model]
+
+            if CFG.ESP_Players and dist <= CFG.MaxDist then
+                if not data then
+                    -- Создаем BillboardGui
+                    local bb = Instance.new("BillboardGui")
+                    bb.Name = "_ESP_P_" .. plr.Name
+                    bb.AlwaysOnTop = true
+                    bb.Size = UDim2.new(0, 160, 0, 50)
+                    bb.StudsOffset = Vector3.new(0, 3.5, 0)
+                    bb.MaxDistance = CFG.MaxDist
+                    bb.LightInfluence = 0
+                    bb.Adornee = root
+                    bb.Parent = SG -- Parent to ScreenGui (в PlayerGui!)
+
+                    local nameLbl = Instance.new("TextLabel")
+                    nameLbl.Name = "NameLbl"
+                    nameLbl.Size = UDim2.new(1, 0, 0, 16)
+                    nameLbl.BackgroundTransparency = 1
+                    nameLbl.TextColor3 = Color3.new(1, 1, 1)
+                    nameLbl.TextStrokeTransparency = 0.2
+                    nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    nameLbl.Font = Enum.Font.GothamBold
+                    nameLbl.TextSize = MOBILE and 11 or 12
+                    nameLbl.Parent = bb
+
+                    local distLbl = Instance.new("TextLabel")
+                    distLbl.Name = "DistLbl"
+                    distLbl.Size = UDim2.new(1, 0, 0, 12)
+                    distLbl.Position = UDim2.new(0, 0, 0, 16)
+                    distLbl.BackgroundTransparency = 1
+                    distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    distLbl.TextStrokeTransparency = 0.3
+                    distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    distLbl.Font = Enum.Font.Gotham
+                    distLbl.TextSize = MOBILE and 9 or 10
+                    distLbl.Parent = bb
+
+                    local hpBg = Instance.new("Frame")
+                    hpBg.Name = "HpBg"
+                    hpBg.Size = UDim2.new(0.5, 0, 0, 4)
+                    hpBg.Position = UDim2.new(0.25, 0, 0, 30)
+                    hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    hpBg.BorderSizePixel = 0
+                    hpBg.Parent = bb
+                    Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
+
+                    local hpFill = Instance.new("Frame")
+                    hpFill.Name = "HpFill"
+                    hpFill.Size = UDim2.new(1, 0, 1, 0)
+                    hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                    hpFill.BorderSizePixel = 0
+                    hpFill.Parent = hpBg
+                    Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+
+                    local hl
+                    pcall(function()
+                        hl = Instance.new("Highlight")
+                        hl.Name = "_H"
+                        hl.FillTransparency = 0.8
+                        hl.OutlineTransparency = 0.2
+                        hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
+                        hl.FillColor3 = Color3.fromRGB(255, 60, 60)
+                        hl.Adornee = model
+                        hl.Parent = SG -- Parent to ScreenGui!
+                    end)
+
+                    data = { bb = bb, hl = hl, type = "player", root = root }
+                    ActiveESP[model] = data
+                end
+
+                -- Обновляем данные
+                data.bb.Enabled = true
+                data.bb.Adornee = root
+                if data.hl then
+                    data.hl.Enabled = true
+                    data.hl.Adornee = model
+                end
+
+                local nL = data.bb:FindFirstChild("NameLbl")
+                if nL then nL.Text = plr.DisplayName end
+
+                local dL = data.bb:FindFirstChild("DistLbl")
+                if dL then dL.Text = "[" .. dist .. "m]" end
+
+                -- HP
+                local hF = data.bb:FindFirstChild("HpBg") and data.bb.HpBg:FindFirstChild("HpFill")
+                if hF then
+                    local hum = model:FindFirstChildOfClass("Humanoid")
+                    local hp, maxhp = 100, 100
+                    local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
+                    if attr then hp = attr
+                    elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
+                    local ratio = math.clamp(hp / maxhp, 0, 1)
+                    hF.Size = UDim2.new(ratio, 0, 1, 0)
+                    hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                    data.bb.HpBg.Visible = CFG.ShowHealth
+                end
+            else
+                if data then
+                    data.bb.Enabled = false
+                    if data.hl then data.hl.Enabled = false end
+                end
+            end
+        end
+    end
+
+    -- 2. Сущности (NPC, Loot, Ore, Trees...)
+    local entList = GetEntities()
+    for _, ent in ipairs(entList) do
+        local model = ent.model
+        local cat, info = ClassifyType(ent.type)
+
+        if cat and info and model.Parent then
+            local part = GetPart(model)
+            if part then
+                currentModels[model] = true
+                local dist = math.floor((part.Position - myPos).Magnitude)
+                local maxD = CatMaxDist(cat, info)
+                local data = ActiveESP[model]
+
+                if CatEnabled(cat) and dist <= maxD then
+                    if not data then
+                        local bb = Instance.new("BillboardGui")
+                        bb.Name = "_ESP_E_" .. ent.type
                         bb.AlwaysOnTop = true
-                        bb.Size = UDim2.new(0, 160, 0, 50)
-                        bb.StudsOffset = Vector3.new(0, 3.5, 0)
-                        bb.MaxDistance = CFG.MaxDist
+                        bb.Size = UDim2.new(0, 150, 0, 45)
+                        bb.StudsOffset = Vector3.new(0, 3, 0)
+                        bb.MaxDistance = maxD
                         bb.LightInfluence = 0
-                        bb.Adornee = root
+                        bb.Adornee = part
+                        bb.Parent = SG -- Parent to ScreenGui!
 
                         local nameLbl = Instance.new("TextLabel")
                         nameLbl.Name = "NameLbl"
                         nameLbl.Size = UDim2.new(1, 0, 0, 16)
                         nameLbl.BackgroundTransparency = 1
-                        nameLbl.TextColor3 = Color3.new(1, 1, 1)
+                        nameLbl.TextColor3 = info.c
                         nameLbl.TextStrokeTransparency = 0.2
                         nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         nameLbl.Font = Enum.Font.GothamBold
-                        nameLbl.TextSize = MOBILE and 11 or 12
+                        nameLbl.TextSize = MOBILE and 10 or 11
                         nameLbl.Parent = bb
 
                         local distLbl = Instance.new("TextLabel")
                         distLbl.Name = "DistLbl"
                         distLbl.Size = UDim2.new(1, 0, 0, 12)
-                        distLbl.Position = UDim2.new(0, 0, 0, 16)
+                        distLbl.Position = UDim2.new(0, 0, 0, 15)
                         distLbl.BackgroundTransparency = 1
-                        distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+                        distLbl.TextColor3 = info.c
                         distLbl.TextStrokeTransparency = 0.3
                         distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         distLbl.Font = Enum.Font.Gotham
-                        distLbl.TextSize = MOBILE and 9 or 10
+                        distLbl.TextSize = MOBILE and 8 or 9
                         distLbl.Parent = bb
 
-                        local hpBg = Instance.new("Frame")
-                        hpBg.Name = "HpBg"
-                        hpBg.Size = UDim2.new(0.5, 0, 0, 4)
-                        hpBg.Position = UDim2.new(0.25, 0, 0, 30)
-                        hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                        hpBg.BorderSizePixel = 0
-                        hpBg.Parent = bb
-                        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
+                        if cat == "npc" then
+                            local hpBg = Instance.new("Frame")
+                            hpBg.Name = "HpBg"
+                            hpBg.Size = UDim2.new(0.5, 0, 0, 4)
+                            hpBg.Position = UDim2.new(0.25, 0, 0, 28)
+                            hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                            hpBg.BorderSizePixel = 0
+                            hpBg.Parent = bb
+                            Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
 
-                        local hpFill = Instance.new("Frame")
-                        hpFill.Name = "HpFill"
-                        hpFill.Size = UDim2.new(1, 0, 1, 0)
-                        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                        hpFill.BorderSizePixel = 0
-                        hpFill.Parent = hpBg
-                        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+                            local hpFill = Instance.new("Frame")
+                            hpFill.Name = "HpFill"
+                            hpFill.Size = UDim2.new(1, 0, 1, 0)
+                            hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                            hpFill.BorderSizePixel = 0
+                            hpFill.Parent = hpBg
+                            Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+                        end
 
-                        bb.Parent = root
-                    end
-
-                    if not hl then
+                        local hl
                         pcall(function()
                             hl = Instance.new("Highlight")
                             hl.Name = "_H"
-                            hl.FillTransparency = 0.8
+                            hl.FillTransparency = 0.85
                             hl.OutlineTransparency = 0.2
-                            hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
-                            hl.FillColor3 = Color3.fromRGB(255, 60, 60)
+                            hl.OutlineColor3 = info.c
+                            hl.FillColor3 = info.c
                             hl.Adornee = model
-                            hl.Parent = model
+                            hl.Parent = SG -- Parent to ScreenGui!
                         end)
+
+                        data = { bb = bb, hl = hl, type = cat, part = part }
+                        ActiveESP[model] = data
                     end
 
                     bb.Enabled = true
-                    if hl then hl.Enabled = true end
+                    bb.Adornee = part
+                    if data.hl then
+                        data.hl.Enabled = true
+                        data.hl.Adornee = model
+                    end
 
                     local nL = bb:FindFirstChild("NameLbl")
-                    if nL then nL.Text = plr.DisplayName end
+                    if nL then nL.Text = CatIcon(cat) .. info.n end
 
                     local dL = bb:FindFirstChild("DistLbl")
                     if dL then dL.Text = "[" .. dist .. "m]" end
 
-                    -- HP
-                    local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
-                    if hF then
-                        local hum = model:FindFirstChildOfClass("Humanoid")
-                        local hp, maxhp = 100, 100
-                        local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
-                        if attr then hp = attr
-                        elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
-                        local ratio = math.clamp(hp / maxhp, 0, 1)
-                        hF.Size = UDim2.new(ratio, 0, 1, 0)
-                        hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
-                        bb.HpBg.Visible = CFG.ShowHealth
+                    if cat == "npc" then
+                        local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
+                        if hF then
+                            local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
+                            if attr then
+                                local ratio = math.clamp(attr / (info.hp or 100), 0, 1)
+                                hF.Size = UDim2.new(ratio, 0, 1, 0)
+                                hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                            end
+                        end
                     end
                 else
-                    if bb then bb.Enabled = false end
-                    if hl then hl.Enabled = false end
-                end
-            end
-        end
-
-        -- 2. Сущности (NPC, Loot, Ore, Trees...)
-        local entList = GetEntities()
-        for _, ent in ipairs(entList) do
-            local model = ent.model
-            local cat, info = ClassifyType(ent.type)
-
-            if cat and info and model.Parent then
-                local part = GetPart(model)
-                if part then
-                    local dist = math.floor((part.Position - myPos).Magnitude)
-                    local maxD = CatMaxDist(cat, info)
-                    local bb = part:FindFirstChild("_E")
-                    local hl = model:FindFirstChild("_H")
-
-                    if CatEnabled(cat) and dist <= maxD then
-                        if not bb then
-                            bb = Instance.new("BillboardGui")
-                            bb.Name = "_E"
-                            bb.AlwaysOnTop = true
-                            bb.Size = UDim2.new(0, 150, 0, 45)
-                            bb.StudsOffset = Vector3.new(0, 3, 0)
-                            bb.MaxDistance = maxD
-                            bb.LightInfluence = 0
-                            bb.Adornee = part
-
-                            local nameLbl = Instance.new("TextLabel")
-                            nameLbl.Name = "NameLbl"
-                            nameLbl.Size = UDim2.new(1, 0, 0, 16)
-                            nameLbl.BackgroundTransparency = 1
-                            nameLbl.TextColor3 = info.c
-                            nameLbl.TextStrokeTransparency = 0.2
-                            nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-                            nameLbl.Font = Enum.Font.GothamBold
-                            nameLbl.TextSize = MOBILE and 10 or 11
-                            nameLbl.Parent = bb
-
-                            local distLbl = Instance.new("TextLabel")
-                            distLbl.Name = "DistLbl"
-                            distLbl.Size = UDim2.new(1, 0, 0, 12)
-                            distLbl.Position = UDim2.new(0, 0, 0, 15)
-                            distLbl.BackgroundTransparency = 1
-                            distLbl.TextColor3 = info.c
-                            distLbl.TextStrokeTransparency = 0.3
-                            distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-                            distLbl.Font = Enum.Font.Gotham
-                            distLbl.TextSize = MOBILE and 8 or 9
-                            distLbl.Parent = bb
-
-                            if cat == "npc" then
-                                local hpBg = Instance.new("Frame")
-                                hpBg.Name = "HpBg"
-                                hpBg.Size = UDim2.new(0.5, 0, 0, 4)
-                                hpBg.Position = UDim2.new(0.25, 0, 0, 28)
-                                hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                                hpBg.BorderSizePixel = 0
-                                hpBg.Parent = bb
-                                Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
-
-                                local hpFill = Instance.new("Frame")
-                                hpFill.Name = "HpFill"
-                                hpFill.Size = UDim2.new(1, 0, 1, 0)
-                                hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                                hpFill.BorderSizePixel = 0
-                                hpFill.Parent = hpBg
-                                Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
-                            end
-
-                            bb.Parent = part
-                        end
-
-                        if not hl then
-                            pcall(function()
-                                hl = Instance.new("Highlight")
-                                hl.Name = "_H"
-                                hl.FillTransparency = 0.85
-                                hl.OutlineTransparency = 0.2
-                                hl.OutlineColor3 = info.c
-                                hl.FillColor3 = info.c
-                                hl.Adornee = model
-                                hl.Parent = model
-                            end)
-                        end
-
-                        bb.Enabled = true
-                        if hl then hl.Enabled = true end
-
-                        local nL = bb:FindFirstChild("NameLbl")
-                        if nL then nL.Text = CatIcon(cat) .. info.n end
-
-                        local dL = bb:FindFirstChild("DistLbl")
-                        if dL then dL.Text = "[" .. dist .. "m]" end
-
-                        if cat == "npc" then
-                            local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
-                            if hF then
-                                local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
-                                if attr then
-                                    local ratio = math.clamp(attr / (info.hp or 100), 0, 1)
-                                    hF.Size = UDim2.new(ratio, 0, 1, 0)
-                                    hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
-                                end
-                            end
-                        end
-                    else
-                        if bb then bb.Enabled = false end
-                        if hl then hl.Enabled = false end
+                    if data then
+                        data.bb.Enabled = false
+                        if data.hl then data.hl.Enabled = false end
                     end
                 end
             end
         end
+    end
+
+    -- Очищаем то, чего больше нет в игре
+    for model in pairs(ActiveESP) do
+        if not currentModels[model] or not model.Parent then
+            ClearESP(model)
+        end
+    end
+end
+
+-- ================================================================
+--  ФОНОВЫЙ ТИКЕР ДЛЯ ОБНОВЛЕНИЯ ESP И ДИАГНОСТИКИ
+-- ================================================================
+local DiagLabel = nil
+
+local function UpdateDiag()
+    if not DiagLabel then return end
+    local msg = "DIAGNOSTICS:\n"
+    local classes = _G.classes
+    if not classes then
+        msg = msg .. "• _G.classes is NIL! (Waiting game load)\n"
+    else
+        msg = msg .. "• classes found\n"
+        if not classes.EntityClient then
+            msg = msg .. "• classes.EntityClient is NIL!\n"
+        else
+            msg = msg .. "• EntityClient found\n"
+            if not classes.EntityClient.EntityMap then
+                msg = msg .. "• EntityMap is NIL!\n"
+            else
+                local count = 0
+                for _ in pairs(classes.EntityClient.EntityMap) do count = count + 1 end
+                msg = msg .. "• EntityMap size: " .. count .. "\n"
+            end
+        end
+    end
+
+    local pList = GetPlayersList()
+    msg = msg .. "• Players tracked: " .. #pList .. "\n"
+    
+    local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+    if ignoreFolder then
+        msg = msg .. "• Ignore folder size: " .. #ignoreFolder:GetChildren() .. "\n"
+    else
+        msg = msg .. "• Ignore folder NOT found\n"
+    end
+
+    DiagLabel.Text = msg
+end
+
+task.spawn(function()
+    while task.wait(0.25) do
+        pcall(UpdateESP)
+        pcall(UpdateDiag)
     end
 end)
 
@@ -759,6 +840,7 @@ local function Slider(text, min, max, get, set)
     track.Position = UDim2.new(0, 10, 0, tY)
     track.BackgroundColor3 = Color3.fromRGB(40, 40, 65)
     track.BorderSizePixel = 0
+    track.Parent = track:FindFirstAncestor("Panel") or row -- fallback
     track.Parent = row
     Instance.new("UICorner", track).CornerRadius = UDim.new(0, tH/2)
 
@@ -852,6 +934,21 @@ Slider("Max Distance", 100, 2000,
     function() return CFG.MaxDist end,
     function(v) CFG.MaxDist = v end)
 
+-- Создаем лейбл диагностики в самом конце
+layoutOrder += 1
+DiagLabel = Instance.new("TextLabel")
+DiagLabel.Size = UDim2.new(1, 0, 0, MOBILE and 75 or 60)
+DiagLabel.BackgroundTransparency = 0.5
+DiagLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+DiagLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+DiagLabel.TextSize = MOBILE and 10 or 9
+DiagLabel.Font = Enum.Font.Code
+DiagLabel.TextXAlignment = Enum.TextXAlignment.Left
+DiagLabel.TextYAlignment = Enum.TextYAlignment.Top
+DiagLabel.LayoutOrder = layoutOrder
+DiagLabel.Parent = Scroll
+Instance.new("UICorner", DiagLabel).CornerRadius = UDim.new(0, 4)
+
 -- ================================================================
 --  ГОРЯЧИЕ КЛАВИШИ (ПК)
 -- ================================================================
@@ -869,39 +966,13 @@ end)
 --  CLEANUP FUNCTION
 -- ================================================================
 _G._TESP_CLEANUP = function()
+    ClearAllESP()
     pcall(function() SG:Destroy() end)
-    
-    -- Чистим все BillboardGui и Highlight с объектов
-    local pList = GetPlayersList()
-    for _, item in ipairs(pList) do
-        local model = item.model
-        local root = GetPart(model, "HumanoidRootPart")
-        if root then
-            local bb = root:FindFirstChild("_P")
-            if bb then bb:Destroy() end
-        end
-        local hl = model:FindFirstChild("_H")
-        if hl then hl:Destroy() end
-    end
-
-    local entList = GetEntities()
-    for _, ent in ipairs(entList) do
-        local model = ent.model
-        local part = GetPart(model)
-        if part then
-            local bb = part:FindFirstChild("_E")
-            if bb then bb:Destroy() end
-        end
-        local hl = model:FindFirstChild("_H")
-        if hl then hl:Destroy() end
-    end
-
     print("[TESP] Cleaned up previous session.")
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3 (FIXED) — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.1 — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
-print(" Aimbot active when enabled.")
 print(" Insert = Toggle GUI | RightShift = Toggle Aim")
 print("==========================================")
