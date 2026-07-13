@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.6 (FINAL ULTIMATE FIXED)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v4.0 (PERFECTED)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК | Сверхбыстрый и без лагов
 -- ================================================================
@@ -433,8 +433,8 @@ for i = 1, 30 do
     local hl = Instance.new("Highlight")
     hl.Name = "HL_" .. i
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.FillTransparency = 0.6
-    hl.OutlineTransparency = 0.1
+    hl.FillTransparency = 1
+    hl.OutlineTransparency = 0
     hl.Enabled = false
     hl.Parent = hlFolder
     table.insert(hlPool, hl)
@@ -511,7 +511,7 @@ local function UpdateESP()
                         nameLbl.Size = UDim2.new(1, 0, 0, 16)
                         nameLbl.BackgroundTransparency = 1
                         nameLbl.TextColor3 = Color3.new(1, 1, 1)
-                        nameLbl.TextStrokeTransparency = 0.2
+                        nameLbl.TextStrokeTransparency = 0
                         nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         nameLbl.Font = Enum.Font.GothamBold
                         nameLbl.TextSize = MOBILE and 11 or 12
@@ -523,7 +523,7 @@ local function UpdateESP()
                         distLbl.Position = UDim2.new(0, 0, 0, 16)
                         distLbl.BackgroundTransparency = 1
                         distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-                        distLbl.TextStrokeTransparency = 0.3
+                        distLbl.TextStrokeTransparency = 0
                         distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         distLbl.Font = Enum.Font.Gotham
                         distLbl.TextSize = MOBILE and 9 or 10
@@ -611,7 +611,7 @@ local function UpdateESP()
                         nameLbl.Size = UDim2.new(1, 0, 0, 16)
                         nameLbl.BackgroundTransparency = 1
                         nameLbl.TextColor3 = info.c
-                        nameLbl.TextStrokeTransparency = 0.2
+                        nameLbl.TextStrokeTransparency = 0
                         nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         nameLbl.Font = Enum.Font.GothamBold
                         nameLbl.TextSize = MOBILE and 10 or 11
@@ -623,7 +623,7 @@ local function UpdateESP()
                         distLbl.Position = UDim2.new(0, 0, 0, 15)
                         distLbl.BackgroundTransparency = 1
                         distLbl.TextColor3 = info.c
-                        distLbl.TextStrokeTransparency = 0.3
+                        distLbl.TextStrokeTransparency = 0
                         distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         distLbl.Font = Enum.Font.Gotham
                         distLbl.TextSize = MOBILE and 8 or 9
@@ -660,10 +660,7 @@ local function UpdateESP()
                         table.insert(visibleHighlights, { model = model, color = info.c, dist = dist })
                     end
 
-                    local dispName = model.Name
-                    if dispName == "Model" or dispName == "Folder" or dispName == "Part" or dispName == "MeshPart" or dispName == "" then
-                        dispName = info.n
-                    end
+                    local dispName = info.n or model.Name
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. dispName end
@@ -1189,6 +1186,6 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.6 — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v4.0 (PERFECTED) — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print("==========================================")
