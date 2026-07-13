@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.5 (MASTERPIECE + HIGHLIGHTS)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.6 (FINAL ULTIMATE FIXED)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК | Сверхбыстрый и без лагов
 -- ================================================================
@@ -161,36 +161,6 @@ local function GetClassesTable()
 end
 
 -- ================================================================
---  ФОРМАТИРОВАНИЕ ИМЕН ДЛЯ КРАСИВОГО ОТОБРАЖЕНИЯ
--- ================================================================
-local function CleanName(name)
-    local cleaned = name:gsub("[Mm]esh", ""):gsub("[Mm]odel", ""):gsub("[Cc]lient", ""):gsub("[Gg]host", "")
-    cleaned = cleaned:gsub("(%l)(%u)", "%1 %2") -- BearTrap -> Bear Trap
-    cleaned = cleaned:gsub("_", " ")
-    cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
-    return cleaned
-end
-
-local function GetSpecialName(model)
-    local standardNames = {
-        part = true, meshpart = true, union = true, model = true,
-        handle = true, main = true, root = true, humanoidrootpart = true,
-        head = true, torso = true, leftarm = true, rightarm = true,
-        leftleg = true, rightleg = true, base = true, lid = true,
-        lock = true, seat = true, vehicleseat = true, display = true,
-        light = true, attachment = true, weld = true, motor = true
-    }
-    
-    for _, child in ipairs(model:GetChildren()) do
-        local nameLower = child.Name:lower()
-        if not standardNames[nameLower] and #child.Name > 2 then
-            return child.Name
-        end
-    end
-    return nil
-end
-
--- ================================================================
 --  КЛАССИФИКАТОР ПО ИМЕНИ МОДЕЛИ (ДЛЯ СТАНДАРТНЫХ ОБЪЕКТОВ)
 -- ================================================================
 local function ClassifyByName(model)
@@ -200,46 +170,44 @@ local function ClassifyByName(model)
 
     local nameLower = name:lower()
     if nameLower:find("atv") or nameLower:find("quad") or nameLower:find("car") then
-        return "veh", { n = "ATV", c = Color3.fromRGB(0, 200, 255) }
+        return "veh", VEH.ATV
     end
     if nameLower:find("boat") or nameLower:find("jet") then
-        return "veh", { n = "Boat", c = Color3.fromRGB(50, 150, 255) }
+        return "veh", VEH.Boat
     end
     if nameLower:find("heli") or nameLower:find("copter") then
-        return "veh", { n = "Helicopter", c = Color3.fromRGB(100, 200, 255) }
+        return "veh", VEH.Helicopter
     end
     if nameLower:find("ghoul") or nameLower:find("zombie") or nameLower:find("mutant") then
-        return "npc", { n = "Ghoul", c = Color3.fromRGB(120, 255, 50), hp = 200 }
+        return "npc", NPC.Ghoul
     end
     if nameLower:find("soldier") or nameLower:find("officer") or nameLower:find("bandit") then
-        return "npc", { n = "Soldier", c = Color3.fromRGB(255, 165, 0), hp = 125 }
+        return "npc", NPC.Soldier
     end
     if nameLower:find("stone") and nameLower:find("ore") then
-        return "res", { n = "Stone Ore", c = Color3.fromRGB(160, 160, 160) }
+        return "res", RES.StoneOre
     end
     if nameLower:find("iron") and nameLower:find("ore") then
-        return "res", { n = "Iron Ore", c = Color3.fromRGB(210, 140, 90) }
+        return "res", RES.IronOre
     end
     if nameLower:find("nitrate") and nameLower:find("ore") then
-        return "res", { n = "Nitrate Ore", c = Color3.fromRGB(255, 255, 120) }
+        return "res", RES.NitrateOre
     end
     return nil, nil
 end
 
 -- ================================================================
---  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ — РЕКУРСИВНЫЙ)
+--  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ)
 -- ================================================================
 local function HeuristicClassify(model)
     local modelNameLower = model.Name:lower()
 
-    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat рекурсивно
+    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat
     if model:FindFirstChildWhichIsA("VehicleSeat", true) or model:FindFirstChildWhichIsA("Seat", true) then
-        local name = GetSpecialName(model) or "Vehicle"
-        name = CleanName(name)
-        if modelNameLower:find("boat") then name = "Boat"
-        elseif modelNameLower:find("heli") or modelNameLower:find("copter") then name = "Helicopter"
-        elseif modelNameLower:find("atv") then name = "ATV" end
-        return "veh", { n = name, c = Color3.fromRGB(0, 200, 255) }
+        local name = VEH.ATV
+        if modelNameLower:find("boat") then name = VEH.Boat
+        elseif modelNameLower:find("heli") or modelNameLower:find("copter") then name = VEH.Helicopter end
+        return "veh", name
     end
     
     -- 2. NPC (Мутанты, Зомби, Солдаты)
@@ -250,10 +218,8 @@ local function HeuristicClassify(model)
         end
         if not isPlayer then
             local hasWeapon = model:FindFirstChild("RightHand", true) and model:FindFirstChild("RightHand", true):FindFirstChildOfClass("Model", true)
-            local name = GetSpecialName(model) or (hasWeapon and "NPC Soldier" or "Ghoul / Mutant")
-            name = CleanName(name)
-            local color = hasWeapon and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(120, 255, 50)
-            return "npc", { n = name, c = color, hp = 150 }
+            local name = hasWeapon and NPC.Soldier or NPC.Ghoul
+            return "npc", name
         end
     end
     
@@ -272,8 +238,7 @@ local function HeuristicClassify(model)
     
     -- 4. Аирдроп (Supply Drop)
     if model:FindFirstChild("Parachute", true) or model:FindFirstChild("Cables", true) or modelNameLower:find("supply") then
-        local name = GetSpecialName(model) or "Supply Drop"
-        return "loot", { n = CleanName(name), c = Color3.fromRGB(255, 50, 255) }
+        return "loot", LOOT.SupplyDrop
     end
     
     -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКИЙ СКОРИНГ ЦВЕТОВ)
@@ -304,47 +269,38 @@ local function HeuristicClassify(model)
     end
     
     if hasOreVisual then
-        local oreType = "Stone Ore"
-        local oreColor = Color3.fromRGB(160, 160, 160)
-        
+        local name = RES.StoneOre
         if nitrateCount > 0 and nitrateCount >= ironCount then
-            oreType = "Nitrate Ore"
-            oreColor = Color3.fromRGB(255, 255, 120)
+            name = RES.NitrateOre
         elseif ironCount > 0 and ironCount > nitrateCount then
-            oreType = "Iron Ore"
-            oreColor = Color3.fromRGB(210, 140, 90)
+            name = RES.IronOre
         end
-        return "res", { n = oreType, c = oreColor }
+        return "res", name
     end
     
     -- 6. Деревья
     if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then
-        local name = GetSpecialName(model) or "Tree"
-        return "res", { n = CleanName(name), c = Color3.fromRGB(50, 200, 50) }
+        return "res", RES.Tree1
     end
     
     -- 7. Кусты ягод
     if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then
-        local name = GetSpecialName(model) or "Berry Bush"
-        return "res", { n = CleanName(name), c = Color3.fromRGB(200, 50, 200) }
+        return "res", RES.BerryBush
     end
     
     -- 8. Сундуки / Контейнеры лута
     if model:FindFirstChild("Lid", true) or model:FindFirstChild("Lock", true) or modelNameLower:find("crate") or modelNameLower:find("chest") then
-        local name = GetSpecialName(model) or "Loot Crate"
-        name = CleanName(name)
-        if model:FindFirstChild("Safe", true) or modelNameLower:find("safe") then name = "Loot Safe" end
-        return "loot", { n = name, c = Color3.fromRGB(255, 215, 0) }
+        local name = LOOT.MetalCrate
+        if model:FindFirstChild("Safe", true) or modelNameLower:find("safe") then name = LOOT.LootSafe end
+        return "loot", name
     end
 
     -- 9. Опасности (Капканы, Тесла)
     if model:FindFirstChild("BearTrap", true) or model:FindFirstChild("Jaw", true) or modelNameLower:find("trap") then
-        local name = GetSpecialName(model) or "Bear Trap"
-        return "dng", { n = CleanName(name), c = Color3.fromRGB(255, 0, 0) }
+        return "dng", DNG.BearTrap
     end
     if model:FindFirstChild("Tesla", true) or model:FindFirstChild("Pylon", true) or modelNameLower:find("tesla") then
-        local name = GetSpecialName(model) or "Tesla Pylon"
-        return "dng", { n = CleanName(name), c = Color3.fromRGB(255, 255, 0) }
+        return "dng", DNG.TeslaPylon
     end
     
     return nil, nil
@@ -377,17 +333,15 @@ local function ProcessModel(child)
     if not child:IsA("Model") then return end
     if child == LP.Character then return end
 
-    -- 1. Сначала пытаемся классифицировать по имени
     local cat, info = ClassifyByName(child)
     if not cat then
-        -- 2. Если имя общее, сканируем по структуре (Heuristic)
         cat, info = HeuristicClassify(child)
     end
     
     if cat and info then
         Entities[child] = { cat = cat, info = info }
     else
-        -- 3. Проверка на игрока
+        -- Проверка на игрока
         local plr = Players:FindFirstChild(child.Name)
         if plr and plr ~= LP then
             TrackedPlayers[child] = plr
@@ -411,7 +365,7 @@ end
 local connections = {}
 
 table.insert(connections, workspace.ChildAdded:Connect(function(child)
-    task.wait(0.2) -- даем время прогрузить дочерние элементы
+    task.wait(0.2)
     ProcessModel(child)
 end))
 
@@ -517,6 +471,7 @@ end
 local function UpdateESP()
     local myPos = MyPos()
     local currentActive = {}
+    local visibleHighlights = {} -- собираем все видимые Highlights для сортировки
 
     -- 1. Игроки
     for model, plr in pairs(TrackedPlayers) do
@@ -584,12 +539,13 @@ local function UpdateESP()
                             pcall(function()
                                 hl = Instance.new("Highlight")
                                 hl.Name = "_H"
-                                hl.FillTransparency = 0.6 -- Красивая полупрозрачная заливка
-                                hl.OutlineTransparency = 0.15
+                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Виден сквозь стены!
+                                hl.FillTransparency = 0.55 -- Плотная заливка
+                                hl.OutlineTransparency = 0.1
                                 hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
                                 hl.FillColor3 = Color3.fromRGB(255, 60, 60)
                                 hl.Adornee = model
-                                hl.Parent = model
+                                hl.Parent = model -- Обязательно в модель в workspace!
                             end)
                         end
 
@@ -600,10 +556,10 @@ local function UpdateESP()
                     data.bb.Enabled = true
                     data.bb.Adornee = root
                     
-                    -- Контролируем лимит подсветки Roblox (до 500 метров для игроков)
                     local hl = model:FindFirstChild("_H")
                     if hl then
-                        hl.Enabled = dist <= 500
+                        hl.Enabled = false -- временно выключим, далее отсортируем и включим топ-24
+                        table.insert(visibleHighlights, { hl = hl, dist = dist })
                     end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
@@ -706,12 +662,13 @@ local function UpdateESP()
                             pcall(function()
                                 hl = Instance.new("Highlight")
                                 hl.Name = "_H"
-                                hl.FillTransparency = 0.65 -- Отличная видимость через стены!
-                                hl.OutlineTransparency = 0.15
+                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Виден сквозь стены!
+                                hl.FillTransparency = 0.55 -- Плотная заливка
+                                hl.OutlineTransparency = 0.1
                                 hl.OutlineColor3 = info.c
                                 hl.FillColor3 = info.c
                                 hl.Adornee = model
-                                hl.Parent = model
+                                hl.Parent = model -- Обязательно в модель в workspace!
                             end)
                         end
 
@@ -722,11 +679,13 @@ local function UpdateESP()
                     data.bb.Enabled = true
                     data.bb.Adornee = part
                     
-                    -- Контроль лимита Highlights для сущностей (до 150 метров)
                     local hl = model:FindFirstChild("_H")
                     if hl then
+                        hl.Enabled = false -- временно выключим для сортировки
                         local maxHlDist = (cat == "npc") and 400 or 150
-                        hl.Enabled = dist <= maxHlDist
+                        if dist <= maxHlDist then
+                            table.insert(visibleHighlights, { hl = hl, dist = dist })
+                        end
                     end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
@@ -754,6 +713,15 @@ local function UpdateESP()
                     end
                 end
             end
+        end
+    end
+
+    -- Лимит Roblox: не более 31 Highlight одновременно в игре
+    -- Сортируем собранные Highlights по дистанции и включаем только 24 ближайших
+    table.sort(visibleHighlights, function(a, b) return a.dist < b.dist end)
+    for i, item in ipairs(visibleHighlights) do
+        if i <= 24 then
+            item.hl.Enabled = true
         end
     end
 
@@ -1235,6 +1203,6 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.5 — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.6 — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print("==========================================")
