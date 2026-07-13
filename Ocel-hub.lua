@@ -1,7 +1,6 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v5.0 (SUPREME)
---  100% Roblox UI + Dynamic Highlights — без лагов
---  Мобильный + ПК | Динамическое распознавание имен объектов
+--  TRIDENT SURVIVAL вЂ” ESP + AIMBOT v4.0 (FULL CHAMS & VIEWMODEL CHAMS)
+--  100% Roblox UI вЂ” СЂР°Р±РѕС‚Р°РµС‚ РІРµР·РґРµ | РЎРІРµСЂС…Р±С‹СЃС‚СЂС‹Р№ Рё Р±РµР· Р»Р°РіРѕРІ
 -- ================================================================
 
 local Players = game:GetService("Players")
@@ -12,20 +11,45 @@ local Cam = workspace.CurrentCamera
 local MOBILE = UIS.TouchEnabled
 
 -- ================================================================
---  УНИКАЛЬНЫЙ СЕССИОННЫЙ ID ДЛЯ ГОРЯЧЕЙ ПЕРЕЗАГРУЗКИ (АНТИ-НАЛОЖЕНИЕ)
+--  РЈРќРРљРђР›Р¬РќР«Р™ РЎР•РЎРЎРРћРќРќР«Р™ ID Р”Р›РЇ Р“РћР РЇР§Р•Р™ РџР•Р Р•Р—РђР“Р РЈР—РљР (РђРќРўР-РќРђР›РћР–Р•РќРР•)
 -- ================================================================
 local sessionID = os.clock()
 _G._TESP_SESSION_ID = sessionID
 
--- Удаление всех старых меню
+-- РЈРґР°Р»РµРЅРёРµ РІСЃРµС… СЃС‚Р°СЂС‹С… РјРµРЅСЋ
 for _, child in ipairs(LP.PlayerGui:GetChildren()) do
     if child:IsA("ScreenGui") and (child.Name:find("TESP") or child.Name:find("TridentESP")) then
         pcall(function() child:Destroy() end)
     end
 end
 
+-- РЈРґР°Р»РµРЅРёРµ СЃС‚Р°СЂС‹С… Chams-РїРѕРґСЃРІРµС‚РѕРє
+local function RemoveAllHighlights()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            local old = plr.Character:FindFirstChild("TChams")
+            if old then pcall(function() old:Destroy() end) end
+        end
+    end
+    for _, child in ipairs(workspace:GetChildren()) do
+        local old = child:FindFirstChild("TChams")
+        if old then pcall(function() old:Destroy() end) end
+    end
+    local cam = workspace.CurrentCamera
+    if cam then
+        for _, child in ipairs(cam:GetChildren()) do
+            local old = child:FindFirstChild("TChams") or child:FindFirstChild("TChamsVM")
+            if old then pcall(function() old:Destroy() end) end
+            if child:IsA("Highlight") and (child.Name == "TChams" or child.Name == "TChamsVM") then
+                pcall(function() child:Destroy() end)
+            end
+        end
+    end
+end
+RemoveAllHighlights()
+
 -- ================================================================
---  НАСТРОЙКИ (КОНФИГ)
+--  РќРђРЎРўР РћР™РљР (РљРћРќР¤РР“)
 -- ================================================================
 local CFG = {
     ESP_Players  = true,
@@ -34,23 +58,34 @@ local CFG = {
     ESP_Resources= true,
     ESP_Vehicles = true,
     ESP_Danger   = true,
-    
-    ChamsEnabled = true,     -- Обводка (Chams / Highlights)
 
     ShowHealth   = true,
     MaxDist      = 1000,
+    
+    -- Р§Р°РјСЃС‹ (Chams)
+    ChamsPlayers   = true,
+    ChamsNPCs      = true,
+    ChamsLoot      = true,
+    ChamsResources = true,
+    ChamsVehicles  = true,
+    ChamsDanger    = true,
+    
+    -- Р§Р°РјСЃС‹ РЅР° СЃРІРѕРё СЂСѓРєРё Рё РѕСЂСѓР¶РёРµ
+    ChamsViewModel = true,
+    VMColor        = Color3.fromRGB(0, 255, 255), -- Р¦РІРµС‚ СЂСѓРє Рё РѕСЂСѓР¶РёСЏ (Р±РёСЂСЋР·РѕРІС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
+    VMOpt          = 0.3, -- РџСЂРѕР·СЂР°С‡РЅРѕСЃС‚СЊ Р·Р°Р»РёРІРєРё
 
     Aimbot       = true,
     AimFOV       = 150,
-    AimSmooth    = 0.25,     
-    AimPart      = "Head",   
+    AimSmooth    = 0.25,     -- СЃРєРѕСЂРѕСЃС‚СЊ РЅР°РІРµРґРµРЅРёСЏ (0.1 - РјРµРґР»РµРЅРЅРѕ, 0.5 - Р±С‹СЃС‚СЂРѕ)
+    AimPart      = "Head",   -- Head / Torso
     AimPlayers   = true,
     AimNPCs      = true,
     ShowFOV      = true,
 }
 
 -- ================================================================
---  ТАБЛИЦЫ НАСТРОЕК СУЩНОСТЕЙ (БАЗОВЫЕ ЦВЕТА И КАТЕГОРИИ)
+--  РўРђР‘Р›РР¦Р« РќРђРЎРўР РћР•Рљ РЎРЈР©РќРћРЎРўР•Р™
 -- ================================================================
 local NPC = {
     Ghoul           = {n="Ghoul",           c=Color3.fromRGB(120,255,50), hp=200},
@@ -63,7 +98,7 @@ local NPC = {
     EventHelicopter = {n="Event Heli",      c=Color3.fromRGB(255,80,80),  hp=500},
 }
 local LOOT = {
-    DroppedItem           ={n="Loot",           c=Color3.fromRGB(255,255,80), md=300},
+    DroppedItem           ={n="Dropped Item",   c=Color3.fromRGB(255,255,80), md=300},
     SupplyDrop            ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
     SupplyDrop2           ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
     MetalCrate            ={n="Metal Crate",     c=Color3.fromRGB(200,200,255),md=400},
@@ -119,6 +154,15 @@ local function CatEnabled(cat)
     return false
 end
 
+local function CatChamsEnabled(cat)
+    if cat == "npc"  then return CFG.ChamsNPCs end
+    if cat == "loot" then return CFG.ChamsLoot end
+    if cat == "res"  then return CFG.ChamsResources end
+    if cat == "veh"  then return CFG.ChamsVehicles end
+    if cat == "dng"  then return CFG.ChamsDanger end
+    return false
+end
+
 local function CatMaxDist(cat, info)
     if info and info.md then return info.md end
     if cat == "npc"  then return 600 end
@@ -130,61 +174,25 @@ local function CatMaxDist(cat, info)
 end
 
 local function CatIcon(cat)
-    if cat == "npc"  then return "☠ " end
-    if cat == "loot" then return "◆ " end
-    if cat == "res"  then return "⛏ " end
-    if cat == "veh"  then return "⊕ " end
-    if cat == "dng"  then return "⚠ " end
+    if cat == "npc"  then return "в  " end
+    if cat == "loot" then return "в—† " end
+    if cat == "res"  then return "в›Џ " end
+    if cat == "veh"  then return "вЉ• " end
+    if cat == "dng"  then return "вљ  " end
     return ""
 end
 
 -- ================================================================
---  ПОЛУЧЕНИЕ НАСТОЯЩЕГО ИМЕНИ (СКАНИРОВАНИЕ МОДЕЛИ)
--- ================================================================
-local function TryGetRealName(model)
-    -- Пробуем найти TextLabel/SurfaceGui в выпавшем луте
-    local display = model:FindFirstChild("Display", true) or model:FindFirstChild("Label", true)
-    if display then
-        local label = display:FindFirstChildOfClass("TextLabel", true)
-        if label and label.Text ~= "" then
-            return label.Text
-        end
-    end
-    
-    -- Пробуем найти через атрибуты (часто разрабы закидывают названия туда)
-    local attrName = model:GetAttribute("ItemName") or model:GetAttribute("Name") or model:GetAttribute("Type")
-    if attrName and type(attrName) == "string" and attrName ~= "" then
-        return attrName
-    end
-
-    -- Чтение из StringValue (если лежит внутри модели)
-    local nameVal = model:FindFirstChild("ItemName") or model:FindFirstChild("NameValue")
-    if nameVal and nameVal:IsA("StringValue") and nameVal.Value ~= "" then
-        return nameVal.Value
-    end
-
-    return nil
-end
-
--- ================================================================
---  КЛАССИФИКАТОР ПО ИМЕНИ МОДЕЛИ С ДИНАМИЧЕСКИМ ИМЕНЕМ
+--  РљР›РђРЎРЎРР¤РРљРђРўРћР  РџРћ РРњР•РќР РњРћР”Р•Р›Р (РРЎРџР РђР’Р›Р•РќРќР«Р™)
 -- ================================================================
 local function ClassifyByName(model)
     local name = model.Name
     local cat, info = ClassifyType(name)
-    
-    -- Динамический апдейт имени
-    if cat and info then
-        local realName = TryGetRealName(model)
-        if realName then
-            local newInfo = table.clone(info)
-            newInfo.n = realName
-            return cat, newInfo
-        end
-        return cat, info
-    end
+    if cat then return cat, info end
 
     local nameLower = name:lower()
+    
+    -- РўСЂР°РЅСЃРїРѕСЂС‚
     if nameLower:find("atv") or nameLower:find("quad") or nameLower:find("car") then
         return "veh", VEH.ATV
     end
@@ -194,33 +202,66 @@ local function ClassifyByName(model)
     if nameLower:find("heli") or nameLower:find("copter") then
         return "veh", VEH.Helicopter
     end
+    
+    -- РћРїР°СЃРЅРѕСЃС‚Рё
+    if nameLower:find("beartrap") or nameLower:find("bear_trap") then
+        return "dng", DNG.BearTrap
+    end
+    if nameLower:find("tesla") then
+        return "dng", DNG.TeslaPylon
+    end
+    
+    -- Р›СѓС‚
+    if nameLower:find("crate") then
+        if nameLower:find("transport") then return "loot", LOOT.TransportCrate end
+        return "loot", LOOT.MetalCrate
+    end
+    if nameLower:find("safe") then
+        return "loot", LOOT.LootSafe
+    end
+    if nameLower:find("supply") and nameLower:find("drop") then
+        return "loot", LOOT.SupplyDrop
+    end
+    
+    -- NPC
     if nameLower:find("ghoul") or nameLower:find("zombie") or nameLower:find("mutant") then
         return "npc", NPC.Ghoul
     end
-    if nameLower:find("soldier") or nameLower:find("officer") or nameLower:find("bandit") then
+    if nameLower:find("soldier") then
+        if nameLower:find("gas") or nameLower:find("mask") then return "npc", NPC.GasMaskSoldier end
         return "npc", NPC.Soldier
     end
+    if nameLower:find("officer") then
+        return "npc", NPC.Officer
+    end
     
-    -- Исправленное точное определение руд по типу
-    if nameLower:find("stone") and nameLower:find("ore") then
+    -- Р РµСЃСѓСЂСЃС‹ (РЎС‚СЂРѕРіРѕРµ СЃРѕРІРїР°РґРµРЅРёРµ РёРјРµРЅ, С‡С‚РѕР±С‹ РЅРµ РїСѓС‚Р°С‚СЊ СЃ "Iron Ore" РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
+    if nameLower:find("stone_ore") or (nameLower:find("stone") and nameLower:find("ore")) then
         return "res", RES.StoneOre
     end
-    if nameLower:find("iron") and nameLower:find("ore") then
+    if nameLower:find("iron_ore") or (nameLower:find("iron") and nameLower:find("ore")) then
         return "res", RES.IronOre
     end
-    if nameLower:find("nitrate") and nameLower:find("ore") then
+    if nameLower:find("nitrate_ore") or (nameLower:find("nitrate") and nameLower:find("ore")) then
         return "res", RES.NitrateOre
     end
+    if nameLower:find("tree") then
+        return "res", RES.Tree1
+    end
+    if nameLower:find("berry") or nameLower:find("bush") then
+        return "res", RES.BerryBush
+    end
+    
     return nil, nil
 end
 
 -- ================================================================
---  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ)
+--  Р­Р’Р РРЎРўРР§Р•РЎРљРР™ РљР›РђРЎРЎРР¤РРљРђРўРћР  РњРћР”Р•Р›Р•Р™ (РРЎРџР РђР’Р›Р•РќРќР«Р™ Р Р‘Р•Р—РћРџРђРЎРќР«Р™)
 -- ================================================================
 local function HeuristicClassify(model)
     local modelNameLower = model.Name:lower()
 
-    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat
+    -- РСЃРєР»СЋС‡Р°РµРј Р»РѕР¶РЅРѕРµ РѕРїСЂРµРґРµР»РµРЅРёРµ СЂСѓРґ Сѓ С‚РѕРіРѕ, С‡С‚Рѕ С‚РѕС‡РЅРѕ СЏРІР»СЏРµС‚СЃСЏ С‚СЂР°РЅСЃРїРѕСЂС‚РѕРј, NPC РёР»Рё СЏС‰РёРєРѕРј
     if model:FindFirstChildWhichIsA("VehicleSeat", true) or model:FindFirstChildWhichIsA("Seat", true) then
         local name = VEH.ATV
         if modelNameLower:find("boat") then name = VEH.Boat
@@ -228,7 +269,6 @@ local function HeuristicClassify(model)
         return "veh", name
     end
     
-    -- 2. NPC (Мутанты, Зомби, Солдаты)
     if model:FindFirstChildOfClass("AnimationController", true) or model:FindFirstChildOfClass("Humanoid", true) then
         local isPlayer = false
         for _, p in ipairs(Players:GetPlayers()) do
@@ -240,85 +280,70 @@ local function HeuristicClassify(model)
             return "npc", name
         end
     end
-    
-    -- 3. Выпавший предмет (Dropped Item) с реальным именем
-    local realLootName = TryGetRealName(model)
-    if realLootName then
-        return "loot", { n = realLootName, c = Color3.fromRGB(255, 225, 80) }
-    end
-    
-    -- 4. Аирдроп (Supply Drop)
-    if model:FindFirstChild("Parachute", true) or model:FindFirstChild("Cables", true) or modelNameLower:find("supply") then
-        return "loot", LOOT.SupplyDrop
-    end
-    
-    -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКИЙ СКОРИНГ ЦВЕТОВ)
-    local nitrateCount = 0
-    local ironCount = 0
-    local stoneCount = 0
-    local hasOreVisual = false
-    
-    for _, child in ipairs(model:GetChildren()) do
-        if child:IsA("BasePart") then
-            local mat = child.Material
-            if mat == Enum.Material.Rock or mat == Enum.Material.Slate or mat == Enum.Material.Plastic or mat == Enum.Material.SmoothPlastic or child:IsA("MeshPart") then
-                hasOreVisual = true
-                local c = child.Color
-                local r, g, b = c.R, c.G, c.B
-                
-                -- Желтый (Нитраты/Сера)
-                if r > 0.55 and g > 0.55 and b < 0.5 and (r - b) > 0.15 then
-                    nitrateCount = nitrateCount + 1
-                -- Красно-коричневый (Железо)
-                elseif r > 0.4 and (r - g) > 0.12 then
-                    ironCount = ironCount + 1
-                else
-                    stoneCount = stoneCount + 1
-                end
-            end
-        end
-    end
-    
-    if hasOreVisual then
-        local name = RES.StoneOre
-        if nitrateCount > 0 and nitrateCount >= ironCount then
-            name = RES.NitrateOre
-        elseif ironCount > 0 and ironCount > nitrateCount then
-            name = RES.IronOre
-        end
-        return "res", name
-    end
-    
-    -- 6. Деревья
-    if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then
-        return "res", RES.Tree1
-    end
-    
-    -- 7. Кусты ягод
-    if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then
-        return "res", RES.BerryBush
-    end
-    
-    -- 8. Сундуки / Контейнеры лута
+
     if model:FindFirstChild("Lid", true) or model:FindFirstChild("Lock", true) or modelNameLower:find("crate") or modelNameLower:find("chest") then
         local name = LOOT.MetalCrate
         if model:FindFirstChild("Safe", true) or modelNameLower:find("safe") then name = LOOT.LootSafe end
         return "loot", name
     end
 
-    -- 9. Опасности (Капканы, Тесла)
+    -- РћРїСЂРµРґРµР»РµРЅРёРµ СЂСѓРґ РїРѕ РјРµС€Р°Рј Рё С†РІРµС‚Р°Рј Р°РєС‚РёРІРёСЂСѓРµС‚СЃСЏ РўРћР›Р¬РљРћ РµСЃР»Рё РІ РёРјРµРЅРё РµСЃС‚СЊ СЃР»РѕРІРѕ "Ore", "Node", "Deposit" РёР»Рё "Rock"
+    local isLikelyOre = modelNameLower:find("ore") or modelNameLower:find("node") or modelNameLower:find("deposit") or modelNameLower:find("rock")
+    if isLikelyOre then
+        local nitrateCount = 0
+        local ironCount = 0
+        local stoneCount = 0
+        local hasVisual = false
+        
+        for _, child in ipairs(model:GetChildren()) do
+            if child:IsA("BasePart") then
+                hasVisual = true
+                local c = child.Color
+                local r, g, b = c.R, c.G, c.B
+                
+                -- Р–РµР»С‚С‹Рµ РѕС‚С‚РµРЅРєРё (РЎРµСЂР° / РќРёС‚СЂР°С‚С‹)
+                if r > 0.55 and g > 0.55 and b < 0.5 and (r - b) > 0.15 then
+                    nitrateCount = nitrateCount + 1
+                -- Р С‹Р¶Рµ-Р±СѓСЂС‹Рµ/РєРѕСЂРёС‡РЅРµРІС‹Рµ (Р–РµР»РµР·Рѕ)
+                elseif r > 0.4 and (r - g) > 0.12 and g < 0.5 then
+                    ironCount = ironCount + 1
+                else
+                    stoneCount = stoneCount + 1
+                end
+            end
+        end
+        
+        if hasVisual then
+            if nitrateCount > 0 and nitrateCount >= ironCount then
+                return "res", RES.NitrateOre
+            elseif ironCount > 0 and ironCount > nitrateCount then
+                return "res", RES.IronOre
+            else
+                return "res", RES.StoneOre
+            end
+        end
+    end
+    
+    -- Р”РµСЂРµРІСЊСЏ
+    if model:FindFirstChild("Leaves", true) or model:FindFirstChild("Branch", true) or model:FindFirstChild("Trunk", true) or modelNameLower:find("tree") then
+        return "res", RES.Tree1
+    end
+    
+    -- РЇРіРѕРґС‹
+    if model:FindFirstChild("Berries", true) or model:FindFirstChild("Berry", true) or modelNameLower:find("bush") then
+        return "res", RES.BerryBush
+    end
+
+    -- Р›РѕРІСѓС€РєРё
     if model:FindFirstChild("BearTrap", true) or model:FindFirstChild("Jaw", true) or modelNameLower:find("trap") then
         return "dng", DNG.BearTrap
-    end
-    if model:FindFirstChild("Tesla", true) or model:FindFirstChild("Pylon", true) or modelNameLower:find("tesla") then
-        return "dng", DNG.TeslaPylon
     end
     
     return nil, nil
 end
 
 -- ================================================================
---  ПОЛУЧЕНИЕ ПОЗИЦИЙ И ДАННЫХ
+--  РџРћР›РЈР§Р•РќРР• РџРћР—РР¦РР™ Р Р”РђРќРќР«РҐ
 -- ================================================================
 local function MyPos()
     return Cam.CFrame.Position
@@ -333,12 +358,12 @@ local function GetPart(model, name)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
--- Таблицы кэша
-local Entities = {}       -- [model] = { cat = string, info = table }
-local TrackedPlayers = {} -- [model] = player
+-- РўР°Р±Р»РёС†С‹ РєСЌС€Р°
+local Entities = {}       
+local TrackedPlayers = {} 
 
 -- ================================================================
---  ИНСТАНТ-СКАНИРОВАНИЕ И СОБЫТИЯ
+--  РРќРЎРўРђРќРў-РЎРљРђРќРР РћР’РђРќРР• Р РЎРћР‘Р«РўРРЇ
 -- ================================================================
 local function ProcessModel(child)
     if not child:IsA("Model") then return end
@@ -352,7 +377,6 @@ local function ProcessModel(child)
     if cat and info then
         Entities[child] = { cat = cat, info = info }
     else
-        -- Проверка на игрока
         local plr = Players:FindFirstChild(child.Name)
         if plr and plr ~= LP then
             TrackedPlayers[child] = plr
@@ -360,7 +384,6 @@ local function ProcessModel(child)
     end
 end
 
--- Первоначальный моментальный скан
 for _, child in ipairs(workspace:GetChildren()) do
     ProcessModel(child)
 end
@@ -372,7 +395,6 @@ if ignoreFolder then
     end
 end
 
--- Ивенты
 local connections = {}
 
 table.insert(connections, workspace.ChildAdded:Connect(function(child)
@@ -384,6 +406,8 @@ table.insert(connections, workspace.ChildRemoved:Connect(function(child)
     Entities[child] = nil
     TrackedPlayers[child] = nil
     if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
+    local oldChams = child:FindFirstChild("TChams")
+    if oldChams then pcall(function() oldChams:Destroy() end) end
 end))
 
 if ignoreFolder then
@@ -394,10 +418,11 @@ if ignoreFolder then
     table.insert(connections, ignoreFolder.ChildRemoved:Connect(function(child)
         TrackedPlayers[child] = nil
         if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
+        local oldChams = child:FindFirstChild("TChams")
+        if oldChams then pcall(function() oldChams:Destroy() end) end
     end))
 end
 
--- Ивенты игроков
 for _, plr in ipairs(Players:GetPlayers()) do
     if plr ~= LP then
         if plr.Character then TrackedPlayers[plr.Character] = plr end
@@ -426,7 +451,7 @@ table.insert(connections, Players.PlayerAdded:Connect(function(plr)
 end))
 
 -- ================================================================
---  ГЛАВНЫЙ SCREENGUI И ПУЛ HIGHLIGHTS (ОБВОДКА)
+--  Р“Р›РђР’РќР«Р™ SCREENGUI
 -- ================================================================
 local SG = Instance.new("ScreenGui")
 SG.Name = "TESP_MAIN"
@@ -435,24 +460,8 @@ SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 SG.IgnoreGuiInset = true
 SG.Parent = LP.PlayerGui
 
-local hlFolder = Instance.new("Folder")
-hlFolder.Name = "TESP_Highlights"
-hlFolder.Parent = SG
-
-local hlPool = {}
-for i = 1, 30 do -- Лимит в 30 активных обводок во избежание лагов Roblox
-    local hl = Instance.new("Highlight")
-    hl.Name = "HL_" .. i
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.FillTransparency = 0.5
-    hl.OutlineTransparency = 0
-    hl.Enabled = false
-    hl.Parent = hlFolder
-    table.insert(hlPool, hl)
-end
-
 -- ================================================================
---  FOV КРУГ (UI Элемент)
+--  FOV РљР РЈР“ (UI Р­Р»РµРјРµРЅС‚)
 -- ================================================================
 local FovFrame = Instance.new("Frame")
 FovFrame.Name = "FOV"
@@ -472,9 +481,9 @@ fovStroke.Thickness = 1.5
 fovStroke.Transparency = 0.4
 
 -- ================================================================
---  ОБНОВЛЕНИЕ ESP
+--  РћР‘РќРћР’Р›Р•РќРР• ESP Р CHAMS
 -- ================================================================
-local ActiveESP = {} -- [instance] = { bb = BillboardGui, type = string }
+local ActiveESP = {} 
 
 local function ClearESP(instance)
     local data = ActiveESP[instance]
@@ -482,6 +491,8 @@ local function ClearESP(instance)
         pcall(function() data.bb:Destroy() end)
         ActiveESP[instance] = nil
     end
+    local oldChams = instance:FindFirstChild("TChams")
+    if oldChams then pcall(function() oldChams:Destroy() end) end
 end
 _G._TESP_CLEAR_SINGLE = ClearESP
 
@@ -489,14 +500,72 @@ local function ClearAllESP()
     for inst in pairs(ActiveESP) do
         ClearESP(inst)
     end
+    RemoveAllHighlights()
+end
+
+local function ApplyChams(model, color, enabled, fillTrans)
+    local existing = model:FindFirstChild("TChams")
+    if not enabled then
+        if existing then pcall(function() existing:Destroy() end) end
+        return
+    end
+    if not existing then
+        existing = Instance.new("Highlight")
+        existing.Name = "TChams"
+        existing.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        existing.OutlineTransparency = 0.2
+        existing.Parent = model
+    end
+    existing.FillTransparency = fillTrans or 0.5
+    existing.FillColor3 = color
+    existing.OutlineColor3 = color
+end
+
+-- Р¤СѓРЅРєС†РёСЏ РїСЂРёРјРµРЅРµРЅРёСЏ С‡Р°РјСЃРѕРІ РЅР° ViewModel (СЂСѓРєРё Рё РѕСЂСѓР¶РёРµ РёРіСЂРѕРєР°)
+local function UpdateViewModelChams()
+    if not CFG.ChamsViewModel then
+        -- РЈРґР°Р»СЏРµРј С‡Р°РјСЃС‹ СЃ ViewModel
+        if Cam then
+            for _, child in ipairs(Cam:GetChildren()) do
+                local vmChams = child:FindFirstChild("TChamsVM")
+                if vmChams then pcall(function() vmChams:Destroy() end) end
+                -- РўР°РєР¶Рµ РїСЂРѕРІРµСЂСЏРµРј, РµСЃР»Рё СЃР°Рј РґРѕС‡РµСЂРЅРёР№ РѕР±СЉРµРєС‚ СЏРІР»СЏРµС‚СЃСЏ Highlight
+                if child:IsA("Highlight") and child.Name == "TChamsVM" then
+                    pcall(function() child:Destroy() end)
+                end
+            end
+        end
+        return
+    end
+
+    if Cam then
+        for _, child in ipairs(Cam:GetChildren()) do
+            -- РџСЂРѕРІРµСЂСЏРµРј СЏРІР»СЏРµС‚СЃСЏ Р»Рё РѕР±СЉРµРєС‚ РјРѕРґРµР»СЊСЋ СЂСѓРє/РѕСЂСѓР¶РёСЏ (РѕР±С‹С‡РЅРѕ ViewModel, РёР»Рё Model, РёРјРµСЋС‰Р°СЏ MeshPart/Part)
+            if child:IsA("Model") or child:IsA("BasePart") then
+                local vmChams = child:FindFirstChild("TChamsVM")
+                if not vmChams then
+                    vmChams = Instance.new("Highlight")
+                    vmChams.Name = "TChamsVM"
+                    vmChams.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    vmChams.Parent = child
+                end
+                vmChams.FillColor3 = CFG.VMColor
+                vmChams.OutlineColor3 = CFG.VMColor
+                vmChams.FillTransparency = CFG.VMOpt
+                vmChams.OutlineTransparency = 0.1
+            end
+        end
+    end
 end
 
 local function UpdateESP()
     local myPos = MyPos()
     local currentActive = {}
-    local visibleHighlights = {} -- собираем все видимые объекты для обводки
 
-    -- 1. Игроки
+    -- РћР±РЅРѕРІР»СЏРµРј С‡Р°РјСЃС‹ РЅР° СЂСѓРєР°С…/РѕСЂСѓР¶РёРё
+    pcall(UpdateViewModelChams)
+
+    -- 1. РРіСЂРѕРєРё
     for model, plr in pairs(TrackedPlayers) do
         if model.Parent then
             currentActive[model] = true
@@ -504,6 +573,9 @@ local function UpdateESP()
             if root then
                 local dist = math.floor((root.Position - myPos).Magnitude)
                 local data = ActiveESP[model]
+
+                -- Chams РґР»СЏ РёРіСЂРѕРєРѕРІ
+                ApplyChams(model, Color3.fromRGB(255, 50, 50), CFG.ChamsPlayers and dist <= CFG.MaxDist)
 
                 if CFG.ESP_Players and dist <= CFG.MaxDist then
                     if not data then
@@ -522,7 +594,7 @@ local function UpdateESP()
                         nameLbl.Size = UDim2.new(1, 0, 0, 16)
                         nameLbl.BackgroundTransparency = 1
                         nameLbl.TextColor3 = Color3.new(1, 1, 1)
-                        nameLbl.TextStrokeTransparency = 0
+                        nameLbl.TextStrokeTransparency = 0.2
                         nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         nameLbl.Font = Enum.Font.GothamBold
                         nameLbl.TextSize = MOBILE and 11 or 12
@@ -534,7 +606,7 @@ local function UpdateESP()
                         distLbl.Position = UDim2.new(0, 0, 0, 16)
                         distLbl.BackgroundTransparency = 1
                         distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-                        distLbl.TextStrokeTransparency = 0
+                        distLbl.TextStrokeTransparency = 0.3
                         distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         distLbl.Font = Enum.Font.Gotham
                         distLbl.TextSize = MOBILE and 9 or 10
@@ -564,10 +636,6 @@ local function UpdateESP()
                     data.bb.Enabled = true
                     data.bb.Adornee = root
                     
-                    if CFG.ChamsEnabled then
-                        table.insert(visibleHighlights, { model = model, color = Color3.fromRGB(255, 60, 60), dist = dist })
-                    end
-
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = plr.DisplayName end
 
@@ -587,15 +655,13 @@ local function UpdateESP()
                         data.bb.HpBg.Visible = CFG.ShowHealth
                     end
                 else
-                    if data then
-                        data.bb.Enabled = false
-                    end
+                    if data then data.bb.Enabled = false end
                 end
             end
         end
     end
 
-    -- 2. Сущности (NPC, Loot, Res...)
+    -- 2. РЎСѓС‰РЅРѕСЃС‚Рё (NPC, Loot, Res...)
     for model, ent in pairs(Entities) do
         if model.Parent then
             currentActive[model] = true
@@ -606,6 +672,10 @@ local function UpdateESP()
                 local dist = math.floor((part.Position - myPos).Magnitude)
                 local maxD = CatMaxDist(cat, info)
                 local data = ActiveESP[model]
+
+                -- РџСЂРёРјРµРЅСЏРµРј С‡Р°РјСЃС‹ РЅР° РІСЃРµ РєР°С‚РµРіРѕСЂРёРё РѕР±СЉРµРєС‚РѕРІ (Р СѓРґС‹, Р›СѓС‚, РўСЂР°РЅСЃРїРѕСЂС‚, Р›РѕРІСѓС€РєРё)
+                local chamsEnabledForCat = CatChamsEnabled(cat)
+                ApplyChams(model, info.c, chamsEnabledForCat and dist <= maxD, cat == "res" and 0.7 or 0.5)
 
                 if CatEnabled(cat) and dist <= maxD then
                     if not data then
@@ -624,7 +694,7 @@ local function UpdateESP()
                         nameLbl.Size = UDim2.new(1, 0, 0, 16)
                         nameLbl.BackgroundTransparency = 1
                         nameLbl.TextColor3 = info.c
-                        nameLbl.TextStrokeTransparency = 0
+                        nameLbl.TextStrokeTransparency = 0.2
                         nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         nameLbl.Font = Enum.Font.GothamBold
                         nameLbl.TextSize = MOBILE and 10 or 11
@@ -636,7 +706,7 @@ local function UpdateESP()
                         distLbl.Position = UDim2.new(0, 0, 0, 15)
                         distLbl.BackgroundTransparency = 1
                         distLbl.TextColor3 = info.c
-                        distLbl.TextStrokeTransparency = 0
+                        distLbl.TextStrokeTransparency = 0.3
                         distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                         distLbl.Font = Enum.Font.Gotham
                         distLbl.TextSize = MOBILE and 8 or 9
@@ -667,21 +737,9 @@ local function UpdateESP()
 
                     data.bb.Enabled = true
                     data.bb.Adornee = part
-                    
-                    -- Сортировка Chams: включаем обводку только если включена настройка и объект близко
-                    if CFG.ChamsEnabled then
-                        local maxHlDist = (cat == "npc" or cat == "veh") and 400 or 150
-                        if dist <= maxHlDist then
-                            table.insert(visibleHighlights, { model = model, color = info.c, dist = dist })
-                        end
-                    end
 
-                    -- Определение настоящего имени (если оно изменилось во время игры)
+                    -- РќР°Р·РІР°РЅРёРµ Р±РµСЂРµС‚СЃСЏ РёСЃРєР»СЋС‡РёС‚РµР»СЊРЅРѕ РёР· РєРѕРЅС„РёРіР° РІРѕ РёР·Р±РµР¶Р°РЅРёРµ "Iron Ore" РЅР° РґСЂСѓРіРёС… РѕР±СЉРµРєС‚Р°С…
                     local dispName = info.n or model.Name
-                    local dynamicName = TryGetRealName(model)
-                    if dynamicName then
-                        dispName = dynamicName
-                    end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. dispName end
@@ -701,34 +759,15 @@ local function UpdateESP()
                         end
                     end
                 else
-                    if data then
-                        data.bb.Enabled = false
-                    end
+                    if data then data.bb.Enabled = false end
+                    -- РЈР±РёСЂР°РµРј РїРѕРґСЃРІРµС‚РєСѓ РµСЃР»Рё РєР°С‚РµРіРѕСЂРёСЏ РІС‹РєР»СЋС‡РµРЅР°
+                    if not chamsEnabledForCat then ApplyChams(model, info.c, false) end
                 end
             end
         end
     end
 
-    -- Назначение лимитированных Highlights из пула (сортировка по близости к игроку)
-    table.sort(visibleHighlights, function(a, b) return a.dist < b.dist end)
-    
-    for i = 1, 30 do
-        local hl = hlPool[i]
-        local item = visibleHighlights[i]
-        if hl then
-            if item and CFG.ChamsEnabled then
-                hl.Adornee = item.model
-                hl.FillColor3 = item.color
-                hl.OutlineColor3 = item.color
-                hl.Enabled = true
-            else
-                hl.Enabled = false
-                hl.Adornee = nil
-            end
-        end
-    end
-
-    -- Очистка мертвых объектов
+    -- РћС‡РёСЃС‚РєР° РјРµСЂС‚РІС‹С… РѕР±СЉРµРєС‚РѕРІ
     for model in pairs(ActiveESP) do
         if not currentActive[model] then
             ClearESP(model)
@@ -737,35 +776,30 @@ local function UpdateESP()
 end
 
 -- ================================================================
---  ФОНОВЫЙ ТИКЕР (ОБНОВЛЕНИЕ ESP И ДИАГНОСТИКИ)
+--  Р¤РћРќРћР’Р«Р™ РўРРљР•Р 
 -- ================================================================
 local DiagLabel = nil
 
 local function UpdateDiag()
     if not DiagLabel then return end
-    local msg = "DIAGNOSTICS:\n"
+    local msg = "DIAGNOSTICS:
+"
     
     local entCount = 0
     for _ in pairs(Entities) do entCount = entCount + 1 end
-    msg = msg .. "• Entities tracked: " .. entCount .. "\n"
+    msg = msg .. "вЂў Entities tracked: " .. entCount .. "\n"
 
     local pCount = 0
     for _ in pairs(TrackedPlayers) do pCount = pCount + 1 end
-    msg = msg .. "• Players tracked: " .. pCount .. "\n"
+    msg = msg .. "вЂў Players tracked: " .. pCount .. "\n"
     
     local activeCount = 0
     for _ in pairs(ActiveESP) do activeCount = activeCount + 1 end
-    msg = msg .. "• Active ESP tags: " .. activeCount .. "\n"
-    
-    local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
-    if ignoreFolder then
-        msg = msg .. "• Ignore folder size: " .. #ignoreFolder:GetChildren() .. "\n"
-    end
+    msg = msg .. "вЂў Active ESP tags: " .. activeCount .. "\n"
 
     DiagLabel.Text = msg
 end
 
--- Фоновый поток
 task.spawn(function()
     while task.wait(0.25) do
         if _G._TESP_SESSION_ID ~= sessionID then
@@ -777,7 +811,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
---  AIMBOT (RenderStepped — каждый кадр)
+--  AIMBOT (RenderStepped вЂ” РєР°Р¶РґС‹Р№ РєР°РґСЂ)
 -- ================================================================
 local function FindBestTarget()
     local sc = Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y/2)
@@ -785,7 +819,6 @@ local function FindBestTarget()
     local bestPart = nil
     local bestScreenDist = CFG.AimFOV
 
-    -- 1. Игроки
     if CFG.AimPlayers then
         for model, plr in pairs(TrackedPlayers) do
             local part = GetPart(model, CFG.AimPart)
@@ -805,7 +838,6 @@ local function FindBestTarget()
         end
     end
 
-    -- 2. NPC
     if CFG.AimNPCs then
         for model, ent in pairs(Entities) do
             if ent.cat == "npc" and model.Parent then
@@ -852,7 +884,7 @@ renderConn = RunService.RenderStepped:Connect(function()
 end)
 
 -- ================================================================
---  GUI СКРОЛЛИРУЕМОЕ МЕНЮ
+--  GUI РЎРљР РћР›Р›РР РЈР•РњРћР• РњР•РќР®
 -- ================================================================
 local BH = MOBILE and 42 or 30
 local FS = MOBILE and 14 or 12
@@ -872,7 +904,6 @@ local ps = Instance.new("UIStroke", Panel)
 ps.Color = Color3.fromRGB(80, 80, 200)
 ps.Thickness = 1.2
 
--- Тайтл меню
 local TBar = Instance.new("Frame")
 TBar.Size = UDim2.new(1, 0, 0, MOBILE and 40 or 32)
 TBar.BackgroundColor3 = Color3.fromRGB(20, 20, 55)
@@ -884,7 +915,7 @@ local TTitle = Instance.new("TextLabel")
 TTitle.Size = UDim2.new(1, -50, 1, 0)
 TTitle.Position = UDim2.new(0, 10, 0, 0)
 TTitle.BackgroundTransparency = 1
-TTitle.Text = "⚔ TRIDENT ESP v5.0"
+TTitle.Text = "вљ” TRIDENT FULL CHAMS"
 TTitle.TextColor3 = Color3.fromRGB(170, 170, 255)
 TTitle.TextSize = MOBILE and 16 or 14
 TTitle.Font = Enum.Font.GothamBold
@@ -896,14 +927,13 @@ MinBtn.Size = UDim2.new(0, MOBILE and 36 or 28, 0, MOBILE and 28 or 22)
 MinBtn.Position = UDim2.new(1, MOBILE and -40 or -32, 0.5, MOBILE and -14 or -11)
 MinBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 MinBtn.BorderSizePixel = 0
-MinBtn.Text = "−"
+MinBtn.Text = "в€’"
 MinBtn.TextSize = MOBILE and 22 or 16
 MinBtn.TextColor3 = Color3.new(1, 1, 1)
 MinBtn.Font = Enum.Font.GothamBold
 MinBtn.Parent = TBar
 Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 5)
 
--- Скролл
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Name = "Scroll"
 Scroll.Size = UDim2.new(1, -10, 1, -(MOBILE and 48 or 38))
@@ -925,12 +955,11 @@ SList.Padding = UDim.new(0, 3)
 local SPad = Instance.new("UIPadding", Scroll)
 SPad.PaddingTop = UDim.new(0, 2); SPad.PaddingBottom = UDim.new(0, 8)
 
--- Свернуть / Развернуть
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     Scroll.Visible = not minimized
-    MinBtn.Text = minimized and "+" or "−"
+    MinBtn.Text = minimized and "+" or "в€’"
     if minimized then
         Panel.Size = UDim2.new(0, PW, 0, MOBILE and 44 or 36)
     else
@@ -938,7 +967,6 @@ MinBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Драг меню
 do
     local drag, dStart, pStart
     TBar.InputBegan:Connect(function(inp)
@@ -961,7 +989,7 @@ do
 end
 
 -- ================================================================
---  КОМПОНЕНТЫ МЕНЮ
+--  РљРћРњРџРћРќР•РќРўР« РњР•РќР®
 -- ================================================================
 local layoutOrder = 0
 
@@ -1147,7 +1175,7 @@ local function Slider(text, min, max, get, set)
 end
 
 -- ================================================================
---  ПОСТРОЕНИЕ МЕНЮ
+--  РџРћРЎРўР РћР•РќРР• РњР•РќР®
 -- ================================================================
 
 Sec("AIMBOT")
@@ -1162,6 +1190,15 @@ Slider("Smoothing %", 5, 100,
     function() return math.floor(CFG.AimSmooth * 100) end,
     function(v) CFG.AimSmooth = v / 100 end)
 
+Sec("CHAMS")
+Toggle("My Hands & Weapon", function() return CFG.ChamsViewModel end, function(v) CFG.ChamsViewModel = v end)
+Toggle("Players Chams", function() return CFG.ChamsPlayers end, function(v) CFG.ChamsPlayers = v end)
+Toggle("NPC Chams",     function() return CFG.ChamsNPCs    end, function(v) CFG.ChamsNPCs    = v end)
+Toggle("Loot Chams",    function() return CFG.ChamsLoot    end, function(v) CFG.ChamsLoot    = v end)
+Toggle("Resource Chams",function() return CFG.ChamsResources end, function(v) CFG.ChamsResources = v end)
+Toggle("Vehicle Chams", function() return CFG.ChamsVehicles end, function(v) CFG.ChamsVehicles = v end)
+Toggle("Danger Chams",  function() return CFG.ChamsDanger  end, function(v) CFG.ChamsDanger  = v end)
+
 Sec("ESP CATEGORIES")
 Toggle("Players",       function() return CFG.ESP_Players   end, function(v) CFG.ESP_Players   = v end)
 Toggle("NPCs (HP)",     function() return CFG.ESP_NPCs      end, function(v) CFG.ESP_NPCs      = v end)
@@ -1171,13 +1208,11 @@ Toggle("Danger Traps",  function() return CFG.ESP_Danger    end, function(v) CFG
 Toggle("Resources / Trees", function() return CFG.ESP_Resources end, function(v) CFG.ESP_Resources = v end)
 
 Sec("ESP OPTIONS")
-Toggle("3D Chams (Highlight)", function() return CFG.ChamsEnabled end, function(v) CFG.ChamsEnabled = v end)
 Toggle("Show Health",   function() return CFG.ShowHealth    end, function(v) CFG.ShowHealth    = v end)
 Slider("Max Distance", 100, 2000,
     function() return CFG.MaxDist end,
     function(v) CFG.MaxDist = v end)
 
--- Создаем лейбл диагностики в самом конце
 layoutOrder += 1
 DiagLabel = Instance.new("TextLabel")
 DiagLabel.Size = UDim2.new(1, 0, 0, MOBILE and 75 or 60)
@@ -1207,6 +1242,7 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v5.0 (SUPREME) — LOADED")
-print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
-print("==========================================")
+print(" вљ” TRIDENT SURVIVAL ESP v4.0 вЂ” LOADED")
+print("   в… FULL CHAMS & VM CHAMS ACTIVE в…")
+print(MOBILE and " рџ“± Mobile Mode" or " рџ’» PC Mode")
+print("==========================================") 
