@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.2 (HYBRID / NO-G_CLASSES FIXED)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.3 (EVENT-DRIVEN / INSTANT LOAD)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК
 -- ================================================================
@@ -10,6 +10,15 @@ local UIS = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 local Cam = workspace.CurrentCamera
 local MOBILE = UIS.TouchEnabled
+
+-- ================================================================
+--  УДАЛЕНИЕ ВСЕХ ПРЕДЫДУЩИХ МЕНЮ (ЧТОБЫ НЕ НАКЛАДЫВАЛИСЬ!)
+-- ================================================================
+for _, child in ipairs(LP.PlayerGui:GetChildren()) do
+    if child:IsA("ScreenGui") and (child.Name:find("TESP") or child.Name:find("TridentESP")) then
+        pcall(function() child:Destroy() end)
+    end
+end
 
 -- ================================================================
 --  НАСТРОЙКИ (КОНФИГ)
@@ -35,146 +44,26 @@ local CFG = {
 }
 
 -- ================================================================
---  ТАБЛИЦЫ НАСТРОЕК СУЩНОСТЕЙ
--- ================================================================
-local NPC = {
-    Ghoul           = {n="Ghoul",           c=Color3.fromRGB(120,255,50), hp=200},
-    Soldier         = {n="Soldier",         c=Color3.fromRGB(255,165,0),  hp=125},
-    Officer         = {n="Officer",         c=Color3.fromRGB(255,100,100),hp=150},
-    General         = {n="General",         c=Color3.fromRGB(255,50,50),  hp=200},
-    GasMaskSoldier  = {n="Gas Mask Soldier",c=Color3.fromRGB(255,220,0),  hp=150},
-    LabWorker       = {n="Lab Worker",      c=Color3.fromRGB(180,180,255),hp=100},
-    Merchant        = {n="Merchant",        c=Color3.fromRGB(100,255,255),hp=100},
-    EventHelicopter = {n="Event Heli",      c=Color3.fromRGB(255,80,80),  hp=500},
-}
-local LOOT = {
-    DroppedItem           ={n="Dropped Item",   c=Color3.fromRGB(255,255,80), md=300},
-    SupplyDrop            ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
-    SupplyDrop2           ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
-    MetalCrate            ={n="Metal Crate",     c=Color3.fromRGB(200,200,255),md=400},
-    TransportCrate        ={n="Transport Crate", c=Color3.fromRGB(255,150,50), md=400},
-    LootSafe              ={n="Loot Safe",       c=Color3.fromRGB(255,215,0),  md=400},
-    LootVaultDoor         ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
-    LootVaultDoor2        ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
-    LootVaultDoor3        ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
-    ElectricLootVaultDoor ={n="Electric Vault",  c=Color3.fromRGB(200,255,80), md=300},
-    ScrapBucket           ={n="Scrap Bucket",    c=Color3.fromRGB(180,180,180),md=300},
-    PartsBox              ={n="Parts Box",       c=Color3.fromRGB(150,200,255),md=300},
-}
-local RES = {
-    IronOre   ={n="Iron Ore",   c=Color3.fromRGB(210,210,210)},
-    NitrateOre={n="Nitrate Ore",c=Color3.fromRGB(255,255,200)},
-    StoneOre  ={n="Stone Ore",  c=Color3.fromRGB(160,160,160)},
-    Tree1     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
-    Tree2     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
-    Tree3     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
-    Tree4     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
-    BerryBush ={n="Berry Bush", c=Color3.fromRGB(200,50,200)},
-    GasCan    ={n="Gas Can",    c=Color3.fromRGB(255,100,0)},
-    Cactus1   ={n="Cactus",     c=Color3.fromRGB(0,180,0)},
-    Cactus2   ={n="Cactus",     c=Color3.fromRGB(0,180,0)},
-}
-local VEH = {
-    ATV       ={n="ATV",       c=Color3.fromRGB(0,200,255)},
-    Boat      ={n="Boat",      c=Color3.fromRGB(50,150,255)},
-    Helicopter={n="Helicopter",c=Color3.fromRGB(100,200,255)},
-    Trolly    ={n="Trolly",    c=Color3.fromRGB(0,200,255)},
-}
-local DNG = {
-    BearTrap  ={n="Bear Trap",  c=Color3.fromRGB(255,0,0)},
-    TeslaPylon={n="Tesla Pylon",c=Color3.fromRGB(255,255,0)},
-    GasTrap   ={n="Gas Trap",   c=Color3.fromRGB(0,255,100)},
-}
-
-local function ClassifyType(typeName)
-    if NPC[typeName]  then return "npc",  NPC[typeName]  end
-    if LOOT[typeName] then return "loot", LOOT[typeName] end
-    if RES[typeName]  then return "res",  RES[typeName]  end
-    if VEH[typeName]  then return "veh",  VEH[typeName]  end
-    if DNG[typeName]  then return "dng",  DNG[typeName]  end
-    return nil, nil
-end
-
-local function CatEnabled(cat)
-    if cat == "npc"  then return CFG.ESP_NPCs end
-    if cat == "loot" then return CFG.ESP_Loot end
-    if cat == "res"  then return CFG.ESP_Resources end
-    if cat == "veh"  then return CFG.ESP_Vehicles end
-    if cat == "dng"  then return CFG.ESP_Danger end
-    return false
-end
-
-local function CatMaxDist(cat, info)
-    if info and info.md then return info.md end
-    if cat == "npc"  then return 600 end
-    if cat == "loot" then return 400 end
-    if cat == "res"  then return 250 end
-    if cat == "veh"  then return 800 end
-    if cat == "dng"  then return 300 end
-    return 400
-end
-
-local function CatIcon(cat)
-    if cat == "npc"  then return "☠ " end
-    if cat == "loot" then return "◆ " end
-    if cat == "res"  then return "⛏ " end
-    if cat == "veh"  then return "⊕ " end
-    if cat == "dng"  then return "⚠ " end
-    return ""
-end
-
--- ================================================================
---  ПОИСК ТАБЛИЦЫ КЛАССОВ ИГРЫ (ГЛУБОКИЙ ПОИСК)
--- ================================================================
-local function GetClassesTable()
-    if _G.classes then 
-        return _G.classes 
-    end
-    
-    -- Попробуем найти в глобальной области под другими именами
-    for k, v in pairs(_G) do
-        if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
-            return v
-        end
-    end
-    
-    -- Попробуем найти через сборщик мусора getgc()
-    local gcSuccess, gcResult = pcall(function()
-        if getgc then
-            local gc = getgc(true)
-            for _, v in ipairs(gc) do
-                if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
-                    return v
-                end
-            end
-        end
-    end)
-    if gcSuccess and gcResult then
-        return gcResult
-    end
-    
-    return nil
-end
-
--- ================================================================
---  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ФОЛБЭК ЕСЛИ КЛАССЫ РАВНЫ NIL)
+--  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ
 -- ================================================================
 local function HeuristicClassify(model)
-    -- 1. Транспорт (Машины)
+    local modelNameLower = model.Name:lower()
+
+    -- 1. Транспорт (Машины, Вертолеты, Лодки)
     if model:FindFirstChildWhichIsA("VehicleSeat") or model:FindFirstChildWhichIsA("Seat") then
-        if model:FindFirstChild("Body") or model:FindFirstChild("Engine") or model:FindFirstChild("SteeringWheel") then
-            return "veh", { n = "Vehicle", c = Color3.fromRGB(0, 200, 255) }
-        end
+        local name = "Vehicle"
+        if modelNameLower:find("boat") then name = "Boat"
+        elseif modelNameLower:find("heli") or modelNameLower:find("copter") then name = "Helicopter"
+        elseif modelNameLower:find("atv") then name = "ATV" end
+        return "veh", { n = name, c = Color3.fromRGB(0, 200, 255) }
     end
     
     -- 2. NPC (Мутанты, Зомби, Солдаты)
     if model:FindFirstChild("AnimationController") or model:FindFirstChildOfClass("Humanoid") then
+        -- Убедимся, что это не игрок
         local isPlayer = false
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name == model.Name or (model.Parent and model.Parent.Name == p.Name) then
-                isPlayer = true
-                break
-            end
+            if p.Name == model.Name then isPlayer = true; break end
         end
         if not isPlayer then
             local hasWeapon = model:FindFirstChild("RightHand") and model.RightHand:FindFirstChildOfClass("Model")
@@ -198,11 +87,11 @@ local function HeuristicClassify(model)
     end
     
     -- 4. Аирдроп (Supply Drop)
-    if model:FindFirstChild("Parachute") or model:FindFirstChild("Cables") then
+    if model:FindFirstChild("Parachute") or model:FindFirstChild("Cables") or modelNameLower:find("supply") then
         return "loot", { n = "Supply Drop", c = Color3.fromRGB(255, 50, 255) }
     end
     
-    -- 5. Руды и Ресурсы
+    -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКАЯ ЦВЕТОКОРРЕКЦИЯ)
     local hasOreVisual = false
     local oreType = "Stone Ore"
     local oreColor = Color3.fromRGB(160, 160, 160)
@@ -213,14 +102,17 @@ local function HeuristicClassify(model)
             if mat == Enum.Material.Rock or mat == Enum.Material.Slate then
                 hasOreVisual = true
                 local c = child.Color
-                -- Желтый = Сера/Нитрат
-                if c.R > 0.75 and c.G > 0.75 and c.B < 0.65 then
+                local r, g, b = c.R, c.G, c.B
+                -- Желтый (Нитраты/Сера): Высокие R и G, низкий B
+                if r > 0.6 and g > 0.6 and b < 0.5 and (r - b) > 0.2 then
                     oreType = "Nitrate Ore"
-                    oreColor = Color3.fromRGB(255, 255, 150)
-                -- Коричнево-красный = Железо
-                elseif c.R > 0.45 and c.G > 0.35 and c.B > 0.3 then
+                    oreColor = Color3.fromRGB(255, 255, 120)
+                    break
+                -- Красно-коричневый (Железо): Высокий R, средние G и B
+                elseif r > 0.4 and (r - g) > 0.15 then
                     oreType = "Iron Ore"
                     oreColor = Color3.fromRGB(210, 140, 90)
+                    break
                 end
             end
         end
@@ -230,27 +122,27 @@ local function HeuristicClassify(model)
     end
     
     -- 6. Деревья
-    if model:FindFirstChild("Leaves") or model:FindFirstChild("Branch") or model:FindFirstChild("Trunk") then
+    if model:FindFirstChild("Leaves") or model:FindFirstChild("Branch") or model:FindFirstChild("Trunk") or modelNameLower:find("tree") then
         return "res", { n = "Tree", c = Color3.fromRGB(50, 200, 50) }
     end
     
     -- 7. Кусты ягод
-    if model:FindFirstChild("Berries") or model:FindFirstChild("Berry") or model.Name:lower():find("bush") then
+    if model:FindFirstChild("Berries") or model:FindFirstChild("Berry") or modelNameLower:find("bush") then
         return "res", { n = "Berry Bush", c = Color3.fromRGB(200, 50, 200) }
     end
     
     -- 8. Сундуки / Контейнеры лута
-    if model:FindFirstChild("Lid") or model:FindFirstChild("Lock") then
+    if model:FindFirstChild("Lid") or model:FindFirstChild("Lock") or modelNameLower:find("crate") or modelNameLower:find("chest") then
         local name = "Loot Crate"
-        if model:FindFirstChild("Safe") or model.Name:lower():find("safe") then name = "Loot Safe" end
+        if model:FindFirstChild("Safe") or modelNameLower:find("safe") then name = "Loot Safe" end
         return "loot", { n = name, c = Color3.fromRGB(255, 215, 0) }
     end
 
     -- 9. Опасности (Капканы, Тесла)
-    if model:FindFirstChild("BearTrap") or model:FindFirstChild("Jaw") then
+    if model:FindFirstChild("BearTrap") or model:FindFirstChild("Jaw") or modelNameLower:find("trap") then
         return "dng", { n = "Bear Trap", c = Color3.fromRGB(255, 0, 0) }
     end
-    if model:FindFirstChild("Tesla") or model:FindFirstChild("Pylon") then
+    if model:FindFirstChild("Tesla") or model:FindFirstChild("Pylon") or modelNameLower:find("tesla") then
         return "dng", { n = "Tesla Pylon", c = Color3.fromRGB(255, 255, 0) }
     end
     
@@ -273,77 +165,102 @@ local function GetPart(model, name)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
--- Сканирование сущностей (гибридное)
-local function GetEntities()
-    local list = {}
-    local classes = GetClassesTable()
-    local EntityMap = classes and classes.EntityClient and classes.EntityClient.EntityMap
-    
-    if EntityMap then
-        -- Точный метод (через игровые таблицы)
-        for id, ent in pairs(EntityMap) do
-            if ent.model and ent.model.Parent then
-                table.insert(list, {
-                    model = ent.model,
-                    type = ent.type,
-                    id = ent.id,
-                    byMap = true
-                })
-            end
+-- Таблицы кэша
+local Entities = {}       -- [model] = { cat = string, info = table }
+local TrackedPlayers = {} -- [model] = player
+
+-- ================================================================
+--  ИНСТАНТ-СКАНИРОВАНИЕ И СОБЫТИЯ (0% НАГРУЗКИ НА ЦП)
+-- ================================================================
+local function ProcessModel(child)
+    if not child:IsA("Model") then return end
+    if child == LP.Character then return end
+
+    -- Оптимизация: в Trident все сущности названы "Model"
+    if child.Name == "Model" then
+        local cat, info = HeuristicClassify(child)
+        if cat then
+            Entities[child] = { cat = cat, info = info }
         end
     else
-        -- Эвристический метод (сканирование workspace)
-        for _, child in ipairs(workspace:GetChildren()) do
-            if child:IsA("Model") and child ~= LP.Character then
-                local cat, info = HeuristicClassify(child)
-                if cat then
-                    table.insert(list, {
-                        model = child,
-                        type = info.n,
-                        heuristicCat = cat,
-                        heuristicInfo = info,
-                        byMap = false
-                    })
-                end
-            end
+        -- Проверка на игрока
+        local plr = Players:FindFirstChild(child.Name)
+        if plr and plr ~= LP then
+            TrackedPlayers[child] = plr
         end
     end
-    return list
 end
 
--- Получение игроков
-local function GetPlayersList()
-    local list = {}
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LP then
-            local char = plr.Character
-            if char and char.Parent then
-                table.insert(list, { player = plr, model = char })
-            else
-                -- Поиск в Ignore папке Trident Survival
-                local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
-                if ignoreFolder then
-                    local charModel = ignoreFolder:FindFirstChild(plr.Name)
-                    if charModel and charModel:IsA("Model") then
-                        table.insert(list, { player = plr, model = charModel })
-                    end
-                end
-            end
-        end
+-- Первоначальный моментальный скан (работает за миллисекунды)
+for _, child in ipairs(workspace:GetChildren()) do
+    ProcessModel(child)
+end
+
+local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+if ignoreFolder then
+    for _, child in ipairs(ignoreFolder:GetChildren()) do
+        ProcessModel(child)
     end
-    return list
 end
 
--- ================================================================
---  УДАЛЕНИЕ ПРЕДЫДУЩЕГО СКРИПТА
--- ================================================================
-if _G._TESP_CLEANUP then pcall(_G._TESP_CLEANUP) end
+-- Подключение ивентов для мгновенного отслеживания новых объектов
+local connections = {}
+
+table.insert(connections, workspace.ChildAdded:Connect(function(child)
+    task.wait(0.1) -- даем игре время применить имя / собрать модель
+    ProcessModel(child)
+end))
+
+table.insert(connections, workspace.ChildRemoved:Connect(function(child)
+    Entities[child] = nil
+    TrackedPlayers[child] = nil
+    if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
+end))
+
+if ignoreFolder then
+    table.insert(connections, ignoreFolder.ChildAdded:Connect(function(child)
+        task.wait(0.2) -- игроки грузятся чуть дольше
+        ProcessModel(child)
+    end))
+    table.insert(connections, ignoreFolder.ChildRemoved:Connect(function(child)
+        TrackedPlayers[child] = nil
+        if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(child) end
+    end))
+end
+
+-- Ивенты игроков
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= LP then
+        if plr.Character then TrackedPlayers[plr.Character] = plr end
+        plr.CharacterAdded:Connect(function(char)
+            task.wait(0.2)
+            TrackedPlayers[char] = plr
+        end)
+        plr.CharacterRemoving:Connect(function(char)
+            TrackedPlayers[char] = nil
+            if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(char) end
+        end)
+    end
+end
+
+table.insert(connections, Players.PlayerAdded:Connect(function(plr)
+    if plr ~= LP then
+        plr.CharacterAdded:Connect(function(char)
+            task.wait(0.2)
+            TrackedPlayers[char] = plr
+        end)
+        plr.CharacterRemoving:Connect(function(char)
+            TrackedPlayers[char] = nil
+            if _G._TESP_CLEAR_SINGLE then _G._TESP_CLEAR_SINGLE(char) end
+        end)
+    end
+end))
 
 -- ================================================================
 --  ГЛАВНЫЙ SCREENGUI
 -- ================================================================
 local SG = Instance.new("ScreenGui")
-SG.Name = "TESP3"
+SG.Name = "TESP_MAIN"
 SG.ResetOnSpawn = false
 SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 SG.IgnoreGuiInset = true
@@ -382,6 +299,7 @@ local function ClearESP(instance)
         ActiveESP[instance] = nil
     end
 end
+_G._TESP_CLEAR_SINGLE = ClearESP
 
 local function ClearAllESP()
     for inst in pairs(ActiveESP) do
@@ -391,141 +309,125 @@ end
 
 local function UpdateESP()
     local myPos = MyPos()
-    local currentModels = {}
+    local currentActive = {}
 
-    -- 1. Игроки
-    local pList = GetPlayersList()
-    for _, item in ipairs(pList) do
-        local plr = item.player
-        local model = item.model
-        local root = GetPart(model, "HumanoidRootPart")
+    -- 1. Отрисовка игроков
+    for model, plr in pairs(TrackedPlayers) do
+        if model.Parent then
+            currentActive[model] = true
+            local root = GetPart(model, "HumanoidRootPart")
+            if root then
+                local dist = math.floor((root.Position - myPos).Magnitude)
+                local data = ActiveESP[model]
 
-        if root and model.Parent then
-            currentModels[model] = true
-            local dist = math.floor((root.Position - myPos).Magnitude)
-            local data = ActiveESP[model]
+                if CFG.ESP_Players and dist <= CFG.MaxDist then
+                    if not data then
+                        local bb = Instance.new("BillboardGui")
+                        bb.Name = "_ESP_P"
+                        bb.AlwaysOnTop = true
+                        bb.Size = UDim2.new(0, 160, 0, 50)
+                        bb.StudsOffset = Vector3.new(0, 3.5, 0)
+                        bb.MaxDistance = CFG.MaxDist
+                        bb.LightInfluence = 0
+                        bb.Adornee = root
+                        bb.Parent = SG
 
-            if CFG.ESP_Players and dist <= CFG.MaxDist then
-                if not data then
-                    -- Создаем BillboardGui в ScreenGui
-                    local bb = Instance.new("BillboardGui")
-                    bb.Name = "_ESP_P_" .. plr.Name
-                    bb.AlwaysOnTop = true
-                    bb.Size = UDim2.new(0, 160, 0, 50)
-                    bb.StudsOffset = Vector3.new(0, 3.5, 0)
-                    bb.MaxDistance = CFG.MaxDist
-                    bb.LightInfluence = 0
-                    bb.Adornee = root
-                    bb.Parent = SG -- Обязательно в ScreenGui (в PlayerGui!)
+                        local nameLbl = Instance.new("TextLabel")
+                        nameLbl.Name = "NameLbl"
+                        nameLbl.Size = UDim2.new(1, 0, 0, 16)
+                        nameLbl.BackgroundTransparency = 1
+                        nameLbl.TextColor3 = Color3.new(1, 1, 1)
+                        nameLbl.TextStrokeTransparency = 0.2
+                        nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                        nameLbl.Font = Enum.Font.GothamBold
+                        nameLbl.TextSize = MOBILE and 11 or 12
+                        nameLbl.Parent = bb
 
-                    local nameLbl = Instance.new("TextLabel")
-                    nameLbl.Name = "NameLbl"
-                    nameLbl.Size = UDim2.new(1, 0, 0, 16)
-                    nameLbl.BackgroundTransparency = 1
-                    nameLbl.TextColor3 = Color3.new(1, 1, 1)
-                    nameLbl.TextStrokeTransparency = 0.2
-                    nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-                    nameLbl.Font = Enum.Font.GothamBold
-                    nameLbl.TextSize = MOBILE and 11 or 12
-                    nameLbl.Parent = bb
+                        local distLbl = Instance.new("TextLabel")
+                        distLbl.Name = "DistLbl"
+                        distLbl.Size = UDim2.new(1, 0, 0, 12)
+                        distLbl.Position = UDim2.new(0, 0, 0, 16)
+                        distLbl.BackgroundTransparency = 1
+                        distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+                        distLbl.TextStrokeTransparency = 0.3
+                        distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                        distLbl.Font = Enum.Font.Gotham
+                        distLbl.TextSize = MOBILE and 9 or 10
+                        distLbl.Parent = bb
 
-                    local distLbl = Instance.new("TextLabel")
-                    distLbl.Name = "DistLbl"
-                    distLbl.Size = UDim2.new(1, 0, 0, 12)
-                    distLbl.Position = UDim2.new(0, 0, 0, 16)
-                    distLbl.BackgroundTransparency = 1
-                    distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-                    distLbl.TextStrokeTransparency = 0.3
-                    distLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-                    distLbl.Font = Enum.Font.Gotham
-                    distLbl.TextSize = MOBILE and 9 or 10
-                    distLbl.Parent = bb
+                        local hpBg = Instance.new("Frame")
+                        hpBg.Name = "HpBg"
+                        hpBg.Size = UDim2.new(0.5, 0, 0, 4)
+                        hpBg.Position = UDim2.new(0.25, 0, 0, 30)
+                        hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                        hpBg.BorderSizePixel = 0
+                        hpBg.Parent = bb
+                        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
 
-                    local hpBg = Instance.new("Frame")
-                    hpBg.Name = "HpBg"
-                    hpBg.Size = UDim2.new(0.5, 0, 0, 4)
-                    hpBg.Position = UDim2.new(0.25, 0, 0, 30)
-                    hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                    hpBg.BorderSizePixel = 0
-                    hpBg.Parent = bb
-                    Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 2)
+                        local hpFill = Instance.new("Frame")
+                        hpFill.Name = "HpFill"
+                        hpFill.Size = UDim2.new(1, 0, 1, 0)
+                        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        hpFill.BorderSizePixel = 0
+                        hpFill.Parent = hpBg
+                        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
 
-                    local hpFill = Instance.new("Frame")
-                    hpFill.Name = "HpFill"
-                    hpFill.Size = UDim2.new(1, 0, 1, 0)
-                    hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                    hpFill.BorderSizePixel = 0
-                    hpFill.Parent = hpBg
-                    Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 2)
+                        local hl
+                        pcall(function()
+                            hl = Instance.new("Highlight")
+                            hl.Name = "_H"
+                            hl.FillTransparency = 0.8
+                            hl.OutlineTransparency = 0.2
+                            hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
+                            hl.FillColor3 = Color3.fromRGB(255, 60, 60)
+                            hl.Adornee = model
+                            hl.Parent = SG
+                        end)
 
-                    local hl
-                    pcall(function()
-                        hl = Instance.new("Highlight")
-                        hl.Name = "_H"
-                        hl.FillTransparency = 0.8
-                        hl.OutlineTransparency = 0.2
-                        hl.OutlineColor3 = Color3.fromRGB(255, 60, 60)
-                        hl.FillColor3 = Color3.fromRGB(255, 60, 60)
-                        hl.Adornee = model
-                        hl.Parent = SG -- Parent to ScreenGui!
-                    end)
+                        data = { bb = bb, hl = hl, type = "player", root = root }
+                        ActiveESP[model] = data
+                    end
 
-                    data = { bb = bb, hl = hl, type = "player", root = root }
-                    ActiveESP[model] = data
-                end
+                    data.bb.Enabled = true
+                    data.bb.Adornee = root
+                    if data.hl then data.hl.Enabled = true; data.hl.Adornee = model end
 
-                -- Обновляем
-                data.bb.Enabled = true
-                data.bb.Adornee = root
-                if data.hl then
-                    data.hl.Enabled = true
-                    data.hl.Adornee = model
-                end
+                    local nL = data.bb:FindFirstChild("NameLbl")
+                    if nL then nL.Text = plr.DisplayName end
 
-                local nL = data.bb:FindFirstChild("NameLbl")
-                if nL then nL.Text = plr.DisplayName end
+                    local dL = data.bb:FindFirstChild("DistLbl")
+                    if dL then dL.Text = "[" .. dist .. "m]" end
 
-                local dL = data.bb:FindFirstChild("DistLbl")
-                if dL then dL.Text = "[" .. dist .. "m]" end
-
-                local hF = data.bb:FindFirstChild("HpBg") and data.bb.HpBg:FindFirstChild("HpFill")
-                if hF then
-                    local hum = model:FindFirstChildOfClass("Humanoid")
-                    local hp, maxhp = 100, 100
-                    local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
-                    if attr then hp = attr
-                    elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
-                    local ratio = math.clamp(hp / maxhp, 0, 1)
-                    hF.Size = UDim2.new(ratio, 0, 1, 0)
-                    hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
-                    data.bb.HpBg.Visible = CFG.ShowHealth
-                end
-            else
-                if data then
-                    data.bb.Enabled = false
-                    if data.hl then data.hl.Enabled = false end
+                    local hF = data.bb:FindFirstChild("HpBg") and data.bb.HpBg:FindFirstChild("HpFill")
+                    if hF then
+                        local hum = model:FindFirstChildOfClass("Humanoid")
+                        local hp, maxhp = 100, 100
+                        local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
+                        if attr then hp = attr
+                        elseif hum then hp = hum.Health; maxhp = hum.MaxHealth end
+                        local ratio = math.clamp(hp / maxhp, 0, 1)
+                        hF.Size = UDim2.new(ratio, 0, 1, 0)
+                        hF.BackgroundColor3 = Color3.fromRGB(255*(1-ratio), 255*ratio, 0)
+                        data.bb.HpBg.Visible = CFG.ShowHealth
+                    end
+                else
+                    if data then
+                        data.bb.Enabled = false
+                        if data.hl then data.hl.Enabled = false end
+                    end
                 end
             end
         end
     end
 
-    -- 2. Сущности (NPC, Loot, Ore, Trees...)
-    local entList = GetEntities()
-    for _, ent in ipairs(entList) do
-        local model = ent.model
-        local cat, info
-        
-        if ent.byMap then
-            cat, info = ClassifyType(ent.type)
-        else
-            cat = ent.heuristicCat
-            info = ent.heuristicInfo
-        end
-
-        if cat and info and model.Parent then
+    -- 2. Отрисовка сущностей
+    for model, ent in pairs(Entities) do
+        if model.Parent then
+            currentActive[model] = true
+            local cat, info = ent.cat, ent.info
             local part = GetPart(model)
+
             if part then
-                currentModels[model] = true
                 local dist = math.floor((part.Position - myPos).Magnitude)
                 local maxD = CatMaxDist(cat, info)
                 local data = ActiveESP[model]
@@ -533,14 +435,14 @@ local function UpdateESP()
                 if CatEnabled(cat) and dist <= maxD then
                     if not data then
                         local bb = Instance.new("BillboardGui")
-                        bb.Name = "_ESP_E_" .. ent.type
+                        bb.Name = "_ESP_E"
                         bb.AlwaysOnTop = true
                         bb.Size = UDim2.new(0, 150, 0, 45)
                         bb.StudsOffset = Vector3.new(0, 3, 0)
                         bb.MaxDistance = maxD
                         bb.LightInfluence = 0
                         bb.Adornee = part
-                        bb.Parent = SG -- Parent to ScreenGui!
+                        bb.Parent = SG
 
                         local nameLbl = Instance.new("TextLabel")
                         nameLbl.Name = "NameLbl"
@@ -593,7 +495,7 @@ local function UpdateESP()
                             hl.OutlineColor3 = info.c
                             hl.FillColor3 = info.c
                             hl.Adornee = model
-                            hl.Parent = SG -- Parent to ScreenGui!
+                            hl.Parent = SG
                         end)
 
                         data = { bb = bb, hl = hl, type = cat, part = part }
@@ -602,10 +504,7 @@ local function UpdateESP()
 
                     data.bb.Enabled = true
                     data.bb.Adornee = part
-                    if data.hl then
-                        data.hl.Enabled = true
-                        data.hl.Adornee = model
-                    end
+                    if data.hl then data.hl.Enabled = true; data.hl.Adornee = model end
 
                     local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. info.n end
@@ -634,39 +533,30 @@ local function UpdateESP()
         end
     end
 
-    -- Очищаем то, чего больше нет в игре
+    -- Очистка мертвых объектов
     for model in pairs(ActiveESP) do
-        if not currentModels[model] or not model.Parent then
+        if not currentActive[model] then
             ClearESP(model)
         end
     end
 end
 
 -- ================================================================
---  ФОНОВЫЙ ТИКЕР ДЛЯ ОБНОВЛЕНИЯ ESP И ДИАГНОСТИКИ
+--  ФОНОВЫЙ ТИКЕР (ОБНОВЛЕНИЕ ESP И ДИАГНОСТИКИ)
 -- ================================================================
 local DiagLabel = nil
 
 local function UpdateDiag()
     if not DiagLabel then return end
     local msg = "DIAGNOSTICS:\n"
-    local classes = GetClassesTable()
     
-    if not classes then
-        msg = msg .. "• classes not found (Using HEURISTIC)\n"
-    else
-        msg = msg .. "• classes found via deep search\n"
-        if classes.EntityClient and classes.EntityClient.EntityMap then
-            local count = 0
-            for _ in pairs(classes.EntityClient.EntityMap) do count = count + 1 end
-            msg = msg .. "• EntityMap size: " .. count .. "\n"
-        else
-            msg = msg .. "• EntityMap not ready\n"
-        end
-    end
+    local entCount = 0
+    for _ in pairs(Entities) do entCount = entCount + 1 end
+    msg = msg .. "• Entities tracked: " .. entCount .. "\n"
 
-    local pList = GetPlayersList()
-    msg = msg .. "• Players tracked: " .. #pList .. "\n"
+    local pCount = 0
+    for _ in pairs(TrackedPlayers) do pCount = pCount + 1 end
+    msg = msg .. "• Players tracked: " .. pCount .. "\n"
     
     local activeCount = 0
     for _ in pairs(ActiveESP) do activeCount = activeCount + 1 end
@@ -675,8 +565,6 @@ local function UpdateDiag()
     local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
     if ignoreFolder then
         msg = msg .. "• Ignore folder size: " .. #ignoreFolder:GetChildren() .. "\n"
-    else
-        msg = msg .. "• Ignore folder NOT found\n"
     end
 
     DiagLabel.Text = msg
@@ -700,9 +588,7 @@ local function FindBestTarget()
 
     -- 1. Игроки
     if CFG.AimPlayers then
-        local pList = GetPlayersList()
-        for _, item in ipairs(pList) do
-            local model = item.model
+        for model, plr in pairs(TrackedPlayers) do
             local part = GetPart(model, CFG.AimPart)
             if part then
                 local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
@@ -722,17 +608,9 @@ local function FindBestTarget()
 
     -- 2. NPC
     if CFG.AimNPCs then
-        local entList = GetEntities()
-        for _, ent in ipairs(entList) do
-            local cat, _
-            if ent.byMap then
-                cat, _ = ClassifyType(ent.type)
-            else
-                cat = ent.heuristicCat
-            end
-            
-            if cat == "npc" and ent.model and ent.model.Parent then
-                local part = GetPart(ent.model, "Head")
+        for model, ent in pairs(Entities) do
+            if ent.cat == "npc" and model.Parent then
+                local part = GetPart(model, "Head")
                 if part then
                     local sp, vis, depth = Cam:WorldToViewportPoint(part.Position)
                     if vis and depth > 0 then
@@ -1109,29 +987,18 @@ DiagLabel.Parent = Scroll
 Instance.new("UICorner", DiagLabel).CornerRadius = UDim.new(0, 4)
 
 -- ================================================================
---  ГОРЯЧИЕ КЛАВИШИ (ПК)
--- ================================================================
-UIS.InputBegan:Connect(function(inp, gp)
-    if gp then return end
-    if inp.KeyCode == Enum.KeyCode.RightShift then
-        CFG.Aimbot = not CFG.Aimbot
-    end
-    if inp.KeyCode == Enum.KeyCode.Insert then
-        Panel.Visible = not Panel.Visible
-    end
-end)
-
--- ================================================================
---  CLEANUP FUNCTION
+--  CLEANUP FUNCTION / DISCONNECTION
 -- ================================================================
 _G._TESP_CLEANUP = function()
+    for _, conn in ipairs(connections) do
+        pcall(function() conn:Disconnect() end)
+    end
     ClearAllESP()
     pcall(function() SG:Destroy() end)
     print("[TESP] Cleaned up previous session.")
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.2 — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.3 — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
-print(" Insert = Toggle GUI | RightShift = Toggle Aim")
 print("==========================================")
