@@ -1,7 +1,7 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.3 (EVENT-DRIVEN / INSTANT LOAD)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.4 (FINAL MASTERPIECE)
 --  100% Roblox UI — без Drawing API — работает везде
---  Мобильный + ПК
+--  Мобильный + ПК | Сверхбыстрый и без лагов
 -- ================================================================
 
 local Players = game:GetService("Players")
@@ -12,8 +12,12 @@ local Cam = workspace.CurrentCamera
 local MOBILE = UIS.TouchEnabled
 
 -- ================================================================
---  УДАЛЕНИЕ ВСЕХ ПРЕДЫДУЩИХ МЕНЮ (ЧТОБЫ НЕ НАКЛАДЫВАЛИСЬ!)
+--  УНИКАЛЬНЫЙ СЕССИОННЫЙ ID ДЛЯ ГОРЯЧЕЙ ПЕРЕЗАГРУЗКИ (АНТИ-НАЛОЖЕНИЕ)
 -- ================================================================
+local sessionID = os.clock()
+_G._TESP_SESSION_ID = sessionID
+
+-- Удаление всех старых меню
 for _, child in ipairs(LP.PlayerGui:GetChildren()) do
     if child:IsA("ScreenGui") and (child.Name:find("TESP") or child.Name:find("TridentESP")) then
         pcall(function() child:Destroy() end)
@@ -44,13 +48,162 @@ local CFG = {
 }
 
 -- ================================================================
---  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ
+--  ТАБЛИЦЫ НАСТРОЕК СУЩНОСТЕЙ
+-- ================================================================
+local NPC = {
+    Ghoul           = {n="Ghoul",           c=Color3.fromRGB(120,255,50), hp=200},
+    Soldier         = {n="Soldier",         c=Color3.fromRGB(255,165,0),  hp=125},
+    Officer         = {n="Officer",         c=Color3.fromRGB(255,100,100),hp=150},
+    General         = {n="General",         c=Color3.fromRGB(255,50,50),  hp=200},
+    GasMaskSoldier  = {n="Gas Mask Soldier",c=Color3.fromRGB(255,220,0),  hp=150},
+    LabWorker       = {n="Lab Worker",      c=Color3.fromRGB(180,180,255),hp=100},
+    Merchant        = {n="Merchant",        c=Color3.fromRGB(100,255,255),hp=100},
+    EventHelicopter = {n="Event Heli",      c=Color3.fromRGB(255,80,80),  hp=500},
+}
+local LOOT = {
+    DroppedItem           ={n="Dropped Item",   c=Color3.fromRGB(255,255,80), md=300},
+    SupplyDrop            ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
+    SupplyDrop2           ={n="Supply Drop",     c=Color3.fromRGB(255,50,255), md=1500},
+    MetalCrate            ={n="Metal Crate",     c=Color3.fromRGB(200,200,255),md=400},
+    TransportCrate        ={n="Transport Crate", c=Color3.fromRGB(255,150,50), md=400},
+    LootSafe              ={n="Loot Safe",       c=Color3.fromRGB(255,215,0),  md=400},
+    LootVaultDoor         ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
+    LootVaultDoor2        ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
+    LootVaultDoor3        ={n="Vault Door",      c=Color3.fromRGB(255,215,0),  md=300},
+    ElectricLootVaultDoor ={n="Electric Vault",  c=Color3.fromRGB(200,255,80), md=300},
+    ScrapBucket           ={n="Scrap Bucket",    c=Color3.fromRGB(180,180,180),md=300},
+    PartsBox              ={n="Parts Box",       c=Color3.fromRGB(150,200,255),md=300},
+}
+local RES = {
+    IronOre   ={n="Iron Ore",   c=Color3.fromRGB(210,140,90)},
+    NitrateOre={n="Nitrate Ore",c=Color3.fromRGB(255,255,120)},
+    StoneOre  ={n="Stone Ore",  c=Color3.fromRGB(160,160,160)},
+    Tree1     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
+    Tree2     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
+    Tree3     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
+    Tree4     ={n="Tree",       c=Color3.fromRGB(50,200,50)},
+    BerryBush ={n="Berry Bush", c=Color3.fromRGB(200,50,200)},
+    GasCan    ={n="Gas Can",    c=Color3.fromRGB(255,100,0)},
+    Cactus1   ={n="Cactus",     c=Color3.fromRGB(0,180,0)},
+    Cactus2   ={n="Cactus",     c=Color3.fromRGB(0,180,0)},
+}
+local VEH = {
+    ATV       ={n="ATV",       c=Color3.fromRGB(0,200,255)},
+    Boat      ={n="Boat",      c=Color3.fromRGB(50,150,255)},
+    Helicopter={n="Helicopter",c=Color3.fromRGB(100,200,255)},
+    Trolly    ={n="Trolly",    c=Color3.fromRGB(0,200,255)},
+}
+local DNG = {
+    BearTrap  ={n="Bear Trap",  c=Color3.fromRGB(255,0,0)},
+    TeslaPylon={n="Tesla Pylon",c=Color3.fromRGB(255,255,0)},
+    GasTrap   ={n="Gas Trap",   c=Color3.fromRGB(0,255,100)},
+}
+
+local function ClassifyType(typeName)
+    if NPC[typeName]  then return "npc",  NPC[typeName]  end
+    if LOOT[typeName] then return "loot", LOOT[typeName] end
+    if RES[typeName]  then return "res",  RES[typeName]  end
+    if VEH[typeName]  then return "veh",  VEH[typeName]  end
+    if DNG[typeName]  then return "dng",  DNG[typeName]  end
+    return nil, nil
+end
+
+local function CatEnabled(cat)
+    if cat == "npc"  then return CFG.ESP_NPCs end
+    if cat == "loot" then return CFG.ESP_Loot end
+    if cat == "res"  then return CFG.ESP_Resources end
+    if cat == "veh"  then return CFG.ESP_Vehicles end
+    if cat == "dng"  then return CFG.ESP_Danger end
+    return false
+end
+
+local function CatMaxDist(cat, info)
+    if info and info.md then return info.md end
+    if cat == "npc"  then return 600 end
+    if cat == "loot" then return 400 end
+    if cat == "res"  then return 250 end
+    if cat == "veh"  then return 800 end
+    if cat == "dng"  then return 300 end
+    return 400
+end
+
+local function CatIcon(cat)
+    if cat == "npc"  then return "☠ " end
+    if cat == "loot" then return "◆ " end
+    if cat == "res"  then return "⛏ " end
+    if cat == "veh"  then return "⊕ " end
+    if cat == "dng"  then return "⚠ " end
+    return ""
+end
+
+-- ================================================================
+--  ПОИСК ТАБЛИЦЫ КЛАССОВ ИГРЫ (ГЛУБОКИЙ ПОИСК)
+-- ================================================================
+local function GetClassesTable()
+    if _G.classes then return _G.classes end
+    for k, v in pairs(_G) do
+        if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
+            return v
+        end
+    end
+    local gcSuccess, gcResult = pcall(function()
+        if getgc then
+            local gc = getgc(true)
+            for _, v in ipairs(gc) do
+                if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
+                    return v
+                end
+            end
+        end
+    end)
+    if gcSuccess and gcResult then return gcResult end
+    return nil
+end
+
+-- ================================================================
+--  КЛАССИФИКАТОР ПО ИМЕНИ МОДЕЛИ (ДЛЯ СТАНДАРТНЫХ ОБЪЕКТОВ)
+-- ================================================================
+local function ClassifyByName(model)
+    local name = model.Name
+    local cat, info = ClassifyType(name)
+    if cat then return cat, info end
+
+    local nameLower = name:lower()
+    if nameLower:find("atv") or nameLower:find("quad") or nameLower:find("car") then
+        return "veh", { n = "ATV", c = Color3.fromRGB(0, 200, 255) }
+    end
+    if nameLower:find("boat") or nameLower:find("jet") then
+        return "veh", { n = "Boat", c = Color3.fromRGB(50, 150, 255) }
+    end
+    if nameLower:find("heli") or nameLower:find("copter") then
+        return "veh", { n = "Helicopter", c = Color3.fromRGB(100, 200, 255) }
+    end
+    if nameLower:find("ghoul") or nameLower:find("zombie") or nameLower:find("mutant") then
+        return "npc", { n = "Ghoul", c = Color3.fromRGB(120, 255, 50), hp = 200 }
+    end
+    if nameLower:find("soldier") or nameLower:find("officer") or nameLower:find("bandit") then
+        return "npc", { n = "Soldier", c = Color3.fromRGB(255, 165, 0), hp = 125 }
+    end
+    if nameLower:find("stone") and nameLower:find("ore") then
+        return "res", { n = "Stone Ore", c = Color3.fromRGB(160, 160, 160) }
+    end
+    if nameLower:find("iron") and nameLower:find("ore") then
+        return "res", { n = "Iron Ore", c = Color3.fromRGB(210, 140, 90) }
+    end
+    if nameLower:find("nitrate") and nameLower:find("ore") then
+        return "res", { n = "Nitrate Ore", c = Color3.fromRGB(255, 255, 120) }
+    end
+    return nil, nil
+end
+
+-- ================================================================
+--  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ПО ИХ СТРУКТУРЕ)
 -- ================================================================
 local function HeuristicClassify(model)
     local modelNameLower = model.Name:lower()
 
-    -- 1. Транспорт (Машины, Вертолеты, Лодки)
-    if model:FindFirstChildWhichIsA("VehicleSeat") or model:FindFirstChildWhichIsA("Seat") then
+    -- 1. Транспорт (Машины, Вертолеты, Лодки) — Ищем VehicleSeat
+    if model:FindFirstChildWhichIsA("VehicleSeat") then
         local name = "Vehicle"
         if modelNameLower:find("boat") then name = "Boat"
         elseif modelNameLower:find("heli") or modelNameLower:find("copter") then name = "Helicopter"
@@ -60,7 +213,6 @@ local function HeuristicClassify(model)
     
     -- 2. NPC (Мутанты, Зомби, Солдаты)
     if model:FindFirstChild("AnimationController") or model:FindFirstChildOfClass("Humanoid") then
-        -- Убедимся, что это не игрок
         local isPlayer = false
         for _, p in ipairs(Players:GetPlayers()) do
             if p.Name == model.Name then isPlayer = true; break end
@@ -91,33 +243,45 @@ local function HeuristicClassify(model)
         return "loot", { n = "Supply Drop", c = Color3.fromRGB(255, 50, 255) }
     end
     
-    -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКАЯ ЦВЕТОКОРРЕКЦИЯ)
+    -- 5. Руды и Ресурсы (МАТЕМАТИЧЕСКИЙ СКОРИНГ ЦВЕТОВ)
+    local nitrateCount = 0
+    local ironCount = 0
+    local stoneCount = 0
     local hasOreVisual = false
-    local oreType = "Stone Ore"
-    local oreColor = Color3.fromRGB(160, 160, 160)
     
     for _, child in ipairs(model:GetChildren()) do
         if child:IsA("BasePart") then
             local mat = child.Material
-            if mat == Enum.Material.Rock or mat == Enum.Material.Slate then
+            -- Проверяем любые части руды
+            if mat == Enum.Material.Rock or mat == Enum.Material.Slate or mat == Enum.Material.Plastic or mat == Enum.Material.SmoothPlastic or child:IsA("MeshPart") then
                 hasOreVisual = true
                 local c = child.Color
                 local r, g, b = c.R, c.G, c.B
-                -- Желтый (Нитраты/Сера): Высокие R и G, низкий B
-                if r > 0.6 and g > 0.6 and b < 0.5 and (r - b) > 0.2 then
-                    oreType = "Nitrate Ore"
-                    oreColor = Color3.fromRGB(255, 255, 120)
-                    break
-                -- Красно-коричневый (Железо): Высокий R, средние G и B
-                elseif r > 0.4 and (r - g) > 0.15 then
-                    oreType = "Iron Ore"
-                    oreColor = Color3.fromRGB(210, 140, 90)
-                    break
+                
+                -- Желтый (Нитраты/Сера): R и G высокие, B низкий
+                if r > 0.55 and g > 0.55 and b < 0.5 and (r - b) > 0.15 then
+                    nitrateCount = nitrateCount + 1
+                -- Красно-коричневый (Железо): R высокий, G низкий/средний
+                elseif r > 0.4 and (r - g) > 0.12 then
+                    ironCount = ironCount + 1
+                else
+                    stoneCount = stoneCount + 1
                 end
             end
         end
     end
+    
     if hasOreVisual then
+        local oreType = "Stone Ore"
+        local oreColor = Color3.fromRGB(160, 160, 160)
+        
+        if nitrateCount > 0 and nitrateCount >= ironCount then
+            oreType = "Nitrate Ore"
+            oreColor = Color3.fromRGB(255, 255, 120)
+        elseif ironCount > 0 and ironCount > nitrateCount then
+            oreType = "Iron Ore"
+            oreColor = Color3.fromRGB(210, 140, 90)
+        end
         return "res", { n = oreType, c = oreColor }
     end
     
@@ -176,14 +340,17 @@ local function ProcessModel(child)
     if not child:IsA("Model") then return end
     if child == LP.Character then return end
 
-    -- Оптимизация: в Trident все сущности названы "Model"
-    if child.Name == "Model" then
-        local cat, info = HeuristicClassify(child)
-        if cat then
-            Entities[child] = { cat = cat, info = info }
-        end
+    -- 1. Сначала пытаемся по имени
+    local cat, info = ClassifyByName(child)
+    if not cat then
+        -- 2. Если имя общее (например "Model"), классифицируем по эвристике
+        cat, info = HeuristicClassify(child)
+    end
+    
+    if cat and info then
+        Entities[child] = { cat = cat, info = info }
     else
-        -- Проверка на игрока
+        -- 3. Проверка на игрока по имени
         local plr = Players:FindFirstChild(child.Name)
         if plr and plr ~= LP then
             TrackedPlayers[child] = plr
@@ -191,7 +358,7 @@ local function ProcessModel(child)
     end
 end
 
--- Первоначальный моментальный скан (работает за миллисекунды)
+-- Первоначальный моментальный скан
 for _, child in ipairs(workspace:GetChildren()) do
     ProcessModel(child)
 end
@@ -203,11 +370,11 @@ if ignoreFolder then
     end
 end
 
--- Подключение ивентов для мгновенного отслеживания новых объектов
+-- Ивенты
 local connections = {}
 
 table.insert(connections, workspace.ChildAdded:Connect(function(child)
-    task.wait(0.1) -- даем игре время применить имя / собрать модель
+    task.wait(0.15) -- даем игре время применить имя / собрать модель
     ProcessModel(child)
 end))
 
@@ -219,7 +386,7 @@ end))
 
 if ignoreFolder then
     table.insert(connections, ignoreFolder.ChildAdded:Connect(function(child)
-        task.wait(0.2) -- игроки грузятся чуть дольше
+        task.wait(0.2)
         ProcessModel(child)
     end))
     table.insert(connections, ignoreFolder.ChildRemoved:Connect(function(child)
@@ -311,7 +478,7 @@ local function UpdateESP()
     local myPos = MyPos()
     local currentActive = {}
 
-    -- 1. Отрисовка игроков
+    -- 1. Игроки
     for model, plr in pairs(TrackedPlayers) do
         if model.Parent then
             currentActive[model] = true
@@ -420,7 +587,7 @@ local function UpdateESP()
         end
     end
 
-    -- 2. Отрисовка сущностей
+    -- 2. Сущности
     for model, ent in pairs(Entities) do
         if model.Parent then
             currentActive[model] = true
@@ -570,8 +737,12 @@ local function UpdateDiag()
     DiagLabel.Text = msg
 end
 
+-- Фоновый поток с проверкой ID сессии (чтобы старые потоки умирали!)
 task.spawn(function()
     while task.wait(0.25) do
+        if _G._TESP_SESSION_ID ~= sessionID then
+            break -- Убиваем этот поток, запущен новый скрипт!
+        end
         pcall(UpdateESP)
         pcall(UpdateDiag)
     end
@@ -631,7 +802,13 @@ local function FindBestTarget()
     return bestPart
 end
 
-RunService.RenderStepped:Connect(function()
+local renderConn
+renderConn = RunService.RenderStepped:Connect(function()
+    if _G._TESP_SESSION_ID ~= sessionID then
+        pcall(function() renderConn:Disconnect() end)
+        return
+    end
+
     FovFrame.Visible = CFG.Aimbot and CFG.ShowFOV
     FovFrame.Size = UDim2.new(0, CFG.AimFOV*2, 0, CFG.AimFOV*2)
 
@@ -990,15 +1167,17 @@ Instance.new("UICorner", DiagLabel).CornerRadius = UDim.new(0, 4)
 --  CLEANUP FUNCTION / DISCONNECTION
 -- ================================================================
 _G._TESP_CLEANUP = function()
+    _G._TESP_SESSION_ID = nil -- сигнализируем старым потокам завершить работу
     for _, conn in ipairs(connections) do
         pcall(function() conn:Disconnect() end)
     end
+    if renderConn then pcall(function() renderConn:Disconnect() end) end
     ClearAllESP()
     pcall(function() SG:Destroy() end)
     print("[TESP] Cleaned up previous session.")
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.3 — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.4 (MASTERPIECE) — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print("==========================================")
