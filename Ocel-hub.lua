@@ -1,5 +1,5 @@
 -- ================================================================
---  TRIDENT SURVIVAL — ESP + AIMBOT v3.1 (DIAGNOSTIC + FIXES)
+--  TRIDENT SURVIVAL — ESP + AIMBOT v3.2 (HYBRID / NO-G_CLASSES FIXED)
 --  100% Roblox UI — без Drawing API — работает везде
 --  Мобильный + ПК
 -- ================================================================
@@ -124,7 +124,141 @@ local function CatIcon(cat)
 end
 
 -- ================================================================
---  ПОЛУЧЕНИЕ ДАННЫХ ОТ КЛИЕНТА
+--  ПОИСК ТАБЛИЦЫ КЛАССОВ ИГРЫ (ГЛУБОКИЙ ПОИСК)
+-- ================================================================
+local function GetClassesTable()
+    if _G.classes then 
+        return _G.classes 
+    end
+    
+    -- Попробуем найти в глобальной области под другими именами
+    for k, v in pairs(_G) do
+        if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
+            return v
+        end
+    end
+    
+    -- Попробуем найти через сборщик мусора getgc()
+    local gcSuccess, gcResult = pcall(function()
+        if getgc then
+            local gc = getgc(true)
+            for _, v in ipairs(gc) do
+                if type(v) == "table" and rawget(v, "EntityClient") and rawget(v, "PlayerClient") then
+                    return v
+                end
+            end
+        end
+    end)
+    if gcSuccess and gcResult then
+        return gcResult
+    end
+    
+    return nil
+end
+
+-- ================================================================
+--  ЭВРИСТИЧЕСКИЙ КЛАССИФИКАТОР МОДЕЛЕЙ (ФОЛБЭК ЕСЛИ КЛАССЫ РАВНЫ NIL)
+-- ================================================================
+local function HeuristicClassify(model)
+    -- 1. Транспорт (Машины)
+    if model:FindFirstChildWhichIsA("VehicleSeat") or model:FindFirstChildWhichIsA("Seat") then
+        if model:FindFirstChild("Body") or model:FindFirstChild("Engine") or model:FindFirstChild("SteeringWheel") then
+            return "veh", { n = "Vehicle", c = Color3.fromRGB(0, 200, 255) }
+        end
+    end
+    
+    -- 2. NPC (Мутанты, Зомби, Солдаты)
+    if model:FindFirstChild("AnimationController") or model:FindFirstChildOfClass("Humanoid") then
+        local isPlayer = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name == model.Name or (model.Parent and model.Parent.Name == p.Name) then
+                isPlayer = true
+                break
+            end
+        end
+        if not isPlayer then
+            local hasWeapon = model:FindFirstChild("RightHand") and model.RightHand:FindFirstChildOfClass("Model")
+            local name = hasWeapon and "NPC Soldier" or "Ghoul / Mutant"
+            local color = hasWeapon and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(120, 255, 50)
+            return "npc", { n = name, c = color, hp = 150 }
+        end
+    end
+    
+    -- 3. Выпавший предмет (Dropped Item)
+    local display = model:FindFirstChild("Display")
+    if display and display:FindFirstChildOfClass("SurfaceGui") then
+        local name = "Dropped Item"
+        pcall(function()
+            local textLabel = display.SurfaceGui:FindFirstChildOfClass("TextLabel")
+            if textLabel and textLabel.Text ~= "" then
+                name = textLabel.Text
+            end
+        end)
+        return "loot", { n = name, c = Color3.fromRGB(255, 255, 80) }
+    end
+    
+    -- 4. Аирдроп (Supply Drop)
+    if model:FindFirstChild("Parachute") or model:FindFirstChild("Cables") then
+        return "loot", { n = "Supply Drop", c = Color3.fromRGB(255, 50, 255) }
+    end
+    
+    -- 5. Руды и Ресурсы
+    local hasOreVisual = false
+    local oreType = "Stone Ore"
+    local oreColor = Color3.fromRGB(160, 160, 160)
+    
+    for _, child in ipairs(model:GetChildren()) do
+        if child:IsA("BasePart") then
+            local mat = child.Material
+            if mat == Enum.Material.Rock or mat == Enum.Material.Slate then
+                hasOreVisual = true
+                local c = child.Color
+                -- Желтый = Сера/Нитрат
+                if c.R > 0.75 and c.G > 0.75 and c.B < 0.65 then
+                    oreType = "Nitrate Ore"
+                    oreColor = Color3.fromRGB(255, 255, 150)
+                -- Коричнево-красный = Железо
+                elseif c.R > 0.45 and c.G > 0.35 and c.B > 0.3 then
+                    oreType = "Iron Ore"
+                    oreColor = Color3.fromRGB(210, 140, 90)
+                end
+            end
+        end
+    end
+    if hasOreVisual then
+        return "res", { n = oreType, c = oreColor }
+    end
+    
+    -- 6. Деревья
+    if model:FindFirstChild("Leaves") or model:FindFirstChild("Branch") or model:FindFirstChild("Trunk") then
+        return "res", { n = "Tree", c = Color3.fromRGB(50, 200, 50) }
+    end
+    
+    -- 7. Кусты ягод
+    if model:FindFirstChild("Berries") or model:FindFirstChild("Berry") or model.Name:lower():find("bush") then
+        return "res", { n = "Berry Bush", c = Color3.fromRGB(200, 50, 200) }
+    end
+    
+    -- 8. Сундуки / Контейнеры лута
+    if model:FindFirstChild("Lid") or model:FindFirstChild("Lock") then
+        local name = "Loot Crate"
+        if model:FindFirstChild("Safe") or model.Name:lower():find("safe") then name = "Loot Safe" end
+        return "loot", { n = name, c = Color3.fromRGB(255, 215, 0) }
+    end
+
+    -- 9. Опасности (Капканы, Тесла)
+    if model:FindFirstChild("BearTrap") or model:FindFirstChild("Jaw") then
+        return "dng", { n = "Bear Trap", c = Color3.fromRGB(255, 0, 0) }
+    end
+    if model:FindFirstChild("Tesla") or model:FindFirstChild("Pylon") then
+        return "dng", { n = "Tesla Pylon", c = Color3.fromRGB(255, 255, 0) }
+    end
+    
+    return nil, nil
+end
+
+-- ================================================================
+--  ПОЛУЧЕНИЕ ПОЗИЦИЙ И ДАННЫХ
 -- ================================================================
 local function MyPos()
     return Cam.CFrame.Position
@@ -139,30 +273,38 @@ local function GetPart(model, name)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
--- Сканирование сущностей через EntityMap
+-- Сканирование сущностей (гибридное)
 local function GetEntities()
     local list = {}
-    local classes = _G.classes
+    local classes = GetClassesTable()
     local EntityMap = classes and classes.EntityClient and classes.EntityClient.EntityMap
     
     if EntityMap then
+        -- Точный метод (через игровые таблицы)
         for id, ent in pairs(EntityMap) do
             if ent.model and ent.model.Parent then
                 table.insert(list, {
                     model = ent.model,
                     type = ent.type,
-                    id = ent.id
+                    id = ent.id,
+                    byMap = true
                 })
             end
         end
     else
-        -- Запасной вариант сканирования workspace, если названия не "Model"
+        -- Эвристический метод (сканирование workspace)
         for _, child in ipairs(workspace:GetChildren()) do
-            if child:IsA("Model") and child.Name ~= "Model" and child ~= LP.Character then
-                table.insert(list, {
-                    model = child,
-                    type = child.Name
-                })
+            if child:IsA("Model") and child ~= LP.Character then
+                local cat, info = HeuristicClassify(child)
+                if cat then
+                    table.insert(list, {
+                        model = child,
+                        type = info.n,
+                        heuristicCat = cat,
+                        heuristicInfo = info,
+                        byMap = false
+                    })
+                end
             end
         end
     end
@@ -241,6 +383,12 @@ local function ClearESP(instance)
     end
 end
 
+local function ClearAllESP()
+    for inst in pairs(ActiveESP) do
+        ClearESP(inst)
+    end
+end
+
 local function UpdateESP()
     local myPos = MyPos()
     local currentModels = {}
@@ -259,7 +407,7 @@ local function UpdateESP()
 
             if CFG.ESP_Players and dist <= CFG.MaxDist then
                 if not data then
-                    -- Создаем BillboardGui
+                    -- Создаем BillboardGui в ScreenGui
                     local bb = Instance.new("BillboardGui")
                     bb.Name = "_ESP_P_" .. plr.Name
                     bb.AlwaysOnTop = true
@@ -268,7 +416,7 @@ local function UpdateESP()
                     bb.MaxDistance = CFG.MaxDist
                     bb.LightInfluence = 0
                     bb.Adornee = root
-                    bb.Parent = SG -- Parent to ScreenGui (в PlayerGui!)
+                    bb.Parent = SG -- Обязательно в ScreenGui (в PlayerGui!)
 
                     local nameLbl = Instance.new("TextLabel")
                     nameLbl.Name = "NameLbl"
@@ -326,7 +474,7 @@ local function UpdateESP()
                     ActiveESP[model] = data
                 end
 
-                -- Обновляем данные
+                -- Обновляем
                 data.bb.Enabled = true
                 data.bb.Adornee = root
                 if data.hl then
@@ -340,7 +488,6 @@ local function UpdateESP()
                 local dL = data.bb:FindFirstChild("DistLbl")
                 if dL then dL.Text = "[" .. dist .. "m]" end
 
-                -- HP
                 local hF = data.bb:FindFirstChild("HpBg") and data.bb.HpBg:FindFirstChild("HpFill")
                 if hF then
                     local hum = model:FindFirstChildOfClass("Humanoid")
@@ -366,7 +513,14 @@ local function UpdateESP()
     local entList = GetEntities()
     for _, ent in ipairs(entList) do
         local model = ent.model
-        local cat, info = ClassifyType(ent.type)
+        local cat, info
+        
+        if ent.byMap then
+            cat, info = ClassifyType(ent.type)
+        else
+            cat = ent.heuristicCat
+            info = ent.heuristicInfo
+        end
 
         if cat and info and model.Parent then
             local part = GetPart(model)
@@ -446,21 +600,21 @@ local function UpdateESP()
                         ActiveESP[model] = data
                     end
 
-                    bb.Enabled = true
-                    bb.Adornee = part
+                    data.bb.Enabled = true
+                    data.bb.Adornee = part
                     if data.hl then
                         data.hl.Enabled = true
                         data.hl.Adornee = model
                     end
 
-                    local nL = bb:FindFirstChild("NameLbl")
+                    local nL = data.bb:FindFirstChild("NameLbl")
                     if nL then nL.Text = CatIcon(cat) .. info.n end
 
-                    local dL = bb:FindFirstChild("DistLbl")
+                    local dL = data.bb:FindFirstChild("DistLbl")
                     if dL then dL.Text = "[" .. dist .. "m]" end
 
                     if cat == "npc" then
-                        local hF = bb:FindFirstChild("HpBg") and bb.HpBg:FindFirstChild("HpFill")
+                        local hF = data.bb:FindFirstChild("HpBg") and data.bb.HpBg:FindFirstChild("HpFill")
                         if hF then
                             local attr = model:GetAttribute("Health") or model:GetAttribute("hp")
                             if attr then
@@ -496,27 +650,27 @@ local DiagLabel = nil
 local function UpdateDiag()
     if not DiagLabel then return end
     local msg = "DIAGNOSTICS:\n"
-    local classes = _G.classes
+    local classes = GetClassesTable()
+    
     if not classes then
-        msg = msg .. "• _G.classes is NIL! (Waiting game load)\n"
+        msg = msg .. "• classes not found (Using HEURISTIC)\n"
     else
-        msg = msg .. "• classes found\n"
-        if not classes.EntityClient then
-            msg = msg .. "• classes.EntityClient is NIL!\n"
+        msg = msg .. "• classes found via deep search\n"
+        if classes.EntityClient and classes.EntityClient.EntityMap then
+            local count = 0
+            for _ in pairs(classes.EntityClient.EntityMap) do count = count + 1 end
+            msg = msg .. "• EntityMap size: " .. count .. "\n"
         else
-            msg = msg .. "• EntityClient found\n"
-            if not classes.EntityClient.EntityMap then
-                msg = msg .. "• EntityMap is NIL!\n"
-            else
-                local count = 0
-                for _ in pairs(classes.EntityClient.EntityMap) do count = count + 1 end
-                msg = msg .. "• EntityMap size: " .. count .. "\n"
-            end
+            msg = msg .. "• EntityMap not ready\n"
         end
     end
 
     local pList = GetPlayersList()
     msg = msg .. "• Players tracked: " .. #pList .. "\n"
+    
+    local activeCount = 0
+    for _ in pairs(ActiveESP) do activeCount = activeCount + 1 end
+    msg = msg .. "• Active ESP tags: " .. activeCount .. "\n"
     
     local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
     if ignoreFolder then
@@ -570,7 +724,13 @@ local function FindBestTarget()
     if CFG.AimNPCs then
         local entList = GetEntities()
         for _, ent in ipairs(entList) do
-            local cat, _ = ClassifyType(ent.type)
+            local cat, _
+            if ent.byMap then
+                cat, _ = ClassifyType(ent.type)
+            else
+                cat = ent.heuristicCat
+            end
+            
             if cat == "npc" and ent.model and ent.model.Parent then
                 local part = GetPart(ent.model, "Head")
                 if part then
@@ -840,7 +1000,6 @@ local function Slider(text, min, max, get, set)
     track.Position = UDim2.new(0, 10, 0, tY)
     track.BackgroundColor3 = Color3.fromRGB(40, 40, 65)
     track.BorderSizePixel = 0
-    track.Parent = track:FindFirstAncestor("Panel") or row -- fallback
     track.Parent = row
     Instance.new("UICorner", track).CornerRadius = UDim.new(0, tH/2)
 
@@ -972,7 +1131,7 @@ _G._TESP_CLEANUP = function()
 end
 
 print("==========================================")
-print(" ⚔ TRIDENT SURVIVAL ESP v3.1 — LOADED")
+print(" ⚔ TRIDENT SURVIVAL ESP v3.2 — LOADED")
 print(MOBILE and " 📱 Mobile Mode" or " 💻 PC Mode")
 print(" Insert = Toggle GUI | RightShift = Toggle Aim")
 print("==========================================")
