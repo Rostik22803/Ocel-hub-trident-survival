@@ -2406,7 +2406,7 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
         DistanceESPEnabled = v336;
     end
 });
-local l_l_v0_Window_0_Tab_2 = l_v0_Window_0:CreateTab("World \239\191\189\239\191\189\239\191\189\239\191\189\239\191\189\239\191\189", nil);
+local l_l_v0_Window_0_Tab_2 = l_v0_Window_0:CreateTab("World", nil);
 local _ = l_l_v0_Window_0_Tab_2:CreateSection("Water");
 local _ = l_l_v0_Window_0_Tab_2:CreateColorPicker({
     Name = "Water Color", 
@@ -3423,10 +3423,40 @@ l_UserInputService_3.InputEnded:Connect(function(v586) --[[ Line: 0 ]] --[[ Name
         v567[v586.KeyCode] = false;
     end;
 end);
-local _ = l_l_v0_Window_0_Tab_4:CreateButton({
-    Name = "Close Radium", 
-    Callback = function() --[[ Line: 0 ]] --[[ Name:  ]]
-        -- upvalues: v0 (ref)
+local SettingsTab = l_v0_Window_0:CreateTab("⚙️ Settings", nil)
+SettingsTab:CreateSection("Menu Customization")
+
+local CurrentAccent = Color3.fromRGB(0, 110, 255)
+SettingsTab:CreateColorPicker({
+    Name = "Menu Accent Color",
+    Color = CurrentAccent,
+    Callback = function(color)
+        local function GetSafeUIContainer()
+            local success, container = pcall(function() return gethui and gethui() end)
+            if success and container then return container end
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+            return LocalPlayer:WaitForChild("PlayerGui")
+        end
+        local CoreGui = GetSafeUIContainer()
+        local UI = CoreGui:FindFirstChild("OcelLocalUI")
+        if UI then
+            for _, v in pairs(UI:GetDescendants()) do
+                if v:IsA("UIStroke") and v.Color == CurrentAccent then v.Color = color end
+                if v:IsA("Frame") and v.BackgroundColor3 == CurrentAccent then v.BackgroundColor3 = color end
+                if v:IsA("TextLabel") and v.TextColor3 == CurrentAccent then v.TextColor3 = color end
+                if v:IsA("TextButton") and v.TextColor3 == CurrentAccent then v.TextColor3 = color end
+                if v:IsA("TextButton") and v.BackgroundColor3 == CurrentAccent then v.BackgroundColor3 = color end
+            end
+        end
+        CurrentAccent = color
+    end
+})
+
+SettingsTab:CreateSection("⚠️ System")
+SettingsTab:CreateButton({
+    Name = "Unload Ocel-hub", 
+    Callback = function()
         v0:Destroy();
     end
 });
