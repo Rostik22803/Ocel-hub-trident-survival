@@ -10,7 +10,7 @@ Workspace = game:GetService("Workspace");
 local v0 = (function()
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
+local CoreGui = (gethui and gethui()) or game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
 
 local OcelUI = {}
 
