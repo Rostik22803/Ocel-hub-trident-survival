@@ -1,9 +1,8 @@
 --[[
-  OCEL-HUB v2.0
+  OCEL-HUB v3.1
   Local UI Library (OcelUI) - No HTTP requests
   Mobile Adapted - Touch Support
   Game: Trident Survival
-  Themes: Dark, Ocean, Crimson, Forest, AmberGlow
 ]]
 
 -- SERVICES
@@ -19,9 +18,12 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local configFileName = "OcelHubStyleConfig.json"
 
+-- DEFAULT STYLE & PERSISTENCE
 local defaultStyle = {
     Theme = "Dark",
-    AccentColor = {100, 160, 255}, -- RGB format
+    AccentColor = {100, 160, 255}, -- RGB
+    BgColor = {18, 18, 22}, -- RGB
+    TextColor = {235, 235, 248}, -- RGB
     ToggleKey = "K"
 }
 
@@ -37,6 +39,8 @@ if isfile and isfile(configFileName) then
         if loaded then
             if loaded.Theme then currentStyle.Theme = loaded.Theme end
             if loaded.AccentColor then currentStyle.AccentColor = loaded.AccentColor end
+            if loaded.BgColor then currentStyle.BgColor = loaded.BgColor end
+            if loaded.TextColor then currentStyle.TextColor = loaded.TextColor end
             if loaded.ToggleKey then currentStyle.ToggleKey = loaded.ToggleKey end
         end
     end)
@@ -54,22 +58,123 @@ end
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local VP = workspace.CurrentCamera.ViewportSize
 local S = {
-    W=isMobile and math.min(VP.X-16,430) or 500, H=isMobile and math.min(VP.Y-80,550) or 590,
-    ItemH=isMobile and 52 or 40, SliderH=isMobile and 64 or 50,
-    FontSm=isMobile and 15 or 13, FontMd=isMobile and 17 or 14, FontLg=isMobile and 20 or 16,
-    Pad=isMobile and 11 or 8, TitleH=isMobile and 56 or 44, TabBarH=isMobile and 50 or 38,
-    TabH=isMobile and 42 or 30, TglW=isMobile and 58 or 44, TglH=isMobile and 30 or 24,
+    W = isMobile and math.min(VP.X-16, 520) or 540,
+    H = isMobile and math.min(VP.Y-80, 360) or 400,
+    SidebarW = 135,
+    ItemH = isMobile and 46 or 38,
+    SliderH = isMobile and 54 or 46,
+    FontSm = isMobile and 14 or 12,
+    FontMd = isMobile and 16 or 13,
+    FontLg = isMobile and 18 or 15,
+    Pad = isMobile and 8 or 6,
+    TglW = isMobile and 50 or 40,
+    TglH = isMobile and 26 or 20,
 }
 
--- THEMES
+-- THEMES TEMPLATES
 local Themes = {
-    Dark={Bg=Color3.fromRGB(13,13,20),Sec=Color3.fromRGB(20,20,30),Pan=Color3.fromRGB(28,28,42),Acc=Color3.fromRGB(100,160,255),Txt=Color3.fromRGB(235,235,248),Sub=Color3.fromRGB(130,130,160),TOn=Color3.fromRGB(72,200,115),TOff=Color3.fromRGB(50,50,72),Brd=Color3.fromRGB(42,42,65)},
-    Ocean={Bg=Color3.fromRGB(6,16,30),Sec=Color3.fromRGB(10,26,48),Pan=Color3.fromRGB(14,36,62),Acc=Color3.fromRGB(0,195,175),Txt=Color3.fromRGB(195,230,255),Sub=Color3.fromRGB(110,155,195),TOn=Color3.fromRGB(0,195,175),TOff=Color3.fromRGB(15,48,78),Brd=Color3.fromRGB(25,55,95)},
-    Crimson={Bg=Color3.fromRGB(16,7,10),Sec=Color3.fromRGB(26,10,16),Pan=Color3.fromRGB(36,14,22),Acc=Color3.fromRGB(215,55,75),Txt=Color3.fromRGB(248,218,222),Sub=Color3.fromRGB(175,125,135),TOn=Color3.fromRGB(215,55,75),TOff=Color3.fromRGB(52,22,32),Brd=Color3.fromRGB(65,28,42)},
-    Forest={Bg=Color3.fromRGB(8,16,10),Sec=Color3.fromRGB(14,26,16),Pan=Color3.fromRGB(20,36,22),Acc=Color3.fromRGB(75,195,95),Txt=Color3.fromRGB(218,245,222),Sub=Color3.fromRGB(135,180,140),TOn=Color3.fromRGB(75,195,95),TOff=Color3.fromRGB(22,52,26),Brd=Color3.fromRGB(36,72,42)},
-    AmberGlow={Bg=Color3.fromRGB(16,12,6),Sec=Color3.fromRGB(26,20,10),Pan=Color3.fromRGB(36,28,14),Acc=Color3.fromRGB(255,160,25),Txt=Color3.fromRGB(255,240,208),Sub=Color3.fromRGB(185,160,115),TOn=Color3.fromRGB(255,160,25),TOff=Color3.fromRGB(62,45,18),Brd=Color3.fromRGB(82,58,20)},
+    Dark = {
+        Bg = Color3.fromRGB(18, 18, 22),
+        Sec = Color3.fromRGB(24, 24, 28),
+        Pan = Color3.fromRGB(28, 28, 34),
+        Acc = Color3.fromRGB(100, 160, 255),
+        Txt = Color3.fromRGB(235, 235, 248),
+        Sub = Color3.fromRGB(145, 145, 165),
+        TOn = Color3.fromRGB(72, 200, 115),
+        TOff = Color3.fromRGB(48, 48, 58),
+        Brd = Color3.fromRGB(38, 38, 46)
+    },
+    Ocean = {
+        Bg = Color3.fromRGB(6, 16, 30),
+        Sec = Color3.fromRGB(10, 26, 48),
+        Pan = Color3.fromRGB(14, 36, 62),
+        Acc = Color3.fromRGB(0, 195, 175),
+        Txt = Color3.fromRGB(195, 230, 255),
+        Sub = Color3.fromRGB(110, 155, 195),
+        TOn = Color3.fromRGB(0, 195, 175),
+        TOff = Color3.fromRGB(15, 48, 78),
+        Brd = Color3.fromRGB(25, 55, 95)
+    },
+    Crimson = {
+        Bg = Color3.fromRGB(16, 7, 10),
+        Sec = Color3.fromRGB(26, 10, 16),
+        Pan = Color3.fromRGB(36, 14, 22),
+        Acc = Color3.fromRGB(215, 55, 75),
+        Txt = Color3.fromRGB(248, 218, 222),
+        Sub = Color3.fromRGB(175, 125, 135),
+        TOn = Color3.fromRGB(215, 55, 75),
+        TOff = Color3.fromRGB(52, 22, 32),
+        Brd = Color3.fromRGB(65, 28, 42)
+    },
+    Forest = {
+        Bg = Color3.fromRGB(8, 16, 10),
+        Sec = Color3.fromRGB(14, 26, 16),
+        Pan = Color3.fromRGB(20, 36, 22),
+        Acc = Color3.fromRGB(75, 195, 95),
+        Txt = Color3.fromRGB(218, 245, 222),
+        Sub = Color3.fromRGB(135, 180, 140),
+        TOn = Color3.fromRGB(75, 195, 95),
+        TOff = Color3.fromRGB(22, 52, 26),
+        Brd = Color3.fromRGB(36, 72, 42)
+    },
+    AmberGlow = {
+        Bg = Color3.fromRGB(16, 12, 6),
+        Sec = Color3.fromRGB(26, 20, 10),
+        Pan = Color3.fromRGB(36, 28, 14),
+        Acc = Color3.fromRGB(255, 160, 25),
+        Txt = Color3.fromRGB(255, 240, 208),
+        Sub = Color3.fromRGB(185, 160, 115),
+        TOn = Color3.fromRGB(255, 160, 25),
+        TOff = Color3.fromRGB(62, 45, 18),
+        Brd = Color3.fromRGB(82, 58, 20)
+    }
 }
-local T = Themes[currentStyle.Theme] or Themes.Dark
+
+local T = {}
+local function applyStyleColors(themeName)
+    local baseTheme = Themes[themeName] or Themes.Dark
+    T = {}
+    for k, v in pairs(baseTheme) do
+        T[k] = v
+    end
+    
+    -- Load Custom Accent Color
+    if currentStyle.AccentColor then
+        T.Acc = Color3.fromRGB(currentStyle.AccentColor[1], currentStyle.AccentColor[2], currentStyle.AccentColor[3])
+    else
+        T.Acc = baseTheme.Acc
+    end
+    
+    -- Load Custom Background Color and auto-generate dark/light shades
+    if currentStyle.BgColor then
+        local bg = Color3.fromRGB(currentStyle.BgColor[1], currentStyle.BgColor[2], currentStyle.BgColor[3])
+        T.Bg = bg
+        T.Sec = Color3.fromRGB(math.max(bg.R*255 - 12, 0), math.max(bg.G*255 - 12, 0), math.max(bg.B*255 - 12, 0))
+        T.Pan = Color3.fromRGB(math.min(bg.R*255 + 10, 255), math.min(bg.G*255 + 10, 255), math.min(bg.B*255 + 10, 255))
+        T.Brd = Color3.fromRGB(math.min(bg.R*255 + 20, 255), math.min(bg.G*255 + 20, 255), math.min(bg.B*255 + 20, 255))
+        T.TOff = Color3.fromRGB(math.min(bg.R*255 + 16, 255), math.min(bg.G*255 + 16, 255), math.min(bg.B*255 + 16, 255))
+    else
+        T.Bg = baseTheme.Bg
+        T.Sec = baseTheme.Sec
+        T.Pan = baseTheme.Pan
+        T.Brd = baseTheme.Brd
+        T.TOff = baseTheme.TOff
+    end
+    
+    -- Load Custom Text Color and auto-generate subtext shade
+    if currentStyle.TextColor then
+        local tx = Color3.fromRGB(currentStyle.TextColor[1], currentStyle.TextColor[2], currentStyle.TextColor[3])
+        T.Txt = tx
+        T.Sub = Color3.fromRGB(math.floor(tx.R*255 * 0.65), math.floor(tx.G*255 * 0.65), math.floor(tx.B*255 * 0.65))
+    else
+        T.Txt = baseTheme.Txt
+        T.Sub = baseTheme.Sub
+    end
+    
+    T.TOn = baseTheme.TOn
+end
+
+applyStyleColors(currentStyle.Theme or "Dark")
 
 -- UTILITIES
 local function Tw(obj,props,dur,style) TweenService:Create(obj,TweenInfo.new(dur or 0.2,style or Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props):Play() end
@@ -110,17 +215,7 @@ function OcelUI:Destroy() if _GUI then pcall(function() _GUI:Destroy() end); _GU
 function OcelUI:CreateWindow(cfg)
     if _GUI then pcall(function() _GUI:Destroy() end) end
     _accentRefs={}; _panelRefs={}; _borderRefs={}
-    local chosenThemeName = currentStyle.Theme or cfg.Theme or "Dark"
-    if Themes[chosenThemeName] then
-        T = {}
-        for k, v in pairs(Themes[chosenThemeName]) do T[k] = v end
-    else
-        T = {}
-        for k, v in pairs(Themes.Dark) do T[k] = v end
-    end
-    if currentStyle.AccentColor then
-        T.Acc = Color3.fromRGB(currentStyle.AccentColor[1], currentStyle.AccentColor[2], currentStyle.AccentColor[3])
-    end
+    
     local keyName = currentStyle.ToggleKey or cfg.ToggleUIKeybind or "K"
     pcall(function() _ToggleKey = Enum.KeyCode[keyName] end)
 
@@ -131,132 +226,224 @@ function OcelUI:CreateWindow(cfg)
 
     local shadowLbl=New("ImageLabel",{Name="Shadow",AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.new(0,S.W+60,0,S.H+60),Position=UDim2.new(0.5,0,0.5,0),BackgroundTransparency=1,Image="rbxassetid://6014261993",ImageColor3=Color3.fromRGB(0,0,0),ImageTransparency=0.5,ScaleType=Enum.ScaleType.Slice,SliceCenter=Rect.new(49,49,450,450),ZIndex=0},gui)
     local main=New("Frame",{Name="Main",AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.new(0,S.W,0,S.H),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=T.Bg,BorderSizePixel=0,ClipsDescendants=true,ZIndex=1},gui)
-    Corner(main,12); local mainStroke=Stroke(main,T.Brd,1.5); table.insert(_borderRefs,mainStroke)
+    Corner(main,10); local mainStroke=Stroke(main,T.Brd,1); table.insert(_borderRefs,mainStroke)
 
-    local titleBar=New("Frame",{Name="TitleBar",Size=UDim2.new(1,0,0,S.TitleH),BackgroundColor3=T.Sec,BorderSizePixel=0,ZIndex=3},main)
-    local accentLine=New("Frame",{Size=UDim2.new(1,0,0,2),Position=UDim2.new(0,0,1,-2),BackgroundColor3=T.Acc,BorderSizePixel=0,ZIndex=4},titleBar)
-    table.insert(_accentRefs,{obj=accentLine,prop="BackgroundColor3"})
-    New("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,T.Sec),ColorSequenceKeypoint.new(1,Color3.fromRGB(math.clamp(T.Sec.R*255+12,0,255)/255,math.clamp(T.Sec.G*255+12,0,255)/255,math.clamp(T.Sec.B*255+12,0,255)/255))}),Rotation=90},titleBar)
-    local dot=New("Frame",{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0,12,0.5,-4),BackgroundColor3=T.Acc,BorderSizePixel=0,ZIndex=5},titleBar)
-    Corner(dot,4); table.insert(_accentRefs,{obj=dot,prop="BackgroundColor3"})
-    local titleLbl=New("TextLabel",{Name="Title",Size=UDim2.new(1,-70,1,0),Position=UDim2.new(0,26,0,0),BackgroundTransparency=1,Text=cfg.Name or "Ocel-Hub",TextColor3=T.Txt,TextSize=S.FontLg,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},titleBar)
-    local closeSz=isMobile and 40 or 30
-    local closeBtn=New("TextButton",{Size=UDim2.new(0,closeSz,0,closeSz),Position=UDim2.new(1,-(closeSz+8),0.5,-closeSz/2),BackgroundColor3=Color3.fromRGB(200,55,55),Text="X",TextColor3=Color3.fromRGB(255,255,255),TextSize=isMobile and 15 or 12,Font=Enum.Font.GothamBold,BorderSizePixel=0,AutoButtonColor=false,ZIndex=6},titleBar)
-    Corner(closeBtn,6); MakeDraggable(titleBar,main)
+    local sidebar = New("Frame", {
+        Name = "Sidebar",
+        Size = UDim2.new(0, S.SidebarW, 1, 0),
+        BackgroundColor3 = T.Sec,
+        BorderSizePixel = 0,
+        ZIndex = 3
+    }, main)
+    local sidebarBorder = New("Frame", {
+        Size = UDim2.new(0, 1, 1, 0),
+        Position = UDim2.new(1, -1, 0, 0),
+        BackgroundColor3 = T.Brd,
+        BorderSizePixel = 0,
+        ZIndex = 4
+    }, sidebar)
+    table.insert(_borderRefs, {obj=sidebarBorder, prop="BackgroundColor3"})
 
-    local tabBar=New("ScrollingFrame",{Name="TabBar",Size=UDim2.new(1,0,0,S.TabBarH),Position=UDim2.new(0,0,0,S.TitleH),BackgroundColor3=T.Sec,BorderSizePixel=0,ScrollBarThickness=0,CanvasSize=UDim2.new(0,0,0,0),ScrollingDirection=Enum.ScrollingDirection.X,AutomaticCanvasSize=Enum.AutomaticSize.X,ZIndex=3},main)
-    New("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,3),VerticalAlignment=Enum.VerticalAlignment.Center},tabBar)
-    New("UIPadding",{PaddingLeft=UDim.new(0,6),PaddingRight=UDim.new(0,6),PaddingTop=UDim.new(0,5),PaddingBottom=UDim.new(0,5)},tabBar)
-    New("Frame",{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,1,-1),BackgroundColor3=T.Brd,BorderSizePixel=0,ZIndex=4},tabBar)
+    MakeDraggable(sidebar, main)
 
-    local contentArea=New("Frame",{Name="Content",Size=UDim2.new(1,0,1,-(S.TitleH+S.TabBarH)),Position=UDim2.new(0,0,0,S.TitleH+S.TabBarH),BackgroundTransparency=1,BorderSizePixel=0,ClipsDescendants=true,ZIndex=2},main)
+    local titleLbl = New("TextLabel", {
+        Name = "Title",
+        Size = UDim2.new(1, 0, 0, 48),
+        BackgroundTransparency = 1,
+        Text = cfg.Name or "Ocel-Hub",
+        TextColor3 = T.Txt,
+        TextSize = S.FontLg,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 5
+    }, sidebar)
+    table.insert(_panelRefs, {obj=titleLbl, prop="TextColor3", key="Txt"})
+
+    local tabList = New("Frame", {
+        Name = "TabList",
+        Size = UDim2.new(1, 0, 1, -85),
+        Position = UDim2.new(0, 0, 0, 48),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 5
+    }, sidebar)
+    New("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center
+    }, tabList)
+
+    local closeBtn = New("TextButton", {
+        Name = "Close",
+        Size = UDim2.new(0, S.SidebarW - 16, 0, 28),
+        Position = UDim2.new(0.5, 0, 1, -36),
+        AnchorPoint = Vector2.new(0.5, 0),
+        BackgroundColor3 = Color3.fromRGB(180, 55, 55),
+        Text = "Close Menu",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = S.FontSm,
+        Font = Enum.Font.GothamBold,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        ZIndex = 5
+    }, sidebar)
+    Corner(closeBtn, 5)
+
+    local contentArea = New("Frame", {
+        Name = "Content",
+        Size = UDim2.new(1, -S.SidebarW, 1, 0),
+        Position = UDim2.new(0, S.SidebarW, 0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 2
+    }, main)
 
     local floatSz=isMobile and 54 or 42
     local floatBtn=New("TextButton",{Name="FloatToggle",AnchorPoint=Vector2.new(0,0.5),Size=UDim2.new(0,floatSz,0,floatSz),Position=UDim2.new(0,12,0.5,0),BackgroundColor3=T.Acc,Text="M",TextColor3=Color3.fromRGB(255,255,255),TextSize=isMobile and 24 or 19,Font=Enum.Font.GothamBold,BorderSizePixel=0,ZIndex=500,Visible=false,AutoButtonColor=false},gui)
     Corner(floatBtn,11); Stroke(floatBtn,T.Brd,1.5); MakeDraggable(floatBtn,floatBtn)
     table.insert(_accentRefs,{obj=floatBtn,prop="BackgroundColor3"})
 
-    local function showUI() _Visible=true; main.Visible=true; shadowLbl.Visible=true; floatBtn.Visible=false; Tw(main,{Position=UDim2.new(0.5,0,0.5,0)},0.25) end
+    local function showUI() _Visible=true; main.Visible=true; shadowLbl.Visible=true; floatBtn.Visible=false; Tw(main,{Position=UDim2.new(0.5,0,0.5,0)},0.2) end
     local function hideUI()
-        _Visible=false; Tw(main,{Position=UDim2.new(0.5,0,1.5,0)},0.25)
-        task.delay(0.28,function() if not _Visible then main.Visible=false; shadowLbl.Visible=false; floatBtn.Visible=true end end)
+        _Visible=false; Tw(main,{Position=UDim2.new(0.5,0,1.5,0)},0.2)
+        task.delay(0.22,function() if not _Visible then main.Visible=false; shadowLbl.Visible=false; floatBtn.Visible=true end end)
     end
-    closeBtn.MouseButton1Click:Connect(hideUI); floatBtn.MouseButton1Click:Connect(showUI)
+    closeBtn.Activated:Connect(hideUI); floatBtn.Activated:Connect(showUI)
     UserInputService.InputBegan:Connect(function(inp,proc) if proc then return end; if inp.KeyCode==_ToggleKey then if _Visible then hideUI() else showUI() end end end)
 
     local tabs={}; local activeTab=nil
     local function activateTab(info)
-        if activeTab then activeTab.content.Visible=false; Tw(activeTab.btn,{BackgroundColor3=T.Pan,TextColor3=T.Sub},0.15) end
-        activeTab=info; info.content.Visible=true; Tw(info.btn,{BackgroundColor3=T.Acc,TextColor3=Color3.fromRGB(255,255,255)},0.15)
+        if activeTab then 
+            activeTab.content.Visible=false; activeTab.stroke.Color=T.Brd
+            Tw(activeTab.btn,{BackgroundColor3=T.Pan,TextColor3=T.Sub},0.1) 
+        end
+        activeTab=info; info.content.Visible=true; info.stroke.Color=T.Acc
+        Tw(info.btn,{BackgroundColor3=T.Sec,TextColor3=T.Acc},0.1)
     end
 
     local Window={}
     function Window:UpdateTitle(txt) titleLbl.Text=txt or "Ocel-Hub" end
-    function Window:ApplyTheme(name)
-        local theme=Themes[name]; if not theme then return end
-        T = {}
-        for k, v in pairs(theme) do T[k] = v end
-        currentStyle.Theme = name
-        currentStyle.AccentColor = {math.floor(theme.Acc.R*255), math.floor(theme.Acc.G*255), math.floor(theme.Acc.B*255)}
-        saveStyle()
-        main.BackgroundColor3=T.Bg; titleBar.BackgroundColor3=T.Sec; tabBar.BackgroundColor3=T.Sec; titleLbl.TextColor3=T.Txt
+    
+    function Window:ApplyStyle()
+        applyStyleColors(currentStyle.Theme or "Dark")
+        main.BackgroundColor3=T.Bg
+        sidebar.BackgroundColor3=T.Sec
+        titleLbl.TextColor3=T.Txt
         for _,r in pairs(_accentRefs) do r.obj[r.prop]=T.Acc end
         for _,s in pairs(_borderRefs) do s.Color=T.Brd end
         for _,p in pairs(_panelRefs) do p.obj[p.prop]=T[p.key] end
-        if activeTab then Tw(activeTab.btn,{BackgroundColor3=T.Acc,TextColor3=Color3.fromRGB(255,255,255)},0.15) end
+        if activeTab then
+            activeTab.stroke.Color=T.Acc
+            Tw(activeTab.btn,{BackgroundColor3=T.Sec,TextColor3=T.Acc},0.1)
+        end
     end
+
+    function Window:ApplyTheme(name)
+        currentStyle.Theme = name
+        local theme = Themes[name]
+        if theme then
+            currentStyle.BgColor = {math.floor(theme.Bg.R*255), math.floor(theme.Bg.G*255), math.floor(theme.Bg.B*255)}
+            currentStyle.TextColor = {math.floor(theme.Txt.R*255), math.floor(theme.Txt.G*255), math.floor(theme.Txt.B*255)}
+            currentStyle.AccentColor = {math.floor(theme.Acc.R*255), math.floor(theme.Acc.G*255), math.floor(theme.Acc.B*255)}
+        end
+        saveStyle()
+        Window:ApplyStyle()
+    end
+    
     function Window:SetAccentColor(color)
-        T.Acc=color
         currentStyle.AccentColor = {math.floor(color.R*255), math.floor(color.G*255), math.floor(color.B*255)}
         saveStyle()
-        for _,r in pairs(_accentRefs) do r.obj[r.prop]=color end
-        if activeTab then activeTab.btn.BackgroundColor3=color end
+        Window:ApplyStyle()
     end
-    function Window:SetToggleKey(keyStr)
-        pcall(function()
-            _ToggleKey=Enum.KeyCode[keyStr]
+
+    function Window:SetBgColor(color)
+        currentStyle.BgColor = {math.floor(color.R*255), math.floor(color.G*255), math.floor(color.B*255)}
+        saveStyle()
+        Window:ApplyStyle()
+    end
+
+    function Window:SetTextColor(color)
+        currentStyle.TextColor = {math.floor(color.R*255), math.floor(color.G*255), math.floor(color.B*255)}
+        saveStyle()
+        Window:ApplyStyle()
+    end
+
+    function Window:SetToggleKey(keyStr) 
+        pcall(function() 
+            _ToggleKey=Enum.KeyCode[keyStr] 
             currentStyle.ToggleKey = keyStr
             saveStyle()
-        end)
+        end) 
     end
+    
     function Window:Destroy() if _GUI then _GUI:Destroy(); _GUI=nil end end
 
     function Window:CreateTab(name,_icon)
         local nameStr=tostring(name)
-        local btnW=math.max(isMobile and 88 or 72,#nameStr*(isMobile and 10 or 8)+24)
-        local tabBtn=New("TextButton",{Name="Tab_"..nameStr,Size=UDim2.new(0,btnW,0,S.TabH),BackgroundColor3=T.Pan,Text=nameStr,TextColor3=T.Sub,TextSize=S.FontSm,Font=Enum.Font.GothamSemibold,BorderSizePixel=0,LayoutOrder=#tabs+1,AutoButtonColor=false},tabBar)
-        Corner(tabBtn,6)
-        local tabContent=New("ScrollingFrame",{Name="TC_"..nameStr,Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=isMobile and 5 or 3,ScrollBarImageColor3=T.Acc,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,Visible=false,ZIndex=2},contentArea)
-        New("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,S.Pad-2)},tabContent)
-        New("UIPadding",{PaddingLeft=UDim.new(0,S.Pad),PaddingRight=UDim.new(0,S.Pad+(isMobile and 8 or 4)),PaddingTop=UDim.new(0,S.Pad),PaddingBottom=UDim.new(0,S.Pad+8)},tabContent)
-        local tabInfo={btn=tabBtn,content=tabContent}; table.insert(tabs,tabInfo)
-        tabBtn.MouseButton1Click:Connect(function() activateTab(tabInfo) end)
+        local tabBtn=New("TextButton",{Name="Tab_"..nameStr,Size=UDim2.new(0,S.SidebarW-12,0,32),BackgroundColor3=T.Pan,Text=nameStr,TextColor3=T.Sub,TextSize=S.FontSm,Font=Enum.Font.GothamSemibold,BorderSizePixel=0,LayoutOrder=#tabs+1,AutoButtonColor=false,ZIndex=6},tabList)
+        Corner(tabBtn,5)
+        local tabBtnStroke=Stroke(tabBtn,T.Brd,1)
+        table.insert(_borderRefs,tabBtnStroke)
+        table.insert(_panelRefs,{obj=tabBtn,prop="BackgroundColor3",key="Pan"})
+        table.insert(_panelRefs,{obj=tabBtn,prop="TextColor3",key="Sub"})
+
+        local tabContent=New("ScrollingFrame",{Name="TC_"..nameStr,Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=isMobile and 4 or 2,ScrollBarImageColor3=T.Acc,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,Visible=false,ZIndex=2},contentArea)
+        New("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,S.Pad)},tabContent)
+        New("UIPadding",{PaddingLeft=UDim.new(0,10),PaddingRight=UDim.new(0,10),PaddingTop=UDim.new(0,10),PaddingBottom=UDim.new(0,15)},tabContent)
+        
+        local tabInfo={btn=tabBtn,content=tabContent,stroke=tabBtnStroke}; table.insert(tabs,tabInfo)
+        tabBtn.Activated:Connect(function() activateTab(tabInfo) end)
         if #tabs==1 then activateTab(tabInfo) end
 
         local Tab={}; local order=0; local function nxt() order=order+1; return order end
 
         local function MakeItem(label,h)
             local fr=New("Frame",{Size=UDim2.new(1,0,0,h or S.ItemH),BackgroundColor3=T.Pan,BorderSizePixel=0,LayoutOrder=nxt()},tabContent)
-            Corner(fr,8); local st=Stroke(fr,T.Brd,1); table.insert(_borderRefs,st); table.insert(_panelRefs,{obj=fr,prop="BackgroundColor3",key="Pan"})
-            local lbl=New("TextLabel",{Size=UDim2.new(0.58,0,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=label,TextColor3=T.Txt,TextSize=S.FontMd,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd},fr)
+            Corner(fr,6); local st=Stroke(fr,T.Brd,1); table.insert(_borderRefs,st); table.insert(_panelRefs,{obj=fr,prop="BackgroundColor3",key="Pan"})
+            local lbl=New("TextLabel",{Size=UDim2.new(0.6,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=label,TextColor3=T.Txt,TextSize=S.FontMd,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd},fr)
             table.insert(_panelRefs,{obj=lbl,prop="TextColor3",key="Txt"}); return fr,lbl
         end
 
         function Tab:CreateSection(sName)
-            local sec=New("Frame",{Size=UDim2.new(1,0,0,isMobile and 28 or 22),BackgroundTransparency=1,BorderSizePixel=0,LayoutOrder=nxt()},tabContent)
-            New("Frame",{Size=UDim2.new(0.35,-6,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=T.Brd,BorderSizePixel=0},sec)
-            New("Frame",{Size=UDim2.new(0.35,-6,0,1),Position=UDim2.new(0.65,6,0.5,0),BackgroundColor3=T.Brd,BorderSizePixel=0},sec)
-            New("TextLabel",{Size=UDim2.new(0.3,0,1,0),Position=UDim2.new(0.35,0,0,0),BackgroundTransparency=1,Text=sName,TextColor3=T.Sub,TextSize=S.FontSm-1,Font=Enum.Font.GothamSemibold,TextXAlignment=Enum.TextXAlignment.Center},sec)
+            local sec=New("Frame",{Size=UDim2.new(1,0,0,isMobile and 24 or 18),BackgroundTransparency=1,BorderSizePixel=0,LayoutOrder=nxt()},tabContent)
+            New("Frame",{Size=UDim2.new(0.3,-6,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=T.Brd,BorderSizePixel=0},sec)
+            New("Frame",{Size=UDim2.new(0.3,-6,0,1),Position=UDim2.new(0.7,6,0.5,0),BackgroundColor3=T.Brd,BorderSizePixel=0},sec)
+            New("TextLabel",{Size=UDim2.new(0.4,0,1,0),Position=UDim2.new(0.3,0,0,0),BackgroundTransparency=1,Text=sName,TextColor3=T.Sub,TextSize=S.FontSm-1,Font=Enum.Font.GothamSemibold,TextXAlignment=Enum.TextXAlignment.Center},sec)
             return sec
         end
 
         function Tab:CreateToggle(cfg)
             local fr,_=MakeItem(cfg.Name,S.ItemH); local val=cfg.CurrentValue==true
             local tW,tH=S.TglW,S.TglH; local kSz=tH-6
-            local track=New("Frame",{Size=UDim2.new(0,tW,0,tH),Position=UDim2.new(1,-(tW+12),0.5,-tH/2),BackgroundColor3=val and T.TOn or T.TOff,BorderSizePixel=0,ZIndex=3},fr)
-            Corner(track,tH/2); Stroke(track,T.Brd,1)
-            local knob=New("Frame",{Size=UDim2.new(0,kSz,0,kSz),Position=UDim2.new(0,val and (tW-kSz-3) or 3,0.5,-kSz/2),BackgroundColor3=Color3.fromRGB(255,255,255),BorderSizePixel=0,ZIndex=4},track)
+            local track=New("TextButton",{Name="ToggleTrack",Size=UDim2.new(0,tW,0,tH),Position=UDim2.new(1,-(tW+10),0.5,-tH/2),BackgroundColor3=val and T.TOn or T.TOff,Text="",BorderSizePixel=0,AutoButtonColor=false,ZIndex=3},fr)
+            Corner(track,tH/2); local trackStroke=Stroke(track,T.Brd,1); table.insert(_borderRefs,trackStroke); table.insert(_panelRefs,{obj=track,prop="BackgroundColor3",key=val and "TOn" or "TOff"})
+            local knob=New("Frame",{Size=UDim2.new(0,kSz,0,kSz),Position=UDim2.new(0,val and (tW-kSz-3) or 3,0.5,-kSz/2),BackgroundColor3=Color3.fromRGB(255,255,255),BorderSizePixel=0,Active=false,ZIndex=4},track)
             Corner(knob,kSz/2)
             local obj={CurrentValue=val}
-            local function setVal(v) val=v; obj.CurrentValue=v; Tw(track,{BackgroundColor3=v and T.TOn or T.TOff},0.18); Tw(knob,{Position=UDim2.new(0,v and (tW-kSz-3) or 3,0.5,-kSz/2)},0.18); pcall(cfg.Callback,v) end
-            fr.InputBegan:Connect(function(inp,proc) if proc then return end; if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then setVal(not val) end end)
+            local function setVal(v)
+                val=v; obj.CurrentValue=v; Tw(track,{BackgroundColor3=v and T.TOn or T.TOff},0.15); Tw(knob,{Position=UDim2.new(0,v and (tW-kSz-3) or 3,0.5,-kSz/2)},0.15); pcall(cfg.Callback,v)
+                table.remove(_panelRefs)
+                table.insert(_panelRefs,{obj=track,prop="BackgroundColor3",key=v and "TOn" or "TOff"})
+            end
+            track.Activated:Connect(function() setVal(not val) end)
             return obj
         end
 
         function Tab:CreateSlider(cfg)
             local fr,_=MakeItem(cfg.Name,S.SliderH); local mn,mx=cfg.Range[1],cfg.Range[2]
             local inc=cfg.Increment or 1; local suf=cfg.Suffix or ""; local val=math.clamp(cfg.CurrentValue or mn,mn,mx)
-            local valLbl=New("TextLabel",{Size=UDim2.new(0,68,0,20),Position=UDim2.new(1,-80,0,(S.SliderH/2-20)/2),BackgroundTransparency=1,Text=tostring(val).." "..suf,TextColor3=T.Acc,TextSize=S.FontSm,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=3},fr)
+            local valLbl=New("TextLabel",{Size=UDim2.new(0,60,0,20),Position=UDim2.new(1,-70,0,(S.SliderH/2-20)/2+2),BackgroundTransparency=1,Text=tostring(val).." "..suf,TextColor3=T.Acc,TextSize=S.FontSm,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=3},fr)
             table.insert(_accentRefs,{obj=valLbl,prop="TextColor3"})
-            local tPad=12; local tLineH=isMobile and 8 or 6; local tY=S.SliderH-(isMobile and 18 or 14)
+            local tPad=10; local tLineH=isMobile and 6 or 4; local tY=S.SliderH-(isMobile and 14 or 12)
             local trackBg=New("Frame",{Size=UDim2.new(1,-tPad*2,0,tLineH),Position=UDim2.new(0,tPad,0,tY),BackgroundColor3=T.TOff,BorderSizePixel=0,ZIndex=3},fr)
-            Corner(trackBg,tLineH/2)
+            Corner(trackBg,tLineH/2); table.insert(_panelRefs,{obj=trackBg,prop="BackgroundColor3",key="TOff"})
             local p0=(val-mn)/(mx-mn)
             local fill=New("Frame",{Size=UDim2.new(p0,0,1,0),BackgroundColor3=T.Acc,BorderSizePixel=0,ZIndex=4},trackBg)
             Corner(fill,tLineH/2); table.insert(_accentRefs,{obj=fill,prop="BackgroundColor3"})
-            local thSz=isMobile and 20 or 16
+            local thSz=isMobile and 16 or 12
             local thumb=New("Frame",{Size=UDim2.new(0,thSz,0,thSz),Position=UDim2.new(p0,-thSz/2,0.5,-thSz/2),BackgroundColor3=Color3.fromRGB(255,255,255),BorderSizePixel=0,ZIndex=5},trackBg)
-            Corner(thumb,thSz/2); local thStroke=Stroke(thumb,T.Acc,2); table.insert(_accentRefs,{obj=thStroke,prop="Color"})
+            Corner(thumb,thSz/2); local thStroke=Stroke(thumb,T.Acc,1.5); table.insert(_accentRefs,{obj=thStroke,prop="Color"})
             local obj={CurrentValue=val}; local sliding=false
             local function upd(pos)
                 local rel=pos.X-trackBg.AbsolutePosition.X; local p=math.clamp(rel/trackBg.AbsoluteSize.X,0,1)
@@ -265,43 +452,43 @@ function OcelUI:CreateWindow(cfg)
                 val=snapped; obj.CurrentValue=snapped; local np=(snapped-mn)/(mx-mn)
                 fill.Size=UDim2.new(np,0,1,0); thumb.Position=UDim2.new(np,-thSz/2,0.5,-thSz/2); valLbl.Text=tostring(snapped).." "..suf; pcall(cfg.Callback,snapped)
             end
-            trackBg.InputBegan:Connect(function(inp,proc) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then sliding=true; upd(inp.Position) end end)
+            trackBg.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then sliding=true; tabContent.ScrollingEnabled=false; upd(inp.Position) end end)
             UserInputService.InputChanged:Connect(function(inp) if sliding and (inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch) then upd(inp.Position) end end)
-            UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then sliding=false end end)
+            UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then if sliding then sliding=false; tabContent.ScrollingEnabled=true end end end)
             return obj
         end
 
         function Tab:CreateButton(cfg)
             local fr=New("Frame",{Size=UDim2.new(1,0,0,S.ItemH),BackgroundTransparency=1,BorderSizePixel=0,LayoutOrder=nxt()},tabContent)
             local btn=New("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundColor3=T.Acc,Text=cfg.Name,TextColor3=Color3.fromRGB(255,255,255),TextSize=S.FontMd,Font=Enum.Font.GothamBold,BorderSizePixel=0,AutoButtonColor=false},fr)
-            Corner(btn,8); table.insert(_accentRefs,{obj=btn,prop="BackgroundColor3"})
-            btn.MouseButton1Click:Connect(function()
+            Corner(btn,6); table.insert(_accentRefs,{obj=btn,prop="BackgroundColor3"})
+            btn.Activated:Connect(function()
                 local orig=T.Acc; local dim=Color3.fromRGB(math.clamp(orig.R*255-35,0,255)/255,math.clamp(orig.G*255-35,0,255)/255,math.clamp(orig.B*255-35,0,255)/255)
                 Tw(btn,{BackgroundColor3=dim},0.08); task.delay(0.14,function() Tw(btn,{BackgroundColor3=orig},0.1) end); pcall(cfg.Callback)
             end); return {Button=btn}
         end
 
         function Tab:CreateDropdown(cfg)
-            local h=S.ItemH+(isMobile and 2 or 0)
-            local fr=New("Frame",{Size=UDim2.new(1,0,0,h),BackgroundColor3=T.Pan,BorderSizePixel=0,LayoutOrder=nxt(),ClipsDescendants=false,ZIndex=2},tabContent)
-            Corner(fr,8); local st2=Stroke(fr,T.Brd,1); table.insert(_borderRefs,st2); table.insert(_panelRefs,{obj=fr,prop="BackgroundColor3",key="Pan"})
-            New("TextLabel",{Size=UDim2.new(0.52,0,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=cfg.Name,TextColor3=T.Txt,TextSize=S.FontMd,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=3},fr)
+            local h=S.ItemH
+            local fr=New("Frame",{Size=UDim2.new(1,0,0,h),BackgroundColor3=T.Pan,BorderSizePixel=0,LayoutOrder=nxt(),ZIndex=2},tabContent)
+            Corner(fr,6); local st2=Stroke(fr,T.Brd,1); table.insert(_borderRefs,st2); table.insert(_panelRefs,{obj=fr,prop="BackgroundColor3",key="Pan"})
+            New("TextLabel",{Size=UDim2.new(0.55,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=cfg.Name,TextColor3=T.Txt,TextSize=S.FontMd,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=3},fr)
             local curOpt=(cfg.CurrentOption and cfg.CurrentOption[1]) or (cfg.Options and cfg.Options[1]) or ""
-            local dBW=isMobile and 0.44 or 0.42
-            local dBtn=New("TextButton",{Size=UDim2.new(dBW,-4,0,h-10),Position=UDim2.new(1-dBW,2,0.5,-(h-10)/2),BackgroundColor3=T.Sec,Text=curOpt.." v",TextColor3=T.Txt,TextSize=S.FontSm,Font=Enum.Font.Gotham,BorderSizePixel=0,AutoButtonColor=false,ClipsDescendants=true,ZIndex=3},fr)
-            Corner(dBtn,6); Stroke(dBtn,T.Brd,1); table.insert(_panelRefs,{obj=dBtn,prop="BackgroundColor3",key="Sec"})
+            local dBW=isMobile and 0.42 or 0.38
+            local dBtn=New("TextButton",{Size=UDim2.new(dBW,-4,0,h-8),Position=UDim2.new(1-dBW,2,0.5,-(h-8)/2),BackgroundColor3=T.Sec,Text=curOpt.." v",TextColor3=T.Txt,TextSize=S.FontSm,Font=Enum.Font.Gotham,BorderSizePixel=0,AutoButtonColor=false,ZIndex=3},fr)
+            Corner(dBtn,4); local dBtnStroke=Stroke(dBtn,T.Brd,1); table.insert(_borderRefs,dBtnStroke); table.insert(_panelRefs,{obj=dBtn,prop="BackgroundColor3",key="Sec"}); table.insert(_panelRefs,{obj=dBtn,prop="TextColor3",key="Txt"})
             local obj={CurrentOption={curOpt}}; local open=false; local dropFr=nil
-            dBtn.MouseButton1Click:Connect(function()
+            dBtn.Activated:Connect(function()
                 if open then if dropFr then dropFr:Destroy(); dropFr=nil end; open=false; return end
-                open=true; local optH=isMobile and 44 or 33; local showCnt=math.min(#cfg.Options,5)
+                open=true; local optH=isMobile and 36 or 28; local showCnt=math.min(#cfg.Options,5)
                 dropFr=New("Frame",{Size=UDim2.new(dBW,-4,0,showCnt*optH+6),Position=UDim2.new(1-dBW,2,0,h+2),BackgroundColor3=T.Sec,BorderSizePixel=0,ZIndex=30,ClipsDescendants=true},fr)
-                Corner(dropFr,7); Stroke(dropFr,T.Brd,1)
-                local sf=New("ScrollingFrame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=isMobile and 4 or 3,ScrollBarImageColor3=T.Acc,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=31},dropFr)
+                Corner(dropFr,5); local dropStroke=Stroke(dropFr,T.Brd,1); table.insert(_borderRefs,dropStroke)
+                local sf=New("ScrollingFrame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=2,ScrollBarImageColor3=T.Acc,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=31},dropFr)
                 New("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder},sf)
                 for i,opt in ipairs(cfg.Options) do
                     local isCur=(opt==curOpt)
-                    local ob=New("TextButton",{Size=UDim2.new(1,0,0,optH),BackgroundColor3=isCur and T.Acc or T.Pan,BackgroundTransparency=isCur and 0 or 0.4,Text="  "..opt,TextColor3=isCur and Color3.fromRGB(255,255,255) or T.Txt,TextSize=S.FontSm,Font=isCur and Enum.Font.GothamSemibold or Enum.Font.Gotham,BorderSizePixel=0,LayoutOrder=i,TextXAlignment=Enum.TextXAlignment.Left,AutoButtonColor=false,ZIndex=32},sf)
-                    ob.MouseButton1Click:Connect(function()
+                    local ob=New("TextButton",{Size=UDim2.new(1,0,0,optH),BackgroundColor3=isCur and T.Acc or T.Pan,BackgroundTransparency=isCur and 0 or 0.5,Text="  "..opt,TextColor3=isCur and Color3.fromRGB(255,255,255) or T.Txt,TextSize=S.FontSm,Font=isCur and Enum.Font.GothamSemibold or Enum.Font.Gotham,BorderSizePixel=0,LayoutOrder=i,TextXAlignment=Enum.TextXAlignment.Left,AutoButtonColor=false,ZIndex=32},sf)
+                    ob.Activated:Connect(function()
                         curOpt=opt; obj.CurrentOption={opt}; dBtn.Text=opt.." v"
                         if dropFr then dropFr:Destroy(); dropFr=nil end; open=false
                         if cfg.MultipleOptions then pcall(cfg.Callback,{opt}) else pcall(cfg.Callback,opt) end
@@ -312,63 +499,63 @@ function OcelUI:CreateWindow(cfg)
 
         function Tab:CreateColorPicker(cfg)
             local fr,_=MakeItem(cfg.Name,S.ItemH); local curColor=cfg.Color or Color3.fromRGB(255,255,255)
-            local pW=isMobile and 36 or 28; local pH=isMobile and 26 or 20
-            local preview=New("Frame",{Size=UDim2.new(0,pW,0,pH),Position=UDim2.new(1,-(pW+12),0.5,-pH/2),BackgroundColor3=curColor,BorderSizePixel=0,ZIndex=3},fr)
-            Corner(preview,6); Stroke(preview,T.Brd,1.5)
+            local pW=isMobile and 32 or 24; local pH=isMobile and 22 or 16
+            local preview=New("TextButton",{Size=UDim2.new(0,pW,0,pH),Position=UDim2.new(1,-(pW+10),0.5,-pH/2),BackgroundColor3=curColor,Text="",BorderSizePixel=0,ZIndex=3},fr)
+            Corner(preview,4); local prevStroke=Stroke(preview,T.Brd,1.5); table.insert(_borderRefs,prevStroke)
             local obj={Color=curColor}; local pickerOpen=false; local pickerFr=nil
             local function closePicker() if pickerFr then pcall(function() pickerFr:Destroy() end); pickerFr=nil end; pickerOpen=false end
             local function openPicker()
                 if pickerOpen then closePicker(); return end; pickerOpen=true
-                local pw=isMobile and (S.W-S.Pad*2-24) or 230; local hueH=isMobile and 34 or 24; local svH=isMobile and 140 or 105
-                pickerFr=New("Frame",{Size=UDim2.new(0,pw,0,hueH+svH+38),Position=UDim2.new(0,0,0,S.ItemH+2),BackgroundColor3=T.Sec,BorderSizePixel=0,ZIndex=20,ClipsDescendants=true},fr)
-                Corner(pickerFr,8); Stroke(pickerFr,T.Brd,1)
-                local topPrev=New("Frame",{Size=UDim2.new(0,isMobile and 28 or 20,0,isMobile and 28 or 20),Position=UDim2.new(1,-(isMobile and 36 or 28),0,6),BackgroundColor3=curColor,BorderSizePixel=0,ZIndex=21},pickerFr)
-                Corner(topPrev,4); Stroke(topPrev,T.Brd,1)
-                local hueBar=New("Frame",{Size=UDim2.new(1,-16,0,hueH),Position=UDim2.new(0,8,0,7),BackgroundColor3=Color3.fromRGB(255,0,0),BorderSizePixel=0,ZIndex=21,ClipsDescendants=true},pickerFr)
+                local pw=isMobile and (S.W-S.SidebarW-S.Pad*2-20) or 210; local hueH=isMobile and 28 or 20; local svH=isMobile and 120 or 95
+                pickerFr=New("Frame",{Size=UDim2.new(0,pw,0,hueH+svH+34),Position=UDim2.new(0,0,0,S.ItemH+2),BackgroundColor3=T.Sec,BorderSizePixel=0,ZIndex=20,ClipsDescendants=true},fr)
+                Corner(pickerFr,6); local pickerStroke=Stroke(pickerFr,T.Brd,1); table.insert(_borderRefs,pickerStroke)
+                local topPrev=New("Frame",{Size=UDim2.new(0,18,0,18),Position=UDim2.new(1,-26,0,5),BackgroundColor3=curColor,BorderSizePixel=0,ZIndex=21},pickerFr)
+                Corner(topPrev,3)
+                local hueBar=New("Frame",{Size=UDim2.new(1,-36,0,hueH),Position=UDim2.new(0,8,0,5),BackgroundColor3=Color3.fromRGB(255,0,0),BorderSizePixel=0,ZIndex=21,ClipsDescendants=true},pickerFr)
                 Corner(hueBar,hueH/2)
                 local hKPs={}; for i=0,6 do table.insert(hKPs,ColorSequenceKeypoint.new(i/6,Color3.fromHSV(i/6,1,1))) end
                 New("UIGradient",{Color=ColorSequence.new(hKPs)},hueBar)
-                local svPicker=New("Frame",{Size=UDim2.new(1,-16,0,svH),Position=UDim2.new(0,8,0,hueH+15),BackgroundColor3=Color3.fromRGB(255,0,0),BorderSizePixel=0,ZIndex=21,ClipsDescendants=true},pickerFr)
-                Corner(svPicker,6)
+                local svPicker=New("Frame",{Size=UDim2.new(1,-16,0,svH),Position=UDim2.new(0,8,0,hueH+12),BackgroundColor3=Color3.fromRGB(255,0,0),BorderSizePixel=0,ZIndex=21,ClipsDescendants=true},svPicker)
+                Corner(svPicker,5)
                 local wGr=New("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(255,255,255),ZIndex=22},svPicker)
                 New("UIGradient",{Color=ColorSequence.new(Color3.fromRGB(255,255,255),Color3.fromRGB(255,255,255)),Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)})},wGr)
                 local bGr=New("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),ZIndex=23},svPicker)
                 New("UIGradient",{Color=ColorSequence.new(Color3.fromRGB(0,0,0),Color3.fromRGB(0,0,0)),Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(1,0)}),Rotation=90},bGr)
                 local h,s,v=Color3.toHSV(curColor); svPicker.BackgroundColor3=Color3.fromHSV(h,1,1)
-                local hueCur=New("Frame",{Size=UDim2.new(0,6,1,6),Position=UDim2.new(h,-3,0,-3),BackgroundColor3=Color3.fromRGB(255,255,255),ZIndex=25,BorderSizePixel=0},hueBar)
-                Corner(hueCur,3); Stroke(hueCur,Color3.fromRGB(0,0,0),1.5)
-                local svCur=New("Frame",{Size=UDim2.new(0,10,0,10),Position=UDim2.new(s,-5,1-v,-5),BackgroundColor3=Color3.fromRGB(255,255,255),ZIndex=25,BorderSizePixel=0},svPicker)
-                Corner(svCur,5); Stroke(svCur,Color3.fromRGB(0,0,0),1.5)
+                local hueCur=New("Frame",{Size=UDim2.new(0,4,1,4),Position=UDim2.new(h,-2,0,-2),BackgroundColor3=Color3.fromRGB(255,255,255),ZIndex=25,BorderSizePixel=0},hueBar)
+                Corner(hueCur,2); Stroke(hueCur,Color3.fromRGB(0,0,0),1)
+                local svCur=New("Frame",{Size=UDim2.new(0,8,0,8),Position=UDim2.new(s,-4,1-v,-4),BackgroundColor3=Color3.fromRGB(255,255,255),ZIndex=25,BorderSizePixel=0},svPicker)
+                Corner(svCur,4); Stroke(svCur,Color3.fromRGB(0,0,0),1)
                 local function applyColor() local nc=Color3.fromHSV(h,s,v); curColor=nc; obj.Color=nc; preview.BackgroundColor3=nc; topPrev.BackgroundColor3=nc; svPicker.BackgroundColor3=Color3.fromHSV(h,1,1); pcall(cfg.Callback,nc) end
                 local hDrag,svDrag=false,false
-                hueBar.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then hDrag=true; h=math.clamp((inp.Position.X-hueBar.AbsolutePosition.X)/hueBar.AbsoluteSize.X,0,1); hueCur.Position=UDim2.new(h,-3,0,-3); applyColor() end end)
-                svPicker.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then svDrag=true; s=math.clamp((inp.Position.X-svPicker.AbsolutePosition.X)/svPicker.AbsoluteSize.X,0,1); v=1-math.clamp((inp.Position.Y-svPicker.AbsolutePosition.Y)/svPicker.AbsoluteSize.Y,0,1); svCur.Position=UDim2.new(s,-5,1-v,-5); applyColor() end end)
+                hueBar.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then hDrag=true; tabContent.ScrollingEnabled=false; h=math.clamp((inp.Position.X-hueBar.AbsolutePosition.X)/hueBar.AbsoluteSize.X,0,1); hueCur.Position=UDim2.new(h,-2,0,-2); applyColor() end end)
+                svPicker.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then svDrag=true; tabContent.ScrollingEnabled=false; s=math.clamp((inp.Position.X-svPicker.AbsolutePosition.X)/svPicker.AbsoluteSize.X,0,1); v=1-math.clamp((inp.Position.Y-svPicker.AbsolutePosition.Y)/svPicker.AbsoluteSize.Y,0,1); svCur.Position=UDim2.new(s,-4,1-v,-4); applyColor() end end)
                 UserInputService.InputChanged:Connect(function(inp)
                     if inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch then
-                        if hDrag then h=math.clamp((inp.Position.X-hueBar.AbsolutePosition.X)/hueBar.AbsoluteSize.X,0,1); hueCur.Position=UDim2.new(h,-3,0,-3); applyColor() end
-                        if svDrag then s=math.clamp((inp.Position.X-svPicker.AbsolutePosition.X)/svPicker.AbsoluteSize.X,0,1); v=1-math.clamp((inp.Position.Y-svPicker.AbsolutePosition.Y)/svPicker.AbsoluteSize.Y,0,1); svCur.Position=UDim2.new(s,-5,1-v,-5); applyColor() end
+                        if hDrag then h=math.clamp((inp.Position.X-hueBar.AbsolutePosition.X)/hueBar.AbsoluteSize.X,0,1); hueCur.Position=UDim2.new(h,-2,0,-2); applyColor() end
+                        if svDrag then s=math.clamp((inp.Position.X-svPicker.AbsolutePosition.X)/svPicker.AbsoluteSize.X,0,1); v=1-math.clamp((inp.Position.Y-svPicker.AbsolutePosition.Y)/svPicker.AbsoluteSize.Y,0,1); svCur.Position=UDim2.new(s,-4,1-v,-4); applyColor() end
                     end
                 end)
-                UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then hDrag=false; svDrag=false end end)
+                UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then if hDrag or svDrag then hDrag=false; svDrag=false; tabContent.ScrollingEnabled=true end end end)
             end
-            fr.InputBegan:Connect(function(inp,proc) if proc then return end; if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then local relX=inp.Position.X-fr.AbsolutePosition.X; if relX>fr.AbsoluteSize.X*0.54 then openPicker() end end end)
+            preview.Activated:Connect(openPicker)
             return obj
         end
 
         function Tab:CreateKeybind(cfg)
             local fr,_=MakeItem(cfg.Name,S.ItemH); local curKey=cfg.CurrentKeybind or "None"; local holdIntr=cfg.HoldToInteract==true
-            local isHeld=false; local listening=false; local kBW=isMobile and 72 or 60; local kBH=isMobile and 34 or 26
-            local kBtn=New("TextButton",{Size=UDim2.new(0,kBW,0,kBH),Position=UDim2.new(1,-(kBW+12),0.5,-kBH/2),BackgroundColor3=T.Sec,Text=isMobile and (holdIntr and "HOLD" or "TAP") or "["..curKey.."]",TextColor3=T.Acc,TextSize=S.FontSm,Font=Enum.Font.GothamBold,BorderSizePixel=0,AutoButtonColor=false,ZIndex=3},fr)
-            Corner(kBtn,6); Stroke(kBtn,T.Brd,1); table.insert(_accentRefs,{obj=kBtn,prop="TextColor3"})
+            local isHeld=false; local listening=false; local kBW=isMobile and 68 or 54; local kBH=isMobile and 30 or 22
+            local kBtn=New("TextButton",{Size=UDim2.new(0,kBW,0,kBH),Position=UDim2.new(1,-(kBW+10),0.5,-kBH/2),BackgroundColor3=T.Sec,Text=isMobile and (holdIntr and "HOLD" or "TAP") or "["..curKey.."]",TextColor3=T.Acc,TextSize=S.FontSm,Font=Enum.Font.GothamBold,BorderSizePixel=0,AutoButtonColor=false,ZIndex=3},fr)
+            Corner(kBtn,4); local kBtnStroke=Stroke(kBtn,T.Brd,1); table.insert(_borderRefs,kBtnStroke); table.insert(_accentRefs,{obj=kBtn,prop="TextColor3"})
             local obj={CurrentKeybind=curKey}
             if isMobile then
                 local tapState=false; kBtn.BackgroundColor3=T.TOff
-                kBtn.MouseButton1Click:Connect(function()
+                kBtn.Activated:Connect(function()
                     if holdIntr then tapState=not tapState; pcall(cfg.Callback,tapState); Tw(kBtn,{BackgroundColor3=tapState and T.TOn or T.TOff},0.15); kBtn.Text=tapState and "ON" or "HOLD"
                     else pcall(cfg.Callback); Tw(kBtn,{BackgroundColor3=T.Acc},0.08); task.delay(0.18,function() Tw(kBtn,{BackgroundColor3=T.TOff},0.1) end) end
                 end)
             else
-                kBtn.MouseButton1Click:Connect(function() listening=true; kBtn.Text="[...]"; kBtn.TextColor3=Color3.fromRGB(255,200,50) end)
+                kBtn.Activated:Connect(function() listening=true; kBtn.Text="[...]"; kBtn.TextColor3=Color3.fromRGB(255,200,50) end)
                 UserInputService.InputBegan:Connect(function(inp,proc)
                     if listening and not proc then if inp.UserInputType==Enum.UserInputType.Keyboard then curKey=inp.KeyCode.Name; obj.CurrentKeybind=curKey; kBtn.Text="["..curKey.."]"; kBtn.TextColor3=T.Acc; listening=false end
                     elseif not listening and not proc then if inp.KeyCode.Name==curKey then if holdIntr then isHeld=true; pcall(cfg.Callback,true) else pcall(cfg.Callback) end end end
@@ -383,7 +570,6 @@ function OcelUI:CreateWindow(cfg)
     return Window
 end
 
--- ================================================================
 -- GAME SCRIPT - TRIDENT SURVIVAL
 -- ================================================================
 local v0 = OcelUI
@@ -694,21 +880,33 @@ l_UserInputService_3.InputEnded:Connect(function(v586) if v566[v586.KeyCode] the
 MiscTab:CreateSection("Other")
 MiscTab:CreateButton({Name="Close Menu",Callback=function() v0:Destroy() end})
 
+
 -- ==================== STYLE/CUSTOMIZE TAB ====================
 local StyleTab=l_v0_Window_0:CreateTab("Style",nil)
-StyleTab:CreateSection("Theme")
+StyleTab:CreateSection("Theme Presets")
 StyleTab:CreateDropdown({Name="Menu Theme",Options={"Dark","Ocean","Crimson","Forest","AmberGlow"},CurrentOption={currentStyle.Theme},MultipleOptions=false,Flag="ThemeDropdown",
     Callback=function(sel) if type(sel)=="table" then sel=sel[1] end; l_v0_Window_0:ApplyTheme(sel) end})
+
+StyleTab:CreateSection("Color Palette")
 StyleTab:CreateColorPicker({Name="Accent Color",Color=Color3.fromRGB(currentStyle.AccentColor[1], currentStyle.AccentColor[2], currentStyle.AccentColor[3]),Flag="AccentColor",
     Callback=function(color) l_v0_Window_0:SetAccentColor(color) end})
+
+StyleTab:CreateColorPicker({Name="Background Color",Color=Color3.fromRGB(currentStyle.BgColor[1], currentStyle.BgColor[2], currentStyle.BgColor[3]),Flag="BgColor",
+    Callback=function(color) l_v0_Window_0:SetBgColor(color) end})
+
+StyleTab:CreateColorPicker({Name="Text Color",Color=Color3.fromRGB(currentStyle.TextColor[1], currentStyle.TextColor[2], currentStyle.TextColor[3]),Flag="TextColor",
+    Callback=function(color) l_v0_Window_0:SetTextColor(color) end})
+
 StyleTab:CreateSection("Toggle Key")
 StyleTab:CreateDropdown({Name="Toggle Key (PC)",Options={"K","L","M","P","O","I","J","H","N","B"},CurrentOption={currentStyle.ToggleKey},MultipleOptions=false,Flag="ToggleKeyDropdown",
     Callback=function(sel) if type(sel)=="table" then sel=sel[1] end; l_v0_Window_0:SetToggleKey(sel) end})
-StyleTab:CreateSection("Quick Presets")
-StyleTab:CreateButton({Name="Ocean Theme",   Callback=function() l_v0_Window_0:ApplyTheme("Ocean")    end})
-StyleTab:CreateButton({Name="Crimson Theme", Callback=function() l_v0_Window_0:ApplyTheme("Crimson")  end})
-StyleTab:CreateButton({Name="Forest Theme",  Callback=function() l_v0_Window_0:ApplyTheme("Forest")   end})
-StyleTab:CreateButton({Name="Dark Theme",    Callback=function() l_v0_Window_0:ApplyTheme("Dark")     end})
-StyleTab:CreateButton({Name="Amber Theme",   Callback=function() l_v0_Window_0:ApplyTheme("AmberGlow") end})
+
+StyleTab:CreateSection("Quick Theme Presets")
+StyleTab:CreateButton({Name="Ocean Theme Preset",   Callback=function() l_v0_Window_0:ApplyTheme("Ocean")    end})
+StyleTab:CreateButton({Name="Crimson Theme Preset", Callback=function() l_v0_Window_0:ApplyTheme("Crimson")  end})
+StyleTab:CreateButton({Name="Forest Theme Preset",  Callback=function() l_v0_Window_0:ApplyTheme("Forest")   end})
+StyleTab:CreateButton({Name="Dark Theme Preset",    Callback=function() l_v0_Window_0:ApplyTheme("Dark")     end})
+StyleTab:CreateButton({Name="Amber Theme Preset",   Callback=function() l_v0_Window_0:ApplyTheme("AmberGlow") end})
+
 StyleTab:CreateSection("Device Info")
 StyleTab:CreateButton({Name=isMobile and ">> Mobile Mode ACTIVE <<" or ">> Desktop Mode ACTIVE <<",Callback=function() end})
