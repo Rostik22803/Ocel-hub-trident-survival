@@ -1568,128 +1568,130 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
     else
         local l_Position_0 = l_CurrentCamera_0.CFrame.Position;
         for v94, v95 in pairs(v25) do
-            local v96 = true;
-            local l_head_0 = v95.head;
-            local l_torso_0 = v95.torso;
-            if not l_head_0 or not l_torso_0 or not l_head_0.Parent or not l_torso_0.Parent then
-                local v99, v100 = v52(v94);
-                l_torso_0 = v100;
-                l_head_0 = v99;
-                v99 = l_head_0;
-                v95.torso = l_torso_0;
-                v95.head = v99;
-                if not l_head_0 or not l_torso_0 then
-                    v96 = false;
-                end;
-            end;
-            if v96 and v30 then
-                if isSleeping(v94) then
-                    v96 = false;
-                end;
-            end;
-            local v103 = nil;
-            local v104 = nil;
-            if v96 then
-                v103 = (l_head_0.Position + l_torso_0.Position) * 0.5;
-                v104 = (v103 - l_Position_0).Magnitude;
-                if v104 >= 3000 then
-                    v96 = false;
-                end;
-            end;
-            local v105 = nil;
-            local v106 = nil;
-            if v96 then
-                local v107, v108 = l_CurrentCamera_0:WorldToViewportPoint(v103);
-                v106 = v108;
-                v105 = v107;
-                if not v106 then
-                    v96 = false;
-                end;
-            end;
-            if not v96 then
-                v95.box.Visible = false;
-                v95.outline.Visible = false;
-                v95.text.Visible = false;
-                v95.weaponText.Visible = false;
-                for _, v110 in ipairs(v95.skeletonLines) do
-                    v110.line.Visible = false;
-                end;
-            else
-                local v111 = 1000 / (v104 * 2) / math.tan(math.rad(l_CurrentCamera_0.FieldOfView / 1.7));
-                local v112 = math.clamp(math.floor(6.5 * v111), 10, 600);
-                local v113 = math.clamp(math.floor(9.5 * v111), 14, 800);
-                local v114 = v105.X - v112 / 2;
-                local v115 = v105.Y - v113 / 3.5;
-                if v29 then
-                    local v116 = 2;
-                    v95.outline.Size = Vector2.new(v112 + v116, v113 + v116);
-                    v95.outline.Position = Vector2.new(v114 - v116 / 2, v115 - v116 / 2);
-                    v95.outline.Visible = true;
-                    v95.box.Size = Vector2.new(v112, v113);
-                    v95.box.Position = Vector2.new(v114, v115);
-                    v95.box.Color = v55(v94) and v33 or Color3.fromRGB(0, 150, 255);
-                    v95.box.Visible = true;
-                else
-                    v95.outline.Visible = false;
-                    v95.box.Visible = false;
-                end;
-                local v117 = {};
-                if v_nameEsp then
-                    local name = v_names[v94] or getEntityName(v94);
-                    if name then
-                        table.insert(v117, name);
-                    else
-                        table.insert(v117, v55(v94) and "Player" or "Bot");
+            pcall(function()
+                local v96 = true;
+                local l_head_0 = v95.head;
+                local l_torso_0 = v95.torso;
+                if not l_head_0 or not l_torso_0 or not l_head_0.Parent or not l_torso_0.Parent then
+                    local v99, v100 = v52(v94);
+                    l_torso_0 = v100;
+                    l_head_0 = v99;
+                    v99 = l_head_0;
+                    v95.torso = l_torso_0;
+                    v95.head = v99;
+                    if not l_head_0 or not l_torso_0 then
+                        v96 = false;
                     end;
                 end;
-                if v28 then
-                    table.insert(v117, v55(v94) and "Player" or "Bot");
+                if v96 and v30 then
+                    if isSleeping(v94) then
+                        v96 = false;
+                    end;
                 end;
-                if v27 then
-                    table.insert(v117, math.floor(v104) .. "m");
+                local v103 = nil;
+                local v104 = nil;
+                if v96 then
+                    v103 = (l_head_0.Position + l_torso_0.Position) * 0.5;
+                    v104 = (v103 - l_Position_0).Magnitude;
+                    if v104 >= 3000 then
+                        v96 = false;
+                    end;
                 end;
-                local v118 = table.concat(v117, " | ");
-                if v118 ~= "" then
-                    v95.text.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
-                    v95.text.Text = v118;
-                    v95.text.Position = Vector2.new(v105.X, v115 - 16);
-                    v95.text.Visible = true;
-                else
+                local v105 = nil;
+                local v106 = nil;
+                if v96 then
+                    local v107, v108 = l_CurrentCamera_0:WorldToViewportPoint(v103);
+                    v106 = v108;
+                    v105 = v107;
+                    if not v106 then
+                        v96 = false;
+                    end;
+                end;
+                if not v96 then
+                    v95.box.Visible = false;
+                    v95.outline.Visible = false;
                     v95.text.Visible = false;
-                end;
-                if v31 then
-                    local v119 = v48[v94] or "None";
-                    v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
-                    v95.weaponText.Text = v119;
-                    v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
-                    v95.weaponText.Visible = true;
-                else
                     v95.weaponText.Visible = false;
-                end;
-                if v32 then
-                    for _, v121 in ipairs(v95.skeletonLines) do
-                        local l_v94_FirstChild_0 = v94:FindFirstChild(v121.a);
-                        local l_v94_FirstChild_1 = v94:FindFirstChild(v121.b);
-                        if l_v94_FirstChild_0 and l_v94_FirstChild_1 then
-                            local v124, v125 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_0.Position);
-                            local v126, v127 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_1.Position);
-                            if v125 and v127 then
-                                v121.line.From = Vector2.new(v124.X, v124.Y);
-                                v121.line.To = Vector2.new(v126.X, v126.Y);
-                                v121.line.Visible = true;
+                    for _, v110 in ipairs(v95.skeletonLines) do
+                        v110.line.Visible = false;
+                    end;
+                else
+                    local v111 = 1000 / (v104 * 2) / math.tan(math.rad(l_CurrentCamera_0.FieldOfView / 1.7));
+                    local v112 = math.clamp(math.floor(6.5 * v111), 10, 600);
+                    local v113 = math.clamp(math.floor(9.5 * v111), 14, 800);
+                    local v114 = v105.X - v112 / 2;
+                    local v115 = v105.Y - v113 / 3.5;
+                    if v29 then
+                        local v116 = 2;
+                        v95.outline.Size = Vector2.new(v112 + v116, v113 + v116);
+                        v95.outline.Position = Vector2.new(v114 - v116 / 2, v115 - v116 / 2);
+                        v95.outline.Visible = true;
+                        v95.box.Size = Vector2.new(v112, v113);
+                        v95.box.Position = Vector2.new(v114, v115);
+                        v95.box.Color = v55(v94) and v33 or Color3.fromRGB(0, 150, 255);
+                        v95.box.Visible = true;
+                    else
+                        v95.outline.Visible = false;
+                        v95.box.Visible = false;
+                    end;
+                    local v117 = {};
+                    if v_nameEsp then
+                        local name = v_names[v94] or getEntityName(v94);
+                        if name then
+                            table.insert(v117, name);
+                        else
+                            table.insert(v117, v55(v94) and "Player" or "Bot");
+                        end;
+                    end;
+                    if v28 then
+                        table.insert(v117, v55(v94) and "Player" or "Bot");
+                    end;
+                    if v27 then
+                        table.insert(v117, math.floor(v104) .. "m");
+                    end;
+                    local v118 = table.concat(v117, " | ");
+                    if v118 ~= "" then
+                        v95.text.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
+                        v95.text.Text = v118;
+                        v95.text.Position = Vector2.new(v105.X, v115 - 16);
+                        v95.text.Visible = true;
+                    else
+                        v95.text.Visible = false;
+                    end;
+                    if v31 then
+                        local v119 = v48[v94] or "None";
+                        v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
+                        v95.weaponText.Text = v119;
+                        v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
+                        v95.weaponText.Visible = true;
+                    else
+                        v95.weaponText.Visible = false;
+                    end;
+                    if v32 then
+                        for _, v121 in ipairs(v95.skeletonLines) do
+                            local l_v94_FirstChild_0 = v94:FindFirstChild(v121.a);
+                            local l_v94_FirstChild_1 = v94:FindFirstChild(v121.b);
+                            if l_v94_FirstChild_0 and l_v94_FirstChild_1 then
+                                local v124, v125 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_0.Position);
+                                local v126, v127 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_1.Position);
+                                if v125 and v127 then
+                                    v121.line.From = Vector2.new(v124.X, v124.Y);
+                                    v121.line.To = Vector2.new(v126.X, v126.Y);
+                                    v121.line.Visible = true;
+                                else
+                                    v121.line.Visible = false;
+                                end;
                             else
                                 v121.line.Visible = false;
                             end;
-                        else
-                            v121.line.Visible = false;
+                        end;
+                    else
+                        for _, v129 in ipairs(v95.skeletonLines) do
+                            v129.line.Visible = false;
                         end;
                     end;
-                else
-                    for _, v129 in ipairs(v95.skeletonLines) do
-                        v129.line.Visible = false;
-                    end;
                 end;
-            end;
+            end)
         end;
         return;
     end;
