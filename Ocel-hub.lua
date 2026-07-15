@@ -1606,7 +1606,10 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
                 local v117 = {};
                 if ToggleNameESPState then
-                    table.insert(v117, v94.Name);
+                    local plr = game:GetService("Players"):GetPlayerFromCharacter(v94)
+                    local nameStr = (plr and plr.Name) or v94.Name
+                    if nameStr == "Model" then nameStr = "Player" end
+                    table.insert(v117, nameStr);
                 end;
                 if v28 then
                     table.insert(v117, v55(v94) and "Player" or "Bot");
@@ -3537,12 +3540,12 @@ SettingsTab:CreateSection("⚠️ System")
 SettingsTab:CreateButton({
     Name = "Language", 
     Callback = function()
-        if v0.CurrentLanguage == "RU" then
-            v0:SetLanguage("EN")
-            v0.CurrentLanguage = "EN"
+        if l_v0_Window_0.CurrentLanguage == "RU" then
+            l_v0_Window_0:SetLanguage("EN")
+            l_v0_Window_0.CurrentLanguage = "EN"
         else
-            v0:SetLanguage("RU")
-            v0.CurrentLanguage = "RU"
+            l_v0_Window_0:SetLanguage("RU")
+            l_v0_Window_0.CurrentLanguage = "RU"
         end
     end
 });
