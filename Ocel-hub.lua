@@ -1539,22 +1539,27 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 local v117 = {};
                 if NameEspEnabled and v55(v94) then
                     local name = nil;
-                    local head = v94:FindFirstChild("Head");
-                    if head and _G.classes and _G.classes.EntityClient then
-                        local entity = _G.classes.EntityClient.GetEntityFromPart(head);
-                        if entity and (entity.type == "Player" or entity:Inherits(_G.classes.Player)) then
-                            if entity.Name and entity.Name ~= "" then
-                                name = entity.Name;
-                            else
-                                local now = tick();
-                                if not entity.lastIdentityReq or now - entity.lastIdentityReq > 3 then
-                                    entity.lastIdentityReq = now;
-                                    if _G.classes.NetClient and _G.classes.SendCodes then
-                                        _G.classes.NetClient.SendTCP(_G.classes.SendCodes.REQUEST_IDENTITY, entity.id);
-                                    end;
+                    local entity = nil;
+                    if _G.classes and _G.classes.EntityClient and _G.classes.EntityClient.EntityMap then
+                        for _, ent in pairs(_G.classes.EntityClient.EntityMap) do
+                            if ent.model == v94 then
+                                entity = ent;
+                                break;
+                            end
+                        end
+                    end
+                    if entity then
+                        if entity.Name and entity.Name ~= "" then
+                            name = entity.Name;
+                        else
+                            local now = tick();
+                            if not entity.lastIdentityReq or now - entity.lastIdentityReq > 3 then
+                                entity.lastIdentityReq = now;
+                                if _G.classes.NetClient and _G.classes.SendCodes then
+                                    _G.classes.NetClient.SendTCP(_G.classes.SendCodes.REQUEST_IDENTITY, entity.id);
                                 end;
-                                name = "Loading...";
                             end;
+                            name = "Loading...";
                         end;
                     end;
                     table.insert(v117, name or "Player");
@@ -2753,7 +2758,8 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
         end
         if val then
             if not NoclipConnection then
-                NoclipConnection = game:GetService("RunService").Stepped:Connect(function(time, dt)
+                local lastTime = tick();
+                NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
                     if not NoclipEnabled then
                         if NoclipConnection then
                             NoclipConnection:Disconnect();
@@ -2761,9 +2767,18 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                         end
                         return;
                     end
+                    
+                    local now = tick();
+                    local dt = now - lastTime;
+                    lastTime = now;
+                    if dt <= 0 or dt > 1 then
+                        dt = 0.016;
+                    end
+                    
                     if _G.NEXT and _G.NEXT.SetNoclipping then
                         _G.NEXT.SetNoclipping(true);
                     end
+                    
                     local localChar = workspace:FindFirstChild("Const")
                     localChar = localChar and localChar:FindFirstChild("Ignore")
                     localChar = localChar and localChar:FindFirstChild("LocalCharacter")
@@ -2775,22 +2790,16 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                             end
                         end
                         
-                        -- Manual flying movement
-                        local camera = workspace.CurrentCamera;
+                        -- Manual flying movement via game's input vector + Space/Shift
                         local moveDir = Vector3.new(0, 0, 0);
+                        if _G.NEXT and _G.NEXT.GetMoveVector then
+                            local moveVector, isMoving = _G.NEXT.GetMoveVector(true);
+                            if isMoving and moveVector then
+                                moveDir = moveDir + Vector3.new(moveVector.X, 0, moveVector.Z);
+                            end
+                        end
+                        
                         local UserInputService = game:GetService("UserInputService");
-                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                            moveDir = moveDir + camera.CFrame.LookVector;
-                        end;
-                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                            moveDir = moveDir - camera.CFrame.LookVector;
-                        end;
-                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                            moveDir = moveDir - camera.CFrame.RightVector;
-                        end;
-                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                            moveDir = moveDir + camera.CFrame.RightVector;
-                        end;
                         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                             moveDir = moveDir + Vector3.new(0, 1, 0);
                         end;
@@ -2798,8 +2807,8 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                             moveDir = moveDir - Vector3.new(0, 1, 0);
                         end;
                         
-                        if moveDir.Magnitude > 0 then
-                            local currentCFrame = localChar:GetPivot();
+                        if moveDir.Magnitude > 0.01 then
+                            local currentCFrame = localChar.PrimaryPart and localChar.PrimaryPart.CFrame or localChar:GetPivot();
                             local nextPosition = currentCFrame.Position + moveDir.Unit * (FlySpeed * dt);
                             localChar:PivotTo(CFrame.new(nextPosition) * currentCFrame.Rotation);
                         end;
