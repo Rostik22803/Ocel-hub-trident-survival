@@ -718,12 +718,19 @@ local v29 = true;
 local v30 = false;
 local v31 = true;
 local v32 = false;
+local NameEspEnabled = false;
 local v33 = Color3.fromRGB(255, 255, 255);
 local v34 = Color3.fromRGB(255, 255, 255);
 local v35 = Color3.fromRGB(255, 255, 255);
-local v_nameEsp = false;
-local v_names = {};
 local _ = math.tan(math.rad(l_CurrentCamera_0.FieldOfView * 0.5));
+l_l_v0_Window_0_Tab_1:CreateToggle({
+    Name = "Name Esp", 
+    CurrentValue = false, 
+    Flag = "NameEspToggle", 
+    Callback = function(v36_name)
+        NameEspEnabled = v36_name;
+    end
+});
 l_l_v0_Window_0_Tab_1:CreateToggle({
     Name = "Box Esp", 
     CurrentValue = false, 
@@ -770,14 +777,6 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
     Flag = "SkeletonEspToggle", 
     Callback = function(v42) --[[ Line: 0 ]] --[[ Name:  ]]
         ToggleSkeletonESP(v42);
-    end
-});
-l_l_v0_Window_0_Tab_1:CreateToggle({
-    Name = "Name Esp", 
-    CurrentValue = false, 
-    Flag = "NameEspToggle", 
-    Callback = function(v_val)
-        ToggleNameESP(v_val);
     end
 });
 l_l_v0_Window_0_Tab_1:CreateColorPicker({
@@ -1324,100 +1323,8 @@ local function v65(v56) --[[ Line: 0 ]] --[[ Name:  ]]
         return not v58 and "None" or v58;
     end;
 end;
-local function getEntityName(model)
-    local head = model:FindFirstChild("Head")
-    if head then
-        local esp = head:FindFirstChild("ESP")
-        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" then
-            return esp.tag.Text
-        end
-        local nametag = head:FindFirstChild("Nametag")
-        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" then
-            return nametag.tag.Text
-        end
-        local teamtag = head:FindFirstChild("Teamtag")
-        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" then
-            return teamtag.tag.Text
-        end
-    end
-
-    local classes = _G.classes
-    if classes and classes.EntityClient and classes.EntityClient.EntityMap then
-        for _, ent in pairs(classes.EntityClient.EntityMap) do
-            if ent.model == model then
-                if ent.Name then
-                    return ent.Name
-                elseif ent.type then
-                    return ent.type
-                end
-                break
-            end
-        end
-    end
-    
-    local success, gc = pcall(getgc, true)
-    if success and type(gc) == "table" then
-        for _, v in pairs(gc) do
-            if type(v) == "table" and rawget(v, "model") == model then
-                if rawget(v, "Name") then
-                    return rawget(v, "Name")
-                elseif rawget(v, "type") then
-                    return rawget(v, "type")
-                end
-            end
-        end
-    end
-    
-    local player = game:GetService("Players"):GetPlayerFromCharacter(model)
-    if player then
-        return player.Name
-    end
-    
-    return nil
-end
-
-local function isSleeping(model)
-    local classes = _G.classes
-    if classes and classes.EntityClient and classes.EntityClient.EntityMap then
-        for _, ent in pairs(classes.EntityClient.EntityMap) do
-            if ent.model == model then
-                return ent.sleeping == true
-            end
-        end
-    end
-    
-    local success, gc = pcall(getgc, true)
-    if success and type(gc) == "table" then
-        for _, v in pairs(gc) do
-            if type(v) == "table" and rawget(v, "model") == model then
-                return rawget(v, "sleeping") == true
-            end
-        end
-    end
-    
-    local animator = model:FindFirstChildOfClass("Animator") or (model:FindFirstChild("AnimationController") and model.AnimationController:FindFirstChildOfClass("Animator"))
-    if animator then
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            local animName = track.Name or (track.Animation and track.Animation.Name)
-            if animName and string.find(string.lower(tostring(animName)), "sleep") then
-                return true
-            end
-        end
-    end
-    
-    local lowerTorso = model:FindFirstChild("LowerTorso")
-    if lowerTorso then
-        local rootRig = lowerTorso:FindFirstChild("RootRig")
-        if rootRig and typeof(rootRig.CurrentAngle) == "number" and rootRig.CurrentAngle ~= 0 then
-            return true
-        end
-    end
-    
-    return false
-end
-
 local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v25 (ref), v52 (ref), v33 (ref), v46 (ref), v55 (ref), v35 (ref), v_names (ref)
+    -- upvalues: v25 (ref), v52 (ref), v33 (ref), v46 (ref), v55 (ref), v35 (ref)
     if v25[v66] then
         return;
     else
@@ -1469,7 +1376,7 @@ local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
                 skeletonLines = v73
             };
             v66.Destroying:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
-                -- upvalues: v69 (ref), v70 (ref), v71 (ref), v72 (ref), v73 (ref), v25 (ref), v66 (ref), v_names (ref)
+                -- upvalues: v69 (ref), v70 (ref), v71 (ref), v72 (ref), v73 (ref), v25 (ref), v66 (ref)
                 pcall(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     -- upvalues: v69 (ref)
                     v69:Remove();
@@ -1496,7 +1403,6 @@ local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
                     end;
                 end;
                 v25[v66] = nil;
-                v_names[v66] = nil;
             end);
             return;
         end;
@@ -1514,13 +1420,10 @@ l_Workspace_0.ChildAdded:Connect(function(v83) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end);
 task.spawn(function() --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v25 (ref), v48 (ref), v65 (ref), v_names (ref)
+    -- upvalues: v25 (ref), v48 (ref), v65 (ref)
     while true do
         for v84 in pairs(v25) do
             v48[v84] = v65(v84);
-            if not v_names[v84] then
-                v_names[v84] = getEntityName(v84);
-            end;
         end;
         task.wait(1);
     end;
@@ -1553,10 +1456,6 @@ ToggleSkeletonESP = function(v91) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v32 (ref)
     v32 = v91;
 end;
-ToggleNameESP = function(v_val) --[[ Line: 0 ]]
-    -- upvalues: v_nameEsp (ref)
-    v_nameEsp = v_val;
-end;
 SetESPColor = function(v92) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v33 (ref)
     v33 = v92;
@@ -1568,130 +1467,145 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
     else
         local l_Position_0 = l_CurrentCamera_0.CFrame.Position;
         for v94, v95 in pairs(v25) do
-            pcall(function()
-                local v96 = true;
-                local l_head_0 = v95.head;
-                local l_torso_0 = v95.torso;
-                if not l_head_0 or not l_torso_0 or not l_head_0.Parent or not l_torso_0.Parent then
-                    local v99, v100 = v52(v94);
-                    l_torso_0 = v100;
-                    l_head_0 = v99;
-                    v99 = l_head_0;
-                    v95.torso = l_torso_0;
-                    v95.head = v99;
-                    if not l_head_0 or not l_torso_0 then
+            local v96 = true;
+            local l_head_0 = v95.head;
+            local l_torso_0 = v95.torso;
+            if not l_head_0 or not l_torso_0 or not l_head_0.Parent or not l_torso_0.Parent then
+                local v99, v100 = v52(v94);
+                l_torso_0 = v100;
+                l_head_0 = v99;
+                v99 = l_head_0;
+                v95.torso = l_torso_0;
+                v95.head = v99;
+                if not l_head_0 or not l_torso_0 then
+                    v96 = false;
+                end;
+            end;
+            if v96 and v30 then
+                local l_LowerTorso_0 = v94:FindFirstChild("LowerTorso");
+                if l_LowerTorso_0 then
+                    local l_RootRig_0 = l_LowerTorso_0:FindFirstChild("RootRig");
+                    if l_RootRig_0 and typeof(l_RootRig_0.CurrentAngle) == "number" and l_RootRig_0.CurrentAngle ~= 0 then
                         v96 = false;
                     end;
                 end;
-                if v96 and v30 then
-                    if isSleeping(v94) then
-                        v96 = false;
-                    end;
+            end;
+            local v103 = nil;
+            local v104 = nil;
+            if v96 then
+                v103 = (l_head_0.Position + l_torso_0.Position) * 0.5;
+                v104 = (v103 - l_Position_0).Magnitude;
+                if v104 >= 3000 then
+                    v96 = false;
                 end;
-                local v103 = nil;
-                local v104 = nil;
-                if v96 then
-                    v103 = (l_head_0.Position + l_torso_0.Position) * 0.5;
-                    v104 = (v103 - l_Position_0).Magnitude;
-                    if v104 >= 3000 then
-                        v96 = false;
-                    end;
+            end;
+            local v105 = nil;
+            local v106 = nil;
+            if v96 then
+                local v107, v108 = l_CurrentCamera_0:WorldToViewportPoint(v103);
+                v106 = v108;
+                v105 = v107;
+                if not v106 then
+                    v96 = false;
                 end;
-                local v105 = nil;
-                local v106 = nil;
-                if v96 then
-                    local v107, v108 = l_CurrentCamera_0:WorldToViewportPoint(v103);
-                    v106 = v108;
-                    v105 = v107;
-                    if not v106 then
-                        v96 = false;
-                    end;
+            end;
+            if not v96 then
+                v95.box.Visible = false;
+                v95.outline.Visible = false;
+                v95.text.Visible = false;
+                v95.weaponText.Visible = false;
+                for _, v110 in ipairs(v95.skeletonLines) do
+                    v110.line.Visible = false;
                 end;
-                if not v96 then
-                    v95.box.Visible = false;
-                    v95.outline.Visible = false;
-                    v95.text.Visible = false;
-                    v95.weaponText.Visible = false;
-                    for _, v110 in ipairs(v95.skeletonLines) do
-                        v110.line.Visible = false;
-                    end;
+            else
+                local v111 = 1000 / (v104 * 2) / math.tan(math.rad(l_CurrentCamera_0.FieldOfView / 1.7));
+                local v112 = math.clamp(math.floor(6.5 * v111), 10, 600);
+                local v113 = math.clamp(math.floor(9.5 * v111), 14, 800);
+                local v114 = v105.X - v112 / 2;
+                local v115 = v105.Y - v113 / 3.5;
+                if v29 then
+                    local v116 = 2;
+                    v95.outline.Size = Vector2.new(v112 + v116, v113 + v116);
+                    v95.outline.Position = Vector2.new(v114 - v116 / 2, v115 - v116 / 2);
+                    v95.outline.Visible = true;
+                    v95.box.Size = Vector2.new(v112, v113);
+                    v95.box.Position = Vector2.new(v114, v115);
+                    v95.box.Color = v55(v94) and v33 or Color3.fromRGB(0, 150, 255);
+                    v95.box.Visible = true;
                 else
-                    local v111 = 1000 / (v104 * 2) / math.tan(math.rad(l_CurrentCamera_0.FieldOfView / 1.7));
-                    local v112 = math.clamp(math.floor(6.5 * v111), 10, 600);
-                    local v113 = math.clamp(math.floor(9.5 * v111), 14, 800);
-                    local v114 = v105.X - v112 / 2;
-                    local v115 = v105.Y - v113 / 3.5;
-                    if v29 then
-                        local v116 = 2;
-                        v95.outline.Size = Vector2.new(v112 + v116, v113 + v116);
-                        v95.outline.Position = Vector2.new(v114 - v116 / 2, v115 - v116 / 2);
-                        v95.outline.Visible = true;
-                        v95.box.Size = Vector2.new(v112, v113);
-                        v95.box.Position = Vector2.new(v114, v115);
-                        v95.box.Color = v55(v94) and v33 or Color3.fromRGB(0, 150, 255);
-                        v95.box.Visible = true;
-                    else
-                        v95.outline.Visible = false;
-                        v95.box.Visible = false;
-                    end;
-                    local v117 = {};
-                    if v_nameEsp then
-                        local name = v_names[v94] or getEntityName(v94);
-                        if name then
-                            table.insert(v117, name);
-                        else
-                            table.insert(v117, v55(v94) and "Player" or "Bot");
+                    v95.outline.Visible = false;
+                    v95.box.Visible = false;
+                end;
+                local v117 = {};
+                if NameEspEnabled and v55(v94) then
+                    local name = nil;
+                    local head = v94:FindFirstChild("Head");
+                    if head and _G.classes and _G.classes.EntityClient then
+                        local entity = _G.classes.EntityClient.GetEntityFromPart(head);
+                        if entity and entity.type == "Player" then
+                            if entity.Name and entity.Name ~= "" then
+                                name = entity.Name;
+                            else
+                                local now = tick();
+                                if not entity.lastIdentityReq or now - entity.lastIdentityReq > 3 then
+                                    entity.lastIdentityReq = now;
+                                    if _G.classes.NetClient and _G.classes.SendCodes then
+                                        _G.classes.NetClient.SendTCP(_G.classes.SendCodes.REQUEST_IDENTITY, entity.id);
+                                    end;
+                                end;
+                                name = "Loading...";
+                            end;
                         end;
                     end;
-                    if v28 then
-                        table.insert(v117, v55(v94) and "Player" or "Bot");
-                    end;
-                    if v27 then
-                        table.insert(v117, math.floor(v104) .. "m");
-                    end;
-                    local v118 = table.concat(v117, " | ");
-                    if v118 ~= "" then
-                        v95.text.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
-                        v95.text.Text = v118;
-                        v95.text.Position = Vector2.new(v105.X, v115 - 16);
-                        v95.text.Visible = true;
-                    else
-                        v95.text.Visible = false;
-                    end;
-                    if v31 then
-                        local v119 = v48[v94] or "None";
-                        v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
-                        v95.weaponText.Text = v119;
-                        v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
-                        v95.weaponText.Visible = true;
-                    else
-                        v95.weaponText.Visible = false;
-                    end;
-                    if v32 then
-                        for _, v121 in ipairs(v95.skeletonLines) do
-                            local l_v94_FirstChild_0 = v94:FindFirstChild(v121.a);
-                            local l_v94_FirstChild_1 = v94:FindFirstChild(v121.b);
-                            if l_v94_FirstChild_0 and l_v94_FirstChild_1 then
-                                local v124, v125 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_0.Position);
-                                local v126, v127 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_1.Position);
-                                if v125 and v127 then
-                                    v121.line.From = Vector2.new(v124.X, v124.Y);
-                                    v121.line.To = Vector2.new(v126.X, v126.Y);
-                                    v121.line.Visible = true;
-                                else
-                                    v121.line.Visible = false;
-                                end;
+                    table.insert(v117, name or "Player");
+                elseif v28 then
+                    table.insert(v117, v55(v94) and "Player" or "Bot");
+                end;
+                if v27 then
+                    table.insert(v117, math.floor(v104) .. "m");
+                end;
+                local v118 = table.concat(v117, " | ");
+                if v118 ~= "" then
+                    v95.text.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
+                    v95.text.Text = v118;
+                    v95.text.Position = Vector2.new(v105.X, v115 - 16);
+                    v95.text.Visible = true;
+                else
+                    v95.text.Visible = false;
+                end;
+                if v31 then
+                    local v119 = v48[v94] or "None";
+                    v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
+                    v95.weaponText.Text = v119;
+                    v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
+                    v95.weaponText.Visible = true;
+                else
+                    v95.weaponText.Visible = false;
+                end;
+                if v32 then
+                    for _, v121 in ipairs(v95.skeletonLines) do
+                        local l_v94_FirstChild_0 = v94:FindFirstChild(v121.a);
+                        local l_v94_FirstChild_1 = v94:FindFirstChild(v121.b);
+                        if l_v94_FirstChild_0 and l_v94_FirstChild_1 then
+                            local v124, v125 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_0.Position);
+                            local v126, v127 = l_CurrentCamera_0:WorldToViewportPoint(l_v94_FirstChild_1.Position);
+                            if v125 and v127 then
+                                v121.line.From = Vector2.new(v124.X, v124.Y);
+                                v121.line.To = Vector2.new(v126.X, v126.Y);
+                                v121.line.Visible = true;
                             else
                                 v121.line.Visible = false;
                             end;
-                        end;
-                    else
-                        for _, v129 in ipairs(v95.skeletonLines) do
-                            v129.line.Visible = false;
+                        else
+                            v121.line.Visible = false;
                         end;
                     end;
+                else
+                    for _, v129 in ipairs(v95.skeletonLines) do
+                        v129.line.Visible = false;
+                    end;
                 end;
-            end)
+            end;
         end;
         return;
     end;
@@ -1703,7 +1617,6 @@ ToggleType(false);
 ToggleSleeperCheck(false);
 ToggleWeaponESP(false);
 ToggleSkeletonESP(false);
-ToggleNameESP(false);
 local l_l_l_v0_Window_0_Tab_1_Section_1 = l_l_v0_Window_0_Tab_1:CreateSection("Armor");
 G2L = {};
 G2L["1"] = Instance.new("ScreenGui", game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"));
@@ -2826,6 +2739,58 @@ local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
 });
 local l_l_v0_Window_0_Tab_3 = l_v0_Window_0:CreateTab("Player", nil);
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("Other");
+local NoclipEnabled = false;
+local NoclipConnection = nil;
+local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "NoclipToggle",
+    Callback = function(val)
+        NoclipEnabled = val;
+        if _G.NEXT and _G.NEXT.SetNoclipping then
+            _G.NEXT.SetNoclipping(val);
+        end
+        if val then
+            if not NoclipConnection then
+                NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
+                    if not NoclipEnabled then
+                        if NoclipConnection then
+                            NoclipConnection:Disconnect();
+                            NoclipConnection = nil;
+                        end
+                        return;
+                    end
+                    if _G.NEXT and _G.NEXT.SetNoclipping then
+                        _G.NEXT.SetNoclipping(true);
+                    end
+                    local localChar = workspace:FindFirstChild("Const")
+                    localChar = localChar and localChar:FindFirstChild("Ignore")
+                    localChar = localChar and localChar:FindFirstChild("LocalCharacter")
+                    if localChar then
+                        for _, part in ipairs(localChar:GetChildren()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false;
+                            end
+                        end
+                    end
+                    local char = game:GetService("Players").LocalPlayer.Character
+                    if char then
+                        for _, part in ipairs(char:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false;
+                            end
+                        end
+                    end
+                end)
+            end
+        else
+            if NoclipConnection then
+                NoclipConnection:Disconnect();
+                NoclipConnection = nil;
+            end
+        end
+    end
+});
 local _ = game:GetService("UserInputService");
 local l_Workspace_3 = game:GetService("Workspace");
 local v407 = false;
