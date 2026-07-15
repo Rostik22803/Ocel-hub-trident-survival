@@ -1605,14 +1605,15 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.box.Visible = false;
                 end;
                 local v117 = {};
+                local isRu = (l_v0_Window_0 and l_v0_Window_0.CurrentLanguage == "RU")
                 if ToggleNameESPState then
-                    local nameStr = "Player"
+                    local nameStr = isRu and "Игрок" or "Player"
                     local plr = game:GetService("Players"):GetPlayerFromCharacter(v94)
                     if plr then 
                         nameStr = plr.Name 
                     else
                         for _, desc in pairs(v94:GetDescendants()) do
-                            if desc:IsA("TextLabel") and desc.Text ~= "" and desc.Text ~= "Label" then
+                            if desc:IsA("TextLabel") and desc.Text ~= "" and desc.Text ~= "Label" and desc.Text ~= "Player" and desc.Text ~= "Игрок" then
                                 nameStr = desc.Text
                                 break
                             end
@@ -1621,10 +1622,13 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     table.insert(v117, nameStr);
                 end;
                 if v28 then
-                    table.insert(v117, v55(v94) and "Player" or "Bot");
+                    local pStr = isRu and "Игрок" or "Player"
+                    local bStr = isRu and "Бот" or "Bot"
+                    table.insert(v117, v55(v94) and pStr or bStr);
                 end;
                 if v27 then
-                    table.insert(v117, math.floor(v104) .. "m");
+                    local mStr = isRu and "м" or "m"
+                    table.insert(v117, math.floor(v104) .. mStr);
                 end;
                 local v118 = table.concat(v117, " | ");
                 if v118 ~= "" then
@@ -1636,7 +1640,10 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.text.Visible = false;
                 end;
                 if v31 then
-                    local v119 = v48[v94] or "None";
+                    local v119 = v48[v94]
+                    if not v119 or v119 == "None" or v119 == "" then
+                        v119 = isRu and "Нет" or "None"
+                    end
                     v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
                     v95.weaponText.Text = v119;
                     v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
