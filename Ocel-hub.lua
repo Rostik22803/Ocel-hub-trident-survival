@@ -1307,70 +1307,81 @@ local function getPlayerName(model)
         return clean == "" or clean == "player" or clean == "model" or string.find(clean, "shylou") ~= nil
     end
 
-    -- Get classes from _G or getrenv()._G (if sandboxed)
+    -- Get classes safely from _G or getrenv()._G
     local classes = _G.classes
-    if not classes and getrenv then
+    if not classes then
         pcall(function()
-            local renv = getrenv()
-            if renv then
-                classes = renv._G and renv._G.classes
-            end
+            local getrenv = (getfenv or function() return _G end)().getrenv
+            local renv = getrenv and getrenv()
+            classes = renv and renv._G and renv._G.classes
         end)
     end
+
+    local resolvedName = nil
 
     -- Method 1: Check game player database (classes.PlayerClient)
     local PlayerClient = classes and classes.PlayerClient
     if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalue then
-        local _, t3 = debug.getupvalue(PlayerClient.SetEsp, 3)
-        if type(t3) == "table" then
-            for _, player in pairs(t3) do
-                if player.model == model then
-                    if player.Name and not isGenericName(player.Name) then
-                        return player.Name .. " (M1)"
+        pcall(function()
+            local _, t3 = debug.getupvalue(PlayerClient.SetEsp, 3)
+            if type(t3) == "table" then
+                for _, player in pairs(t3) do
+                    if player.model == model then
+                        if player.Name and not isGenericName(player.Name) then
+                            resolvedName = player.Name .. " (M1)"
+                        else
+                            -- Request identity if missing!
+                            local NetClient = classes and classes.NetClient
+                            local SendCodes = classes and classes.SendCodes
+                            if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
+                                local clock = os.clock()
+                                if not player.lastNameReq or clock - player.lastNameReq > 2 then
+                                    player.lastNameReq = clock
+                                    pcall(function()
+                                        NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, player.id)
+                                    end)
+                                end
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+    end
+
+    if resolvedName then return resolvedName end
+
+    -- Fallback Method 1.5: Check entity database (classes.EntityClient.EntityMap)
+    local EntityClient = classes and classes.EntityClient
+    local t2 = EntityClient and EntityClient.EntityMap
+    if t2 then
+        pcall(function()
+            for _, entity in pairs(t2) do
+                if entity.model == model then
+                    if entity.Name and not isGenericName(entity.Name) then
+                        resolvedName = entity.Name .. " (M1-Ent)"
                     else
                         -- Request identity if missing!
                         local NetClient = classes and classes.NetClient
                         local SendCodes = classes and classes.SendCodes
                         if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
                             local clock = os.clock()
-                            if not player.lastNameReq or clock - player.lastNameReq > 2 then
-                                player.lastNameReq = clock
+                            if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
+                                entity.lastNameReq = clock
                                 pcall(function()
-                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, player.id)
+                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, entity.id)
                                 end)
                             end
                         end
                     end
+                    break
                 end
             end
-        end
+        end)
     end
 
-    -- Fallback Method 1.5: Check entity database (classes.EntityClient.EntityMap)
-    local EntityClient = classes and classes.EntityClient
-    local t2 = EntityClient and EntityClient.EntityMap
-    if t2 then
-        for _, entity in pairs(t2) do
-            if entity.model == model then
-                if entity.Name and not isGenericName(entity.Name) then
-                    return entity.Name .. " (M1-Ent)"
-                else
-                    -- Request identity if missing!
-                    local NetClient = classes and classes.NetClient
-                    local SendCodes = classes and classes.SendCodes
-                    if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
-                        local clock = os.clock()
-                        if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
-                            entity.lastNameReq = clock
-                            pcall(function()
-                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, entity.id)
-                            end)
-                        end
-                    end
-                end
-            end
-        end
-    end
+    if resolvedName then return resolvedName end
 
     -- Method 2: Check BillboardGuis in the head
     local head = model:FindFirstChild("Head")
