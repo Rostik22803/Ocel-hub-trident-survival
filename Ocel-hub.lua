@@ -1542,7 +1542,7 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     local head = v94:FindFirstChild("Head");
                     if head and _G.classes and _G.classes.EntityClient then
                         local entity = _G.classes.EntityClient.GetEntityFromPart(head);
-                        if entity and entity.type == "Player" then
+                        if entity and (entity.type == "Player" or entity:Inherits(_G.classes.Player)) then
                             if entity.Name and entity.Name ~= "" then
                                 name = entity.Name;
                             else
@@ -2741,6 +2741,7 @@ local l_l_v0_Window_0_Tab_3 = l_v0_Window_0:CreateTab("Player", nil);
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("Other");
 local NoclipEnabled = false;
 local NoclipConnection = nil;
+local FlySpeed = 50;
 local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
     Name = "Noclip",
     CurrentValue = false,
@@ -2752,7 +2753,7 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
         end
         if val then
             if not NoclipConnection then
-                NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
+                NoclipConnection = game:GetService("RunService").Stepped:Connect(function(time, dt)
                     if not NoclipEnabled then
                         if NoclipConnection then
                             NoclipConnection:Disconnect();
@@ -2770,8 +2771,38 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                         for _, part in ipairs(localChar:GetChildren()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = false;
+                                part.Anchored = true;
                             end
                         end
+                        
+                        -- Manual flying movement
+                        local camera = workspace.CurrentCamera;
+                        local moveDir = Vector3.new(0, 0, 0);
+                        local UserInputService = game:GetService("UserInputService");
+                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                            moveDir = moveDir + camera.CFrame.LookVector;
+                        end;
+                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                            moveDir = moveDir - camera.CFrame.LookVector;
+                        end;
+                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                            moveDir = moveDir - camera.CFrame.RightVector;
+                        end;
+                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                            moveDir = moveDir + camera.CFrame.RightVector;
+                        end;
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                            moveDir = moveDir + Vector3.new(0, 1, 0);
+                        end;
+                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                            moveDir = moveDir - Vector3.new(0, 1, 0);
+                        end;
+                        
+                        if moveDir.Magnitude > 0 then
+                            local currentCFrame = localChar:GetPivot();
+                            local nextPosition = currentCFrame.Position + moveDir.Unit * (FlySpeed * dt);
+                            localChar:PivotTo(CFrame.new(nextPosition) * currentCFrame.Rotation);
+                        end;
                     end
                     local char = game:GetService("Players").LocalPlayer.Character
                     if char then
@@ -2788,7 +2819,28 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                 NoclipConnection:Disconnect();
                 NoclipConnection = nil;
             end
+            local localChar = workspace:FindFirstChild("Const")
+            localChar = localChar and localChar:FindFirstChild("Ignore")
+            localChar = localChar and localChar:FindFirstChild("LocalCharacter")
+            if localChar then
+                for _, part in ipairs(localChar:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = false;
+                        part.CanCollide = true;
+                    end
+                end
+            end
         end
+    end
+});
+local _ = l_l_v0_Window_0_Tab_3:CreateSlider({
+    Name = "Noclip Speed",
+    Range = {10, 200},
+    Increment = 5,
+    CurrentValue = 50,
+    Flag = "NoclipSpeedSlider",
+    Callback = function(val)
+        FlySpeed = val;
     end
 });
 local _ = game:GetService("UserInputService");
