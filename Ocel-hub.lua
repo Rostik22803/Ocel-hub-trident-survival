@@ -1550,16 +1550,33 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
             end;
             if v96 and v30 then
+                local isSleeping = false
                 local torso = v94:FindFirstChild("Torso") or v94:FindFirstChild("LowerTorso")
-                if torso then
-                    if math.abs(torso.CFrame.UpVector.Y) < 0.5 then
-                        v96 = false
-                    else
-                        local rootJoint = v96:FindFirstChild("RootJoint") or torso:FindFirstChild("RootRig")
-                        if rootJoint and typeof(rootJoint.CurrentAngle) == "number" and math.abs(rootJoint.CurrentAngle) > 0.1 then
-                            v96 = false
+                
+                if torso and math.abs(torso.CFrame.UpVector.Y) < 0.6 then
+                    isSleeping = true
+                end
+                
+                local humanoid = v94:FindFirstChildOfClass("Humanoid") or v94:FindFirstChildOfClass("AnimationController")
+                local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+                if animator then
+                    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                        if track.Animation and track.Animation.AnimationId and string.find(string.lower(tostring(track.Animation.AnimationId)), "sleep") then
+                            isSleeping = true
+                            break
                         end
                     end
+                end
+                
+                if torso then
+                    local rootJoint = v96:FindFirstChild("RootJoint") or torso:FindFirstChild("RootRig")
+                    if rootJoint and typeof(rootJoint.CurrentAngle) == "number" and math.abs(rootJoint.CurrentAngle) > 0.5 then
+                        isSleeping = true
+                    end
+                end
+                
+                if isSleeping then
+                    v96 = false
                 end
             end;
             local v103 = nil;
@@ -1615,17 +1632,6 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     local plr = game:GetService("Players"):GetPlayerFromCharacter(v94)
                     if plr then 
                         nameStr = plr.Name 
-                    else
-                        local head = v94:FindFirstChild("Head")
-                        if head then
-                            local nametag = head:FindFirstChild("Nametag") or head:FindFirstChild("ESP")
-                            if nametag then
-                                local tag = nametag:FindFirstChild("tag")
-                                if tag and tag:IsA("TextLabel") and tag.Text ~= "" and tag.Text ~= "Label" then
-                                    nameStr = tag.Text
-                                end
-                            end
-                        end
                     end
                     table.insert(v117, nameStr);
                 end;
