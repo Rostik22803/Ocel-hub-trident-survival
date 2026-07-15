@@ -1310,30 +1310,11 @@ local function getPlayerName(model)
     -- Method 1: Check game player database (classes.PlayerClient)
     local PlayerClient = _G.classes and _G.classes.PlayerClient
     if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalue then
-        local t3
-        local index = 1
-        while true do
-            local name, val = debug.getupvalue(PlayerClient.SetEsp, index)
-            if not name then break end
-            if type(val) == "table" then
-                local hasModel = false
-                for _, p in pairs(val) do
-                    if type(p) == "table" and p.model then
-                        hasModel = true
-                        break
-                    end
-                end
-                if hasModel then
-                    t3 = val
-                    break
-                end
-            end
-            index = index + 1
-        end
-        if t3 then
+        local _, t3 = debug.getupvalue(PlayerClient.SetEsp, 3)
+        if type(t3) == "table" then
             for _, player in pairs(t3) do
                 if player.model == model then
-                    if player.Name and player.Name ~= "" and player.Name ~= "Player" and player.Name ~= "Model" then
+                    if player.Name and player.Name ~= "" and player.Name ~= "Player" and player.Name ~= "Model" and player.Name ~= "Shylou2644" then
                         return player.Name .. " (M1)"
                     else
                         -- Request identity if missing!
@@ -1357,30 +1338,11 @@ local function getPlayerName(model)
     -- Fallback Method 1.5: Check entity database (classes.EntityClient)
     local EntityClient = _G.classes and _G.classes.EntityClient
     if EntityClient and EntityClient.MoveRequest and debug and debug.getupvalue then
-        local t2
-        local index = 1
-        while true do
-            local name, val = debug.getupvalue(EntityClient.MoveRequest, index)
-            if not name then break end
-            if type(val) == "table" then
-                local hasModel = false
-                for _, p in pairs(val) do
-                    if type(p) == "table" and p.model then
-                        hasModel = true
-                        break
-                    end
-                end
-                if hasModel then
-                    t2 = val
-                    break
-                end
-            end
-            index = index + 1
-        end
-        if t2 then
+        local _, t2 = debug.getupvalue(EntityClient.MoveRequest, 1)
+        if type(t2) == "table" then
             for _, entity in pairs(t2) do
                 if entity.model == model then
-                    if entity.Name and entity.Name ~= "" and entity.Name ~= "Player" and entity.Name ~= "Model" then
+                    if entity.Name and entity.Name ~= "" and entity.Name ~= "Player" and entity.Name ~= "Model" and entity.Name ~= "Shylou2644" then
                         return entity.Name .. " (M1-Ent)"
                     else
                         -- Request identity if missing!
@@ -1402,18 +1364,19 @@ local function getPlayerName(model)
     end
 
     -- Method 2: Check BillboardGuis in the head
+    -- Note: We exclude "Shylou2644" here because it is the game creator's static default placeholder in the ESP assets!
     local head = model:FindFirstChild("Head")
     if head then
         local nametag = head:FindFirstChild("Nametag")
-        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" and nametag.tag.Text ~= "Player" and nametag.tag.Text ~= "Model" then
+        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" and nametag.tag.Text ~= "Player" and nametag.tag.Text ~= "Model" and nametag.tag.Text ~= "Shylou2644" then
             return nametag.tag.Text .. " (M2)"
         end
         local esp = head:FindFirstChild("ESP")
-        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" and esp.tag.Text ~= "Player" and esp.tag.Text ~= "Model" then
+        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" and esp.tag.Text ~= "Player" and esp.tag.Text ~= "Model" and esp.tag.Text ~= "Shylou2644" then
             return esp.tag.Text .. " (M2-ESP)"
         end
         local teamtag = head:FindFirstChild("Teamtag")
-        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" and teamtag.tag.Text ~= "Player" and teamtag.tag.Text ~= "Model" then
+        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" and teamtag.tag.Text ~= "Player" and teamtag.tag.Text ~= "Model" and teamtag.tag.Text ~= "Shylou2644" then
             return teamtag.tag.Text .. " (M2-TEAM)"
         end
     end
@@ -1436,7 +1399,7 @@ local function getPlayerName(model)
     end
 
     -- Method 4: Non-generic model name
-    if model.Name ~= "Model" and model.Name ~= "Player" then
+    if model.Name ~= "Model" and model.Name ~= "Player" and model.Name ~= "Shylou2644" then
         return model.Name .. " (M4)"
     end
 
