@@ -1309,28 +1309,92 @@ local function getPlayerName(model)
 
     -- Method 1: Check game player database (classes.PlayerClient)
     local PlayerClient = _G.classes and _G.classes.PlayerClient
-    if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalues then
+    if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalue then
         local t3
-        for _, v in ipairs(debug.getupvalues(PlayerClient.SetEsp)) do
-            if type(v) == "table" then
+        local index = 1
+        while true do
+            local name, val = debug.getupvalue(PlayerClient.SetEsp, index)
+            if not name then break end
+            if type(val) == "table" then
                 local hasModel = false
-                for _, p in pairs(v) do
+                for _, p in pairs(val) do
                     if type(p) == "table" and p.model then
                         hasModel = true
                         break
                     end
                 end
                 if hasModel then
-                    t3 = v
+                    t3 = val
                     break
                 end
             end
+            index = index + 1
         end
         if t3 then
             for _, player in pairs(t3) do
                 if player.model == model then
                     if player.Name and player.Name ~= "" and player.Name ~= "Player" and player.Name ~= "Model" then
                         return player.Name .. " (M1)"
+                    else
+                        -- Request identity if missing!
+                        local NetClient = _G.classes and _G.classes.NetClient
+                        local SendCodes = _G.classes and _G.classes.SendCodes
+                        if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
+                            local clock = os.clock()
+                            if not player.lastNameReq or clock - player.lastNameReq > 2 then
+                                player.lastNameReq = clock
+                                pcall(function()
+                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, player.id)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback Method 1.5: Check entity database (classes.EntityClient)
+    local EntityClient = _G.classes and _G.classes.EntityClient
+    if EntityClient and EntityClient.MoveRequest and debug and debug.getupvalue then
+        local t2
+        local index = 1
+        while true do
+            local name, val = debug.getupvalue(EntityClient.MoveRequest, index)
+            if not name then break end
+            if type(val) == "table" then
+                local hasModel = false
+                for _, p in pairs(val) do
+                    if type(p) == "table" and p.model then
+                        hasModel = true
+                        break
+                    end
+                end
+                if hasModel then
+                    t2 = val
+                    break
+                end
+            end
+            index = index + 1
+        end
+        if t2 then
+            for _, entity in pairs(t2) do
+                if entity.model == model then
+                    if entity.Name and entity.Name ~= "" and entity.Name ~= "Player" and entity.Name ~= "Model" then
+                        return entity.Name .. " (M1-Ent)"
+                    else
+                        -- Request identity if missing!
+                        local NetClient = _G.classes and _G.classes.NetClient
+                        local SendCodes = _G.classes and _G.classes.SendCodes
+                        if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
+                            local clock = os.clock()
+                            if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
+                                entity.lastNameReq = clock
+                                pcall(function()
+                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, entity.id)
+                                end)
+                            end
+                        end
                     end
                 end
             end
