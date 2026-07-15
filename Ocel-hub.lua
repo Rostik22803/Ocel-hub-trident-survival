@@ -718,7 +718,6 @@ local v29 = true;
 local v30 = false;
 local v31 = true;
 local v32 = false;
-local NameEspEnabled = false;
 local v33 = Color3.fromRGB(255, 255, 255);
 local v34 = Color3.fromRGB(255, 255, 255);
 local v35 = Color3.fromRGB(255, 255, 255);
@@ -745,14 +744,6 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
     Flag = "BotEspToggle", 
     Callback = function(v39) --[[ Line: 0 ]] --[[ Name:  ]]
         ToggleType(v39);
-    end
-});
-l_l_v0_Window_0_Tab_1:CreateToggle({
-    Name = "Name Esp", 
-    CurrentValue = false, 
-    Flag = "NameEspToggle", 
-    Callback = function(v42_Name)
-        ToggleNameESP(v42_Name);
     end
 });
 l_l_v0_Window_0_Tab_1:CreateToggle({
@@ -1300,136 +1291,6 @@ local function v55(v53) --[[ Line: 0 ]] --[[ Name:  ]]
         return false;
     end;
 end;
-local function getPlayerName(model)
-    local function isGenericName(text)
-        if not text then return true end
-        local clean = string.lower(string.gsub(text, "%s+", ""))
-        return clean == "" or clean == "player" or clean == "model" or string.find(clean, "shylou") ~= nil
-    end
-
-    -- Get classes safely from _G or getrenv()._G
-    local classes = _G.classes
-    if not classes then
-        pcall(function()
-            local getrenv = (getfenv or function() return _G end)().getrenv
-            local renv = getrenv and getrenv()
-            classes = renv and renv._G and renv._G.classes
-        end)
-    end
-
-    local resolvedName = nil
-
-    -- Method 1: Check game player database (classes.PlayerClient)
-    local PlayerClient = classes and classes.PlayerClient
-    if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalue then
-        pcall(function()
-            local _, t3 = debug.getupvalue(PlayerClient.SetEsp, 3)
-            if type(t3) == "table" then
-                for _, player in pairs(t3) do
-                    if player.model == model then
-                        if player.Name and not isGenericName(player.Name) then
-                            resolvedName = player.Name .. " (M1)"
-                        else
-                            -- Request identity if missing!
-                            local NetClient = classes and classes.NetClient
-                            local SendCodes = classes and classes.SendCodes
-                            if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
-                                local clock = os.clock()
-                                if not player.lastNameReq or clock - player.lastNameReq > 2 then
-                                    player.lastNameReq = clock
-                                    pcall(function()
-                                        NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, player.id)
-                                    end)
-                                end
-                            end
-                        end
-                        break
-                    end
-                end
-            end
-        end)
-    end
-
-    if resolvedName then return resolvedName end
-
-    -- Fallback Method 1.5: Check entity database (classes.EntityClient.EntityMap)
-    local EntityClient = classes and classes.EntityClient
-    local t2 = EntityClient and EntityClient.EntityMap
-    if t2 then
-        pcall(function()
-            for _, entity in pairs(t2) do
-                if entity.model == model then
-                    if entity.Name and not isGenericName(entity.Name) then
-                        resolvedName = entity.Name .. " (M1-Ent)"
-                    else
-                        -- Request identity if missing!
-                        local NetClient = classes and classes.NetClient
-                        local SendCodes = classes and classes.SendCodes
-                        if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
-                            local clock = os.clock()
-                            if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
-                                entity.lastNameReq = clock
-                                pcall(function()
-                                    NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, entity.id)
-                                end)
-                            end
-                        end
-                    end
-                    break
-                end
-            end
-        end)
-    end
-
-    if resolvedName then return resolvedName end
-
-    -- Method 2: Check BillboardGuis in the head
-    local head = model:FindFirstChild("Head")
-    if head then
-        local nametag = head:FindFirstChild("Nametag")
-        if nametag and nametag:FindFirstChild("tag") and not isGenericName(nametag.tag.Text) then
-            return nametag.tag.Text .. " (M2)"
-        end
-        local esp = head:FindFirstChild("ESP")
-        if esp and esp:FindFirstChild("tag") and not isGenericName(esp.tag.Text) then
-            return esp.tag.Text .. " (M2-ESP)"
-        end
-        local teamtag = head:FindFirstChild("Teamtag")
-        if teamtag and teamtag:FindFirstChild("tag") and not isGenericName(teamtag.tag.Text) then
-            return teamtag.tag.Text .. " (M2-TEAM)"
-        end
-    end
-
-    -- Method 3: Distance-based matching with Players
-    local function getCharPos(char)
-        local h = char:FindFirstChild("Head")
-        local t = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("LowerTorso")
-        return (h and t) and (h.Position + t.Position) * 0.5 or char:GetPivot().Position
-    end
-
-    local name = nil
-    local modelPos = getCharPos(model)
-    local minDistance = 15
-    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-        if p ~= game:GetService("Players").LocalPlayer and p.Character then
-            local dist = (modelPos - getCharPos(p.Character)).Magnitude
-            if dist < minDistance then
-                minDistance = dist
-                name = p.Name
-            end
-        end
-    end
-    if name and not isGenericName(name) then
-        return name .. " (M3)"
-    end
-
-    -- Method 4: Non-generic model name
-    if not isGenericName(model.Name) then
-        return model.Name .. " (M4)"
-    end
-
-    return nil
-end;
 local function v65(v56) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v47 (ref)
     local l_HandModel_0 = v56:FindFirstChild("HandModel");
@@ -1574,9 +1435,6 @@ ToggleType = function(v88) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v28 (ref)
     v28 = v88;
 end;
-ToggleNameESP = function(v)
-    NameEspEnabled = v;
-end;
 ToggleSleeperCheck = function(v89) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v30 (ref)
     v30 = v89;
@@ -1670,15 +1528,8 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.box.Visible = false;
                 end;
                 local v117 = {};
-                local isPlayer = v55(v94) or (v94:FindFirstChild("Head") and v94.Head:FindFirstChild("Nametag"))
-                if NameEspEnabled then
-                    if isPlayer then
-                        table.insert(v117, getPlayerName(v94) or "Player");
-                    else
-                        table.insert(v117, "Bot");
-                    end;
-                elseif v28 then
-                    table.insert(v117, isPlayer and "Player" or "Bot");
+                if v28 then
+                    table.insert(v117, v55(v94) and "Player" or "Bot");
                 end;
                 if v27 then
                     table.insert(v117, math.floor(v104) .. "m");
