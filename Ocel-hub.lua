@@ -1301,10 +1301,10 @@ local function v55(v53) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end;
 local function getPlayerName(model)
-    local function getCharPos(char)
-        local h = char:FindFirstChild("Head")
-        local t = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("LowerTorso")
-        return (h and t) and (h.Position + t.Position) * 0.5 or char:GetPivot().Position
+    local function isGenericName(text)
+        if not text then return true end
+        local clean = string.lower(string.gsub(text, "%s+", ""))
+        return clean == "" or clean == "player" or clean == "model" or clean == "shylou2644"
     end
 
     -- Method 1: Check game player database (classes.PlayerClient)
@@ -1314,7 +1314,7 @@ local function getPlayerName(model)
         if type(t3) == "table" then
             for _, player in pairs(t3) do
                 if player.model == model then
-                    if player.Name and player.Name ~= "" and player.Name ~= "Player" and player.Name ~= "Model" and player.Name ~= "Shylou2644" then
+                    if player.Name and not isGenericName(player.Name) then
                         return player.Name .. " (M1)"
                     else
                         -- Request identity if missing!
@@ -1335,27 +1335,25 @@ local function getPlayerName(model)
         end
     end
 
-    -- Fallback Method 1.5: Check entity database (classes.EntityClient)
+    -- Fallback Method 1.5: Check entity database (classes.EntityClient.EntityMap)
     local EntityClient = _G.classes and _G.classes.EntityClient
-    if EntityClient and EntityClient.MoveRequest and debug and debug.getupvalue then
-        local _, t2 = debug.getupvalue(EntityClient.MoveRequest, 1)
-        if type(t2) == "table" then
-            for _, entity in pairs(t2) do
-                if entity.model == model then
-                    if entity.Name and entity.Name ~= "" and entity.Name ~= "Player" and entity.Name ~= "Model" and entity.Name ~= "Shylou2644" then
-                        return entity.Name .. " (M1-Ent)"
-                    else
-                        -- Request identity if missing!
-                        local NetClient = _G.classes and _G.classes.NetClient
-                        local SendCodes = _G.classes and _G.classes.SendCodes
-                        if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
-                            local clock = os.clock()
-                            if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
-                                entity.lastNameReq = clock
-                                pcall(function()
+    local t2 = EntityClient and EntityClient.EntityMap
+    if t2 then
+        for _, entity in pairs(t2) do
+            if entity.model == model then
+                if entity.Name and not isGenericName(entity.Name) then
+                    return entity.Name .. " (M1-Ent)"
+                else
+                    -- Request identity if missing!
+                    local NetClient = _G.classes and _G.classes.NetClient
+                    local SendCodes = _G.classes and _G.classes.SendCodes
+                    if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
+                        local clock = os.clock()
+                        if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
+                            entity.lastNameReq = clock
+                            pcall(function()
                                     NetClient.SendTCP(SendCodes.REQUEST_IDENTITY, entity.id)
-                                end)
-                            end
+                            end)
                         end
                     end
                 end
@@ -1364,24 +1362,29 @@ local function getPlayerName(model)
     end
 
     -- Method 2: Check BillboardGuis in the head
-    -- Note: We exclude "Shylou2644" here because it is the game creator's static default placeholder in the ESP assets!
     local head = model:FindFirstChild("Head")
     if head then
         local nametag = head:FindFirstChild("Nametag")
-        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" and nametag.tag.Text ~= "Player" and nametag.tag.Text ~= "Model" and nametag.tag.Text ~= "Shylou2644" then
+        if nametag and nametag:FindFirstChild("tag") and not isGenericName(nametag.tag.Text) then
             return nametag.tag.Text .. " (M2)"
         end
         local esp = head:FindFirstChild("ESP")
-        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" and esp.tag.Text ~= "Player" and esp.tag.Text ~= "Model" and esp.tag.Text ~= "Shylou2644" then
+        if esp and esp:FindFirstChild("tag") and not isGenericName(esp.tag.Text) then
             return esp.tag.Text .. " (M2-ESP)"
         end
         local teamtag = head:FindFirstChild("Teamtag")
-        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" and teamtag.tag.Text ~= "Player" and teamtag.tag.Text ~= "Model" and teamtag.tag.Text ~= "Shylou2644" then
+        if teamtag and teamtag:FindFirstChild("tag") and not isGenericName(teamtag.tag.Text) then
             return teamtag.tag.Text .. " (M2-TEAM)"
         end
     end
 
     -- Method 3: Distance-based matching with Players
+    local function getCharPos(char)
+        local h = char:FindFirstChild("Head")
+        local t = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("LowerTorso")
+        return (h and t) and (h.Position + t.Position) * 0.5 or char:GetPivot().Position
+    end
+
     local name = nil
     local modelPos = getCharPos(model)
     local minDistance = 15
@@ -1394,12 +1397,12 @@ local function getPlayerName(model)
             end
         end
     end
-    if name then
+    if name and not isGenericName(name) then
         return name .. " (M3)"
     end
 
     -- Method 4: Non-generic model name
-    if model.Name ~= "Model" and model.Name ~= "Player" and model.Name ~= "Shylou2644" then
+    if not isGenericName(model.Name) then
         return model.Name .. " (M4)"
     end
 
