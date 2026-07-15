@@ -724,14 +724,6 @@ local v34 = Color3.fromRGB(255, 255, 255);
 local v35 = Color3.fromRGB(255, 255, 255);
 local _ = math.tan(math.rad(l_CurrentCamera_0.FieldOfView * 0.5));
 l_l_v0_Window_0_Tab_1:CreateToggle({
-    Name = "Name Esp", 
-    CurrentValue = false, 
-    Flag = "NameEspToggle", 
-    Callback = function(v36_name)
-        NameEspEnabled = v36_name;
-    end
-});
-l_l_v0_Window_0_Tab_1:CreateToggle({
     Name = "Box Esp", 
     CurrentValue = false, 
     Flag = "BoxEspToggle", 
@@ -753,6 +745,14 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
     Flag = "BotEspToggle", 
     Callback = function(v39) --[[ Line: 0 ]] --[[ Name:  ]]
         ToggleType(v39);
+    end
+});
+l_l_v0_Window_0_Tab_1:CreateToggle({
+    Name = "Name Esp", 
+    CurrentValue = false, 
+    Flag = "NameEspToggle", 
+    Callback = function(v42_Name)
+        ToggleNameESP(v42_Name);
     end
 });
 l_l_v0_Window_0_Tab_1:CreateToggle({
@@ -1300,6 +1300,74 @@ local function v55(v53) --[[ Line: 0 ]] --[[ Name:  ]]
         return false;
     end;
 end;
+local function getPlayerName(model)
+    local PlayerClient = _G.classes and _G.classes.PlayerClient
+    if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalues then
+        local t3
+        for _, v in ipairs(debug.getupvalues(PlayerClient.SetEsp)) do
+            if type(v) == "table" then
+                local hasModel = false
+                for _, p in pairs(v) do
+                    if type(p) == "table" and p.model then
+                        hasModel = true
+                        break
+                    end
+                end
+                if hasModel then
+                    t3 = v
+                    break
+                end
+            end
+        end
+        if t3 then
+            for _, player in pairs(t3) do
+                if player.model == model then
+                    if player.Name and player.Name ~= "" and player.Name ~= "Player" and player.Name ~= "Model" then
+                        return player.Name
+                    end
+                end
+            end
+        end
+    end
+
+    local head = model:FindFirstChild("Head")
+    if head then
+        local nametag = head:FindFirstChild("Nametag")
+        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" and nametag.tag.Text ~= "Player" and nametag.tag.Text ~= "Model" then
+            return nametag.tag.Text
+        end
+        local esp = head:FindFirstChild("ESP")
+        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" and esp.tag.Text ~= "Player" and esp.tag.Text ~= "Model" then
+            return esp.tag.Text
+        end
+        local teamtag = head:FindFirstChild("Teamtag")
+        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" and teamtag.tag.Text ~= "Player" and teamtag.tag.Text ~= "Model" then
+            return teamtag.tag.Text
+        end
+    end
+
+    local name = nil
+    local modelPos = model:GetPivot().Position
+    local minDistance = 15
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p ~= game:GetService("Players").LocalPlayer and p.Character then
+            local dist = (modelPos - p.Character:GetPivot().Position).Magnitude
+            if dist < minDistance then
+                minDistance = dist
+                name = p.Name
+            end
+        end
+    end
+    if name then
+        return name
+    end
+
+    if model.Name ~= "Model" and model.Name ~= "Player" then
+        return model.Name
+    end
+
+    return nil
+end;
 local function v65(v56) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v47 (ref)
     local l_HandModel_0 = v56:FindFirstChild("HandModel");
@@ -1444,6 +1512,9 @@ ToggleType = function(v88) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v28 (ref)
     v28 = v88;
 end;
+ToggleNameESP = function(v)
+    NameEspEnabled = v;
+end;
 ToggleSleeperCheck = function(v89) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v30 (ref)
     v30 = v89;
@@ -1537,23 +1608,15 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.box.Visible = false;
                 end;
                 local v117 = {};
-                if NameEspEnabled and v55(v94) then
-                    local name = nil;
-                    local modelPos = v94:GetPivot().Position;
-                    local minDistance = 30;
-                    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-                        if p ~= game:GetService("Players").LocalPlayer and p.Character then
-                            local charPos = p.Character:GetPivot().Position;
-                            local dist = (modelPos - charPos).Magnitude;
-                            if dist < minDistance then
-                                minDistance = dist;
-                                name = p.Name;
-                            end;
-                        end;
+                local isPlayer = v55(v94) or (v94:FindFirstChild("Head") and v94.Head:FindFirstChild("Nametag"))
+                if NameEspEnabled then
+                    if isPlayer then
+                        table.insert(v117, getPlayerName(v94) or "Player");
+                    else
+                        table.insert(v117, "Bot");
                     end;
-                    table.insert(v117, name or "Player");
                 elseif v28 then
-                    table.insert(v117, v55(v94) and "Player" or "Bot");
+                    table.insert(v117, isPlayer and "Player" or "Bot");
                 end;
                 if v27 then
                     table.insert(v117, math.floor(v104) .. "m");
@@ -2733,91 +2796,6 @@ local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
 });
 local l_l_v0_Window_0_Tab_3 = l_v0_Window_0:CreateTab("Player", nil);
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("Other");
-local NoclipEnabled = false;
-local NoclipConnection = nil;
-local ModifiedParts = {};
-
-local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
-    Name = "Noclip",
-    CurrentValue = false,
-    Flag = "NoclipToggle",
-    Callback = function(val)
-        NoclipEnabled = val;
-        
-        local CharacterClass = _G.classes and _G.classes.Character;
-        if CharacterClass and CharacterClass.SetNoclipping then
-            CharacterClass.SetNoclipping(val);
-        end
-        
-        if val then
-            if not NoclipConnection then
-                NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
-                    if not NoclipEnabled then
-                        if NoclipConnection then
-                            NoclipConnection:Disconnect();
-                            NoclipConnection = nil;
-                        end
-                        return;
-                    end
-                    
-                    local localChar = workspace:FindFirstChild("Const")
-                    localChar = localChar and localChar:FindFirstChild("Ignore")
-                    localChar = localChar and localChar:FindFirstChild("LocalCharacter")
-                    local root = localChar and (localChar:FindFirstChild("Middle") or localChar.PrimaryPart)
-                    
-                    if root then
-                        local params = OverlapParams.new()
-                        local excludeList = {localChar}
-                        local char = game:GetService("Players").LocalPlayer.Character
-                        if char then
-                            table.insert(excludeList, char)
-                        end
-                        params.FilterDescendantsInstances = excludeList
-                        
-                        local success, parts = pcall(function()
-                            return workspace:GetPartBoundsInRadius(root.Position, 30, params)
-                        end)
-                        
-                        if success and parts then
-                            local currentPartsMap = {}
-                            for _, part in ipairs(parts) do
-                                if part.Name ~= "Terrain" and not part:IsA("Terrain") and part.CanCollide then
-                                    currentPartsMap[part] = true
-                                    if ModifiedParts[part] == nil then
-                                        ModifiedParts[part] = part.CanCollide
-                                    end
-                                    part.CanCollide = false
-                                end
-                            end
-                            
-                            -- Restore collision for parts that are no longer nearby
-                            for part, originalVal in pairs(ModifiedParts) do
-                                if not currentPartsMap[part] then
-                                    pcall(function()
-                                        part.CanCollide = originalVal
-                                    end)
-                                    ModifiedParts[part] = nil
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        else
-            if NoclipConnection then
-                NoclipConnection:Disconnect();
-                NoclipConnection = nil;
-            end
-            -- Restore all modified parts' collision
-            for part, originalVal in pairs(ModifiedParts) do
-                pcall(function()
-                    part.CanCollide = originalVal
-                end)
-            end
-            ModifiedParts = {}
-        end
-    end
-});
 local _ = game:GetService("UserInputService");
 local l_Workspace_3 = game:GetService("Workspace");
 local v407 = false;
