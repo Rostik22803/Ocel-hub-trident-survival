@@ -1325,6 +1325,22 @@ local function v65(v56) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end;
 local function getEntityName(model)
+    local head = model:FindFirstChild("Head")
+    if head then
+        local esp = head:FindFirstChild("ESP")
+        if esp and esp:FindFirstChild("tag") and esp.tag.Text ~= "" then
+            return esp.tag.Text
+        end
+        local nametag = head:FindFirstChild("Nametag")
+        if nametag and nametag:FindFirstChild("tag") and nametag.tag.Text ~= "" then
+            return nametag.tag.Text
+        end
+        local teamtag = head:FindFirstChild("Teamtag")
+        if teamtag and teamtag:FindFirstChild("tag") and teamtag.tag.Text ~= "" then
+            return teamtag.tag.Text
+        end
+    end
+
     local classes = _G.classes
     if classes and classes.EntityClient and classes.EntityClient.EntityMap then
         for _, ent in pairs(classes.EntityClient.EntityMap) do
@@ -1358,6 +1374,46 @@ local function getEntityName(model)
     end
     
     return nil
+end
+
+local function isSleeping(model)
+    local classes = _G.classes
+    if classes and classes.EntityClient and classes.EntityClient.EntityMap then
+        for _, ent in pairs(classes.EntityClient.EntityMap) do
+            if ent.model == model then
+                return ent.sleeping == true
+            end
+        end
+    end
+    
+    local success, gc = pcall(getgc, true)
+    if success and type(gc) == "table" then
+        for _, v in pairs(gc) do
+            if type(v) == "table" and rawget(v, "model") == model then
+                return rawget(v, "sleeping") == true
+            end
+        end
+    end
+    
+    local animator = model:FindFirstChildOfClass("Animator") or (model:FindFirstChild("AnimationController") and model.AnimationController:FindFirstChildOfClass("Animator"))
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            local animName = track.Name or (track.Animation and track.Animation.Name)
+            if animName and string.find(string.lower(tostring(animName)), "sleep") then
+                return true
+            end
+        end
+    end
+    
+    local lowerTorso = model:FindFirstChild("LowerTorso")
+    if lowerTorso then
+        local rootRig = lowerTorso:FindFirstChild("RootRig")
+        if rootRig and typeof(rootRig.CurrentAngle) == "number" and rootRig.CurrentAngle ~= 0 then
+            return true
+        end
+    end
+    
+    return false
 end
 
 local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
@@ -1527,12 +1583,8 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
             end;
             if v96 and v30 then
-                local l_LowerTorso_0 = v94:FindFirstChild("LowerTorso");
-                if l_LowerTorso_0 then
-                    local l_RootRig_0 = l_LowerTorso_0:FindFirstChild("RootRig");
-                    if l_RootRig_0 and typeof(l_RootRig_0.CurrentAngle) == "number" and l_RootRig_0.CurrentAngle ~= 0 then
-                        v96 = false;
-                    end;
+                if isSleeping(v94) then
+                    v96 = false;
                 end;
             end;
             local v103 = nil;
