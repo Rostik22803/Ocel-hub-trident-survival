@@ -129,76 +129,19 @@ function OcelUI:CreateWindow(options)
 
     local FirstTab = true
     local Tabs = {}
-    local UIStrings = {}
-    local translations = {
-        ["AimBot"] = "Аимбот",
-        ["Big Head"] = "Большая Голова",
-        ["Head Size"] = "Размер Головы",
-        ["ESP"] = "ВХ (ЕСП)",
-        ["Players"] = "Игроки",
-        ["Box Esp"] = "ЕСП Обводка",
-        ["Distance Esp"] = "ЕСП Дистанция",
-        ["Player/Bot Esp"] = "ЕСП Игрок/Бот",
-        ["Sleeper Check"] = "Проверка Слипера",
-        ["Weapon Esp"] = "ЕСП Оружие",
-        ["Skeleton Esp"] = "ЕСП Скелет",
-        ["Name Esp"] = "ЕСП Ники",
-        ["Box Color"] = "Цвет Обводки",
-        ["Skeleton Color"] = "Цвет Скелета",
-        ["Text Color"] = "Цвет Текста",
-        ["Ore Esp"] = "ЕСП Руды",
-        ["Vehicles"] = "Транспорт",
-        ["World"] = "Мир",
-        ["Water"] = "Вода",
-        ["Water Color"] = "Цвет Воды",
-        ["Clouds"] = "Облака",
-        ["SkyBox"] = "Небо",
-        ["Other"] = "Другое",
-        ["Lighting"] = "Освещение",
-        ["Player"] = "Игрок",
-        ["HitSounds"] = "Звуки Попадания",
-        ["Weapon Trail"] = "Следы от Пуль",
-        ["Hand and Weapon Chams"] = "Чамсы на Оружие",
-        ["Misc"] = "Разное",
-        ["UI Settings"] = "Настройки UI",
-        ["⚙️ Settings"] = "⚙️ Настройки",
-        ["Menu Customization"] = "Кастомизация Меню",
-        ["Menu Accent Color"] = "Цвет Меню",
-        ["⚠️ System"] = "⚠️ Система",
-        ["Unload Ocel-hub"] = "Закрыть Ocel-hub",
-        ["Language"] = "Язык",
-        ["Free Cam"] = "Свободная Камера",
-        ["FreeCam Speed"] = "Скорость Камеры"
-    }
-
-    local currentLanguage = "EN"
-    function Window:SetLanguage(lang)
-        currentLanguage = lang
-        for obj, origText in pairs(UIStrings) do
-            if obj.Parent then
-                local t = (lang == "RU" and translations[origText]) or origText
-                if obj.Name == "TabBtn" then
-                    obj.Text = "  " .. t
-                else
-                    obj.Text = t
-                end
-            end
-        end
-    end
 
     function Window:CreateTab(name, icon)
         local Tab = {}
         
         local TabButton = Instance.new("TextButton")
-        TabButton.Name = "TabBtn"
+        TabButton.Name = name
         TabButton.Parent = TabContainer
         TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         TabButton.BackgroundTransparency = 1
         TabButton.BorderSizePixel = 0
         TabButton.Size = UDim2.new(1, 0, 0, 30)
         TabButton.Font = Enum.Font.GothamSemibold
-        TabButton.Text = "  " .. ((currentLanguage == "RU" and translations[name]) or name)
-        UIStrings[TabButton] = name
+        TabButton.Text = "  " .. name
         TabButton.TextColor3 = Color3.fromRGB(180, 180, 180)
         TabButton.TextSize = 13
         TabButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -253,8 +196,7 @@ function OcelUI:CreateWindow(options)
             SecLabel.BackgroundTransparency = 1
             SecLabel.Size = UDim2.new(1, 0, 0, 25)
             SecLabel.Font = Enum.Font.GothamBold
-            SecLabel.Text = (currentLanguage == "RU" and translations[secName]) or secName
-            UIStrings[SecLabel] = secName
+            SecLabel.Text = secName
             SecLabel.TextColor3 = Color3.fromRGB(0, 110, 255)
             SecLabel.TextSize = 14
             SecLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -276,8 +218,7 @@ function OcelUI:CreateWindow(options)
             Btn.BackgroundTransparency = 1
             Btn.Size = UDim2.new(1, 0, 1, 0)
             Btn.Font = Enum.Font.Gotham
-            Btn.Text = (currentLanguage == "RU" and translations[bOpts.Name]) or bOpts.Name
-            UIStrings[Btn] = bOpts.Name
+            Btn.Text = bOpts.Name
             Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             Btn.TextSize = 14
             
@@ -303,8 +244,7 @@ function OcelUI:CreateWindow(options)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(1, -50, 1, 0)
             Label.Font = Enum.Font.Gotham
-            Label.Text = (currentLanguage == "RU" and translations[tOpts.Name]) or tOpts.Name
-            UIStrings[Label] = tOpts.Name
+            Label.Text = tOpts.Name
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -349,8 +289,7 @@ function OcelUI:CreateWindow(options)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(1, -20, 0, 25)
             Label.Font = Enum.Font.Gotham
-            Label.Text = (currentLanguage == "RU" and translations[sOpts.Name]) or sOpts.Name
-            UIStrings[Label] = sOpts.Name
+            Label.Text = sOpts.Name
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -437,8 +376,7 @@ function OcelUI:CreateWindow(options)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(1, -50, 0, 35)
             Label.Font = Enum.Font.Gotham
-            Label.Text = (currentLanguage == "RU" and translations[cOpts.Name]) or cOpts.Name
-            UIStrings[Label] = cOpts.Name
+            Label.Text = cOpts.Name
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -553,9 +491,7 @@ function OcelUI:CreateWindow(options)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(1, -20, 1, 0)
             Label.Font = Enum.Font.Gotham
-            local translatedName = (currentLanguage == "RU" and translations[dOpts.Name]) or dOpts.Name
-            Label.Text = translatedName .. " [" .. (dOpts.CurrentOption and dOpts.CurrentOption[1] or "...") .. "]"
-            UIStrings[Label] = dOpts.Name
+            Label.Text = dOpts.Name .. " [" .. (dOpts.CurrentOption and dOpts.CurrentOption[1] or "...") .. "]"
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -578,8 +514,7 @@ function OcelUI:CreateWindow(options)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(1, -100, 1, 0)
             Label.Font = Enum.Font.Gotham
-            Label.Text = (currentLanguage == "RU" and translations[kOpts.Name]) or kOpts.Name
-            UIStrings[Label] = kOpts.Name
+            Label.Text = kOpts.Name
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -783,10 +718,11 @@ local v29 = true;
 local v30 = false;
 local v31 = true;
 local v32 = false;
-local ToggleNameESPState = false;
 local v33 = Color3.fromRGB(255, 255, 255);
 local v34 = Color3.fromRGB(255, 255, 255);
 local v35 = Color3.fromRGB(255, 255, 255);
+local v_nameEsp = false;
+local v_names = {};
 local _ = math.tan(math.rad(l_CurrentCamera_0.FieldOfView * 0.5));
 l_l_v0_Window_0_Tab_1:CreateToggle({
     Name = "Box Esp", 
@@ -821,14 +757,6 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
     end
 });
 l_l_v0_Window_0_Tab_1:CreateToggle({
-    Name = "Name Esp", 
-    CurrentValue = false, 
-    Flag = "NameEspToggle", 
-    Callback = function(state) --[[ Line: 0 ]] --[[ Name:  ]]
-        ToggleNameESPFunc(state);
-    end
-});
-l_l_v0_Window_0_Tab_1:CreateToggle({
     Name = "Weapon Esp", 
     CurrentValue = false, 
     Flag = "WeaponEspToggle", 
@@ -842,6 +770,14 @@ l_l_v0_Window_0_Tab_1:CreateToggle({
     Flag = "SkeletonEspToggle", 
     Callback = function(v42) --[[ Line: 0 ]] --[[ Name:  ]]
         ToggleSkeletonESP(v42);
+    end
+});
+l_l_v0_Window_0_Tab_1:CreateToggle({
+    Name = "Name Esp", 
+    CurrentValue = false, 
+    Flag = "NameEspToggle", 
+    Callback = function(v_val)
+        ToggleNameESP(v_val);
     end
 });
 l_l_v0_Window_0_Tab_1:CreateColorPicker({
@@ -1388,8 +1324,44 @@ local function v65(v56) --[[ Line: 0 ]] --[[ Name:  ]]
         return not v58 and "None" or v58;
     end;
 end;
+local function getEntityName(model)
+    local classes = _G.classes
+    if classes and classes.EntityClient and classes.EntityClient.EntityMap then
+        for _, ent in pairs(classes.EntityClient.EntityMap) do
+            if ent.model == model then
+                if ent.Name then
+                    return ent.Name
+                elseif ent.type then
+                    return ent.type
+                end
+                break
+            end
+        end
+    end
+    
+    local success, gc = pcall(getgc, true)
+    if success and type(gc) == "table" then
+        for _, v in pairs(gc) do
+            if type(v) == "table" and rawget(v, "model") == model then
+                if rawget(v, "Name") then
+                    return rawget(v, "Name")
+                elseif rawget(v, "type") then
+                    return rawget(v, "type")
+                end
+            end
+        end
+    end
+    
+    local player = game:GetService("Players"):GetPlayerFromCharacter(model)
+    if player then
+        return player.Name
+    end
+    
+    return nil
+end
+
 local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v25 (ref), v52 (ref), v33 (ref), v46 (ref), v55 (ref), v35 (ref)
+    -- upvalues: v25 (ref), v52 (ref), v33 (ref), v46 (ref), v55 (ref), v35 (ref), v_names (ref)
     if v25[v66] then
         return;
     else
@@ -1441,7 +1413,7 @@ local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
                 skeletonLines = v73
             };
             v66.Destroying:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
-                -- upvalues: v69 (ref), v70 (ref), v71 (ref), v72 (ref), v73 (ref), v25 (ref), v66 (ref)
+                -- upvalues: v69 (ref), v70 (ref), v71 (ref), v72 (ref), v73 (ref), v25 (ref), v66 (ref), v_names (ref)
                 pcall(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     -- upvalues: v69 (ref)
                     v69:Remove();
@@ -1468,6 +1440,7 @@ local function v80(v66) --[[ Line: 0 ]] --[[ Name:  ]]
                     end;
                 end;
                 v25[v66] = nil;
+                v_names[v66] = nil;
             end);
             return;
         end;
@@ -1485,10 +1458,13 @@ l_Workspace_0.ChildAdded:Connect(function(v83) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end);
 task.spawn(function() --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v25 (ref), v48 (ref), v65 (ref)
+    -- upvalues: v25 (ref), v48 (ref), v65 (ref), v_names (ref)
     while true do
         for v84 in pairs(v25) do
             v48[v84] = v65(v84);
+            if not v_names[v84] then
+                v_names[v84] = getEntityName(v84);
+            end;
         end;
         task.wait(1);
     end;
@@ -1513,9 +1489,6 @@ ToggleSleeperCheck = function(v89) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v30 (ref)
     v30 = v89;
 end;
-ToggleNameESPFunc = function(state) --[[ Line: 0 ]] --[[ Name:  ]]
-    ToggleNameESPState = state;
-end;
 ToggleWeaponESP = function(v90) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v31 (ref)
     v31 = v90;
@@ -1523,6 +1496,10 @@ end;
 ToggleSkeletonESP = function(v91) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v32 (ref)
     v32 = v91;
+end;
+ToggleNameESP = function(v_val) --[[ Line: 0 ]]
+    -- upvalues: v_nameEsp (ref)
+    v_nameEsp = v_val;
 end;
 SetESPColor = function(v92) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v33 (ref)
@@ -1550,34 +1527,13 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
             end;
             if v96 and v30 then
-                local isSleeping = false
-                local torso = v94:FindFirstChild("Torso") or v94:FindFirstChild("LowerTorso")
-                
-                if torso and math.abs(torso.CFrame.UpVector.Y) < 0.6 then
-                    isSleeping = true
-                end
-                
-                local humanoid = v94:FindFirstChildOfClass("Humanoid") or v94:FindFirstChildOfClass("AnimationController")
-                local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-                if animator then
-                    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                        if track.Animation and track.Animation.AnimationId and string.find(string.lower(tostring(track.Animation.AnimationId)), "sleep") then
-                            isSleeping = true
-                            break
-                        end
-                    end
-                end
-                
-                if torso then
-                    local rootJoint = v96:FindFirstChild("RootJoint") or torso:FindFirstChild("RootRig")
-                    if rootJoint and typeof(rootJoint.CurrentAngle) == "number" and math.abs(rootJoint.CurrentAngle) > 0.5 then
-                        isSleeping = true
-                    end
-                end
-                
-                if isSleeping then
-                    v96 = false
-                end
+                local l_LowerTorso_0 = v94:FindFirstChild("LowerTorso");
+                if l_LowerTorso_0 then
+                    local l_RootRig_0 = l_LowerTorso_0:FindFirstChild("RootRig");
+                    if l_RootRig_0 and typeof(l_RootRig_0.CurrentAngle) == "number" and l_RootRig_0.CurrentAngle ~= 0 then
+                        v96 = false;
+                    end;
+                end;
             end;
             local v103 = nil;
             local v104 = nil;
@@ -1626,23 +1582,19 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.box.Visible = false;
                 end;
                 local v117 = {};
-                local isRu = (l_v0_Window_0 and l_v0_Window_0.CurrentLanguage == "RU")
-                if ToggleNameESPState then
-                    local nameStr = isRu and "Игрок" or "Player"
-                    local plr = game:GetService("Players"):GetPlayerFromCharacter(v94)
-                    if plr then 
-                        nameStr = plr.Name 
-                    end
-                    table.insert(v117, nameStr);
+                if v_nameEsp then
+                    local name = v_names[v94] or getEntityName(v94);
+                    if name then
+                        table.insert(v117, name);
+                    else
+                        table.insert(v117, v55(v94) and "Player" or "Bot");
+                    end;
                 end;
                 if v28 then
-                    local pStr = isRu and "Игрок" or "Player"
-                    local bStr = isRu and "Бот" or "Bot"
-                    table.insert(v117, v55(v94) and pStr or bStr);
+                    table.insert(v117, v55(v94) and "Player" or "Bot");
                 end;
                 if v27 then
-                    local mStr = isRu and "м" or "m"
-                    table.insert(v117, math.floor(v104) .. mStr);
+                    table.insert(v117, math.floor(v104) .. "m");
                 end;
                 local v118 = table.concat(v117, " | ");
                 if v118 ~= "" then
@@ -1654,10 +1606,7 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     v95.text.Visible = false;
                 end;
                 if v31 then
-                    local v119 = v48[v94]
-                    if not v119 or v119 == "None" or v119 == "" then
-                        v119 = isRu and "Нет" or "None"
-                    end
+                    local v119 = v48[v94] or "None";
                     v95.weaponText.Color = v55(v94) and v34 or Color3.fromRGB(0, 150, 255);
                     v95.weaponText.Text = v119;
                     v95.weaponText.Position = Vector2.new(v105.X, v115 + v113);
@@ -1700,6 +1649,7 @@ ToggleType(false);
 ToggleSleeperCheck(false);
 ToggleWeaponESP(false);
 ToggleSkeletonESP(false);
+ToggleNameESP(false);
 local l_l_l_v0_Window_0_Tab_1_Section_1 = l_l_v0_Window_0_Tab_1:CreateSection("Armor");
 G2L = {};
 G2L["1"] = Instance.new("ScreenGui", game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"));
@@ -3568,21 +3518,9 @@ SettingsTab:CreateColorPicker({
 
 SettingsTab:CreateSection("⚠️ System")
 SettingsTab:CreateButton({
-    Name = "Language", 
-    Callback = function()
-        if l_v0_Window_0.CurrentLanguage == "RU" then
-            l_v0_Window_0:SetLanguage("EN")
-            l_v0_Window_0.CurrentLanguage = "EN"
-        else
-            l_v0_Window_0:SetLanguage("RU")
-            l_v0_Window_0.CurrentLanguage = "RU"
-        end
-    end
-});
-SettingsTab:CreateButton({
     Name = "Unload Ocel-hub", 
     Callback = function()
         v0:Destroy();
     end
 });
-return G2L["1"];
+return G2L["1"]
