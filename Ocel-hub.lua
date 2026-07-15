@@ -1606,9 +1606,18 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
                 local v117 = {};
                 if ToggleNameESPState then
+                    local nameStr = "Player"
                     local plr = game:GetService("Players"):GetPlayerFromCharacter(v94)
-                    local nameStr = (plr and plr.Name) or v94.Name
-                    if nameStr == "Model" then nameStr = "Player" end
+                    if plr then 
+                        nameStr = plr.Name 
+                    else
+                        for _, desc in pairs(v94:GetDescendants()) do
+                            if desc:IsA("TextLabel") and desc.Text ~= "" and desc.Text ~= "Label" then
+                                nameStr = desc.Text
+                                break
+                            end
+                        end
+                    end
                     table.insert(v117, nameStr);
                 end;
                 if v28 then
