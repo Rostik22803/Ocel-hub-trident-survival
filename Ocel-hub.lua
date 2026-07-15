@@ -1304,11 +1304,22 @@ local function getPlayerName(model)
     local function isGenericName(text)
         if not text then return true end
         local clean = string.lower(string.gsub(text, "%s+", ""))
-        return clean == "" or clean == "player" or clean == "model" or clean == "shylou2644"
+        return clean == "" or clean == "player" or clean == "model" or string.find(clean, "shylou") ~= nil
+    end
+
+    -- Get classes from _G or getrenv()._G (if sandboxed)
+    local classes = _G.classes
+    if not classes and getrenv then
+        pcall(function()
+            local renv = getrenv()
+            if renv then
+                classes = renv._G and renv._G.classes
+            end
+        end)
     end
 
     -- Method 1: Check game player database (classes.PlayerClient)
-    local PlayerClient = _G.classes and _G.classes.PlayerClient
+    local PlayerClient = classes and classes.PlayerClient
     if PlayerClient and PlayerClient.SetEsp and debug and debug.getupvalue then
         local _, t3 = debug.getupvalue(PlayerClient.SetEsp, 3)
         if type(t3) == "table" then
@@ -1318,8 +1329,8 @@ local function getPlayerName(model)
                         return player.Name .. " (M1)"
                     else
                         -- Request identity if missing!
-                        local NetClient = _G.classes and _G.classes.NetClient
-                        local SendCodes = _G.classes and _G.classes.SendCodes
+                        local NetClient = classes and classes.NetClient
+                        local SendCodes = classes and classes.SendCodes
                         if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
                             local clock = os.clock()
                             if not player.lastNameReq or clock - player.lastNameReq > 2 then
@@ -1336,7 +1347,7 @@ local function getPlayerName(model)
     end
 
     -- Fallback Method 1.5: Check entity database (classes.EntityClient.EntityMap)
-    local EntityClient = _G.classes and _G.classes.EntityClient
+    local EntityClient = classes and classes.EntityClient
     local t2 = EntityClient and EntityClient.EntityMap
     if t2 then
         for _, entity in pairs(t2) do
@@ -1345,8 +1356,8 @@ local function getPlayerName(model)
                     return entity.Name .. " (M1-Ent)"
                 else
                     -- Request identity if missing!
-                    local NetClient = _G.classes and _G.classes.NetClient
-                    local SendCodes = _G.classes and _G.classes.SendCodes
+                    local NetClient = classes and classes.NetClient
+                    local SendCodes = classes and classes.SendCodes
                     if NetClient and SendCodes and SendCodes.REQUEST_IDENTITY then
                         local clock = os.clock()
                         if not entity.lastNameReq or clock - entity.lastNameReq > 2 then
