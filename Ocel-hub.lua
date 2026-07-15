@@ -1550,13 +1550,17 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 end;
             end;
             if v96 and v30 then
-                local l_LowerTorso_0 = v94:FindFirstChild("LowerTorso");
-                if l_LowerTorso_0 then
-                    local l_RootRig_0 = l_LowerTorso_0:FindFirstChild("RootRig");
-                    if l_RootRig_0 and typeof(l_RootRig_0.CurrentAngle) == "number" and l_RootRig_0.CurrentAngle ~= 0 then
-                        v96 = false;
-                    end;
-                end;
+                local torso = v94:FindFirstChild("Torso") or v94:FindFirstChild("LowerTorso")
+                if torso then
+                    if math.abs(torso.CFrame.UpVector.Y) < 0.5 then
+                        v96 = false
+                    else
+                        local rootJoint = v96:FindFirstChild("RootJoint") or torso:FindFirstChild("RootRig")
+                        if rootJoint and typeof(rootJoint.CurrentAngle) == "number" and math.abs(rootJoint.CurrentAngle) > 0.1 then
+                            v96 = false
+                        end
+                    end
+                end
             end;
             local v103 = nil;
             local v104 = nil;
@@ -1612,10 +1616,14 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                     if plr then 
                         nameStr = plr.Name 
                     else
-                        for _, desc in pairs(v94:GetDescendants()) do
-                            if desc:IsA("TextLabel") and desc.Text ~= "" and desc.Text ~= "Label" and desc.Text ~= "Player" and desc.Text ~= "Игрок" then
-                                nameStr = desc.Text
-                                break
+                        local head = v94:FindFirstChild("Head")
+                        if head then
+                            local nametag = head:FindFirstChild("Nametag") or head:FindFirstChild("ESP")
+                            if nametag then
+                                local tag = nametag:FindFirstChild("tag")
+                                if tag and tag:IsA("TextLabel") and tag.Text ~= "" and tag.Text ~= "Label" then
+                                    nameStr = tag.Text
+                                end
                             end
                         end
                     end
