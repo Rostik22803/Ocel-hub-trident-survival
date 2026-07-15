@@ -1539,15 +1539,15 @@ l_RunService_0.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
                 local v117 = {};
                 if NameEspEnabled and v55(v94) then
                     local name = nil;
-                    if v94.PrimaryPart then
-                        local minDistance = 15;
-                        for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-                            if p ~= game:GetService("Players").LocalPlayer and p.Character and p.Character.PrimaryPart then
-                                local dist = (v94.PrimaryPart.Position - p.Character.PrimaryPart.Position).Magnitude;
-                                if dist < minDistance then
-                                    minDistance = dist;
-                                    name = p.Name;
-                                end;
+                    local modelPos = v94:GetPivot().Position;
+                    local minDistance = 30;
+                    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+                        if p ~= game:GetService("Players").LocalPlayer and p.Character then
+                            local charPos = p.Character:GetPivot().Position;
+                            local dist = (modelPos - charPos).Magnitude;
+                            if dist < minDistance then
+                                minDistance = dist;
+                                name = p.Name;
                             end;
                         end;
                     end;
@@ -2735,99 +2735,7 @@ local l_l_v0_Window_0_Tab_3 = l_v0_Window_0:CreateTab("Player", nil);
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("Other");
 local NoclipEnabled = false;
 local NoclipConnection = nil;
-local FlySpeed = 50;
-
-local MobileNoclipGui = nil;
-local mobileUp = false;
-local mobileDown = false;
-
-local function CreateMobileNoclipGui()
-    if MobileNoclipGui then MobileNoclipGui:Destroy() end
-    
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "MobileNoclipGui"
-    ScreenGui.ResetOnSpawn = false
-    local success, parent = pcall(function() return gethui and gethui() end)
-    if not success or not parent then
-        parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    end
-    ScreenGui.Parent = parent
-    
-    MobileNoclipGui = ScreenGui
-    
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 70, 0, 150)
-    Frame.Position = UDim2.new(1, -90, 0.5, -75)
-    Frame.BackgroundTransparency = 1
-    Frame.Parent = ScreenGui
-    
-    local UpBtn = Instance.new("TextButton")
-    UpBtn.Size = UDim2.new(0, 60, 0, 60)
-    UpBtn.Position = UDim2.new(0.5, -30, 0, 10)
-    UpBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
-    UpBtn.BackgroundTransparency = 0.3
-    UpBtn.Text = "▲"
-    UpBtn.TextColor3 = Color3.new(1, 1, 1)
-    UpBtn.TextSize = 24
-    UpBtn.Font = Enum.Font.GothamBold
-    UpBtn.Parent = Frame
-    
-    local corner1 = Instance.new("UICorner")
-    corner1.CornerRadius = UDim.new(0.5, 0)
-    corner1.Parent = UpBtn
-    
-    local DownBtn = Instance.new("TextButton")
-    DownBtn.Size = UDim2.new(0, 60, 0, 60)
-    DownBtn.Position = UDim2.new(0.5, -30, 1, -70)
-    DownBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
-    DownBtn.BackgroundTransparency = 0.3
-    DownBtn.Text = "▼"
-    DownBtn.TextColor3 = Color3.new(1, 1, 1)
-    DownBtn.TextSize = 24
-    DownBtn.Font = Enum.Font.GothamBold
-    DownBtn.Parent = Frame
-    
-    local corner2 = Instance.new("UICorner")
-    corner2.CornerRadius = UDim.new(0.5, 0)
-    corner2.Parent = DownBtn
-    
-    UpBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            mobileUp = true
-        end
-    end)
-    UpBtn.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            mobileUp = false
-        end
-    end)
-    
-    DownBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            mobileDown = true
-        end
-    end)
-    DownBtn.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            mobileDown = false
-        end
-    end)
-end
-
-local function DestroyMobileNoclipGui()
-    if MobileNoclipGui then
-        MobileNoclipGui:Destroy()
-        MobileNoclipGui = nil
-    end
-    mobileUp = false
-    mobileDown = false
-end
-
-local ControlModule = nil;
-pcall(function()
-    local PlayerModule = require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("PlayerModule", 5))
-    ControlModule = PlayerModule and PlayerModule:GetControls()
-end)
+local ModifiedParts = {};
 
 local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
     Name = "Noclip",
@@ -2842,13 +2750,7 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
         end
         
         if val then
-            local UserInputService = game:GetService("UserInputService");
-            if UserInputService.TouchEnabled then
-                CreateMobileNoclipGui();
-            end
-            
             if not NoclipConnection then
-                local lastTime = tick();
                 NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
                     if not NoclipEnabled then
                         if NoclipConnection then
@@ -2858,111 +2760,62 @@ local _ = l_l_v0_Window_0_Tab_3:CreateToggle({
                         return;
                     end
                     
-                    local now = tick();
-                    local dt = now - lastTime;
-                    lastTime = now;
-                    if dt <= 0 or dt > 1 then
-                        dt = 0.016;
-                    end
-                    
-                    local CharacterClass = _G.classes and _G.classes.Character;
-                    if CharacterClass and CharacterClass.SetNoclipping then
-                        CharacterClass.SetNoclipping(true);
-                    end
-                    
                     local localChar = workspace:FindFirstChild("Const")
                     localChar = localChar and localChar:FindFirstChild("Ignore")
                     localChar = localChar and localChar:FindFirstChild("LocalCharacter")
-                    if localChar then
-                        for _, part in ipairs(localChar:GetChildren()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false;
-                                part.Anchored = true;
+                    local root = localChar and (localChar:FindFirstChild("Middle") or localChar.PrimaryPart)
+                    
+                    if root then
+                        local params = OverlapParams.new()
+                        local excludeList = {localChar}
+                        local char = game:GetService("Players").LocalPlayer.Character
+                        if char then
+                            table.insert(excludeList, char)
+                        end
+                        params.FilterDescendantsInstances = excludeList
+                        
+                        local success, parts = pcall(function()
+                            return workspace:GetPartBoundsInRadius(root.Position, 30, params)
+                        end)
+                        
+                        if success and parts then
+                            local currentPartsMap = {}
+                            for _, part in ipairs(parts) do
+                                if part.Name ~= "Terrain" and not part:IsA("Terrain") and part.CanCollide then
+                                    currentPartsMap[part] = true
+                                    if ModifiedParts[part] == nil then
+                                        ModifiedParts[part] = part.CanCollide
+                                    end
+                                    part.CanCollide = false
+                                end
                             end
-                        end
-                        
-                        -- Joystick / Keyboard movement direction
-                        local moveDir = Vector3.new(0, 0, 0);
-                        local rawMove = Vector3.new(0, 0, 0);
-                        if ControlModule then
-                            rawMove = ControlModule:GetMoveVector();
-                        end
-                        
-                        if rawMove.Magnitude > 0.01 then
-                            local camera = workspace.CurrentCamera;
-                            moveDir = moveDir + camera.CFrame:VectorToWorldSpace(rawMove);
-                        else
-                            -- Keyboard WASD fallback
-                            local camera = workspace.CurrentCamera;
-                            local UserInputService = game:GetService("UserInputService");
-                            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                                moveDir = moveDir + camera.CFrame.LookVector;
-                            end;
-                            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                                moveDir = moveDir - camera.CFrame.LookVector;
-                            end;
-                            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                                moveDir = moveDir - camera.CFrame.RightVector;
-                            end;
-                            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                                moveDir = moveDir + camera.CFrame.RightVector;
-                            end;
-                            moveDir = Vector3.new(moveDir.X, 0, moveDir.Z);
-                        end
-                        
-                        -- Vertical movement (Mobile Buttons + Keyboard keys)
-                        local UserInputService = game:GetService("UserInputService");
-                        if mobileUp or UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                            moveDir = moveDir + Vector3.new(0, 1, 0);
-                        end;
-                        if mobileDown or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                            moveDir = moveDir - Vector3.new(0, 1, 0);
-                        end;
-                        
-                        if moveDir.Magnitude > 0.01 then
-                            local currentCFrame = localChar.PrimaryPart and localChar.PrimaryPart.CFrame or localChar:GetPivot();
-                            local nextPosition = currentCFrame.Position + moveDir.Unit * (FlySpeed * dt);
-                            localChar:PivotTo(CFrame.new(nextPosition) * currentCFrame.Rotation);
-                        end;
-                    end
-                    local char = game:GetService("Players").LocalPlayer.Character
-                    if char then
-                        for _, part in ipairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false;
+                            
+                            -- Restore collision for parts that are no longer nearby
+                            for part, originalVal in pairs(ModifiedParts) do
+                                if not currentPartsMap[part] then
+                                    pcall(function()
+                                        part.CanCollide = originalVal
+                                    end)
+                                    ModifiedParts[part] = nil
+                                end
                             end
                         end
                     end
                 end)
             end
         else
-            DestroyMobileNoclipGui();
             if NoclipConnection then
                 NoclipConnection:Disconnect();
                 NoclipConnection = nil;
             end
-            local localChar = workspace:FindFirstChild("Const")
-            localChar = localChar and localChar:FindFirstChild("Ignore")
-            localChar = localChar and localChar:FindFirstChild("LocalCharacter")
-            if localChar then
-                for _, part in ipairs(localChar:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.Anchored = false;
-                        part.CanCollide = true;
-                    end
-                end
+            -- Restore all modified parts' collision
+            for part, originalVal in pairs(ModifiedParts) do
+                pcall(function()
+                    part.CanCollide = originalVal
+                end)
             end
+            ModifiedParts = {}
         end
-    end
-});
-local _ = l_l_v0_Window_0_Tab_3:CreateSlider({
-    Name = "Noclip Speed",
-    Range = {10, 200},
-    Increment = 5,
-    CurrentValue = 50,
-    Flag = "NoclipSpeedSlider",
-    Callback = function(val)
-        FlySpeed = val;
     end
 });
 local _ = game:GetService("UserInputService");
