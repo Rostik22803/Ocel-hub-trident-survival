@@ -7,18 +7,61 @@ localPlayer = Players.LocalPlayer;
 ReplicatedStorage = game:GetService("ReplicatedStorage");
 camera = workspace.CurrentCamera;
 Workspace = game:GetService("Workspace");
+
+local Drawing = Drawing or {}
+if not Drawing.new then
+    warn("[Trident Survival Script]: Executor does not support Drawing library. ESP disabled.");
+    Drawing.new = function()
+        local dummy = {}
+        setmetatable(dummy, {
+            __newindex = function() end,
+            __index = function(t, k)
+                if k == "Remove" or k == "Destroy" then
+                    return function() end
+                end
+                if k == "Color" then return Color3.new(1,1,1) end
+                if k == "Position" or k == "Size" or k == "From" or k == "To" then return Vector2.new(0,0) end
+                if k == "Visible" then return false end
+                if k == "Text" then return "" end
+                return nil
+            end
+        })
+        return dummy
+    end
+end
+
+local function GetSafeUIContainer()
+    local success, container = pcall(function() return gethui and gethui() end)
+    if success and container then return container end
+    
+    local success2, coregui = pcall(function() return game:GetService("CoreGui") end)
+    if success2 and coregui then return coregui end
+    
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then
+        for i = 1, 50 do
+            LocalPlayer = Players.LocalPlayer
+            if LocalPlayer then break end
+            task.wait(0.1)
+        end
+    end
+    if LocalPlayer then
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not playerGui then
+            playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+        end
+        if playerGui then return playerGui end
+    end
+    
+    return workspace
+end
+
 local v0 = (function()
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local function GetSafeUIContainer()
-    local success, container = pcall(function() return gethui and gethui() end)
-    if success and container then return container end
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-    return LocalPlayer:WaitForChild("PlayerGui")
-end
 local CoreGui = GetSafeUIContainer()
 
 local OcelUI = {}
@@ -2791,32 +2834,36 @@ local _ = l_l_v0_Window_0_Tab_3:CreateSlider({
         v424 = v430;
     end
 });
-local v432 = getrawmetatable(game);
-setreadonly(v432, false);
-local l___index_0 = v432.__index;
-local l___newindex_0 = v432.__newindex;
-v432.__index = newcclosure(function(v435, v436) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v423 (ref), v425 (ref), l___index_0 (ref)
-    if v435 == v423 and v436 == "FieldOfView" then
-        return v425;
-    else
-        return l___index_0(v435, v436);
-    end;
-end);
-v432.__newindex = newcclosure(function(v437, v438, v439) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v423 (ref), v427 (ref), l___newindex_0 (ref), v426 (ref), v424 (ref)
-    if v437 == v423 and v438 == "FieldOfView" then
-        if v427 then
-            l___newindex_0(v437, v438, v426);
+if getrawmetatable and setreadonly and newcclosure then
+    local v432 = getrawmetatable(game);
+    setreadonly(v432, false);
+    local l___index_0 = v432.__index;
+    local l___newindex_0 = v432.__newindex;
+    v432.__index = newcclosure(function(v435, v436) --[[ Line: 0 ]] --[[ Name:  ]]
+        -- upvalues: v423 (ref), v425 (ref), l___index_0 (ref)
+        if v435 == v423 and v436 == "FieldOfView" then
+            return v425;
         else
-            l___newindex_0(v437, v438, v424);
+            return l___index_0(v435, v436);
         end;
-        return;
-    else
-        return l___newindex_0(v437, v438, v439);
-    end;
-end);
-setreadonly(v432, true);
+    end);
+    v432.__newindex = newcclosure(function(v437, v438, v439) --[[ Line: 0 ]] --[[ Name:  ]]
+        -- upvalues: v423 (ref), v427 (ref), l___newindex_0 (ref), v426 (ref), v424 (ref)
+        if v437 == v423 and v438 == "FieldOfView" then
+            if v427 then
+                l___newindex_0(v437, v438, v426);
+            else
+                l___newindex_0(v437, v438, v424);
+            end;
+            return;
+        else
+            return l___newindex_0(v437, v438, v439);
+        end;
+    end);
+    setreadonly(v432, true);
+else
+    warn("[Trident Survival Script]: Executor does not support metatable manipulation. FOV spoofing is disabled.");
+end
 l_RunService_3.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v427 (ref), v423 (ref), v426 (ref), v424 (ref)
     if v427 then
@@ -3615,13 +3662,6 @@ SettingsTab:CreateColorPicker({
     Name = "Menu Accent Color",
     Color = CurrentAccent,
     Callback = function(color)
-        local function GetSafeUIContainer()
-            local success, container = pcall(function() return gethui and gethui() end)
-            if success and container then return container end
-            local Players = game:GetService("Players")
-            local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-            return LocalPlayer:WaitForChild("PlayerGui")
-        end
         local CoreGui = GetSafeUIContainer()
         local UI = CoreGui:FindFirstChild("OcelLocalUI")
         if UI then
