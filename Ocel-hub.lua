@@ -488,22 +488,107 @@ function OcelUI:CreateWindow(options)
             DdFrame.Parent = Page
             DdFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             DdFrame.Size = UDim2.new(1, 0, 0, 35)
+            DdFrame.ClipsDescendants = true
             
             local DdCorner = Instance.new("UICorner")
             DdCorner.CornerRadius = UDim.new(0, 6)
             DdCorner.Parent = DdFrame
             
+            local OpenBtn = Instance.new("TextButton")
+            OpenBtn.Parent = DdFrame
+            OpenBtn.BackgroundTransparency = 1
+            OpenBtn.Size = UDim2.new(1, 0, 0, 35)
+            OpenBtn.Font = Enum.Font.Gotham
+            OpenBtn.Text = ""
+            
             local Label = Instance.new("TextLabel")
             Label.Parent = DdFrame
             Label.BackgroundTransparency = 1
             Label.Position = UDim2.new(0, 10, 0, 0)
-            Label.Size = UDim2.new(1, -20, 1, 0)
+            Label.Size = UDim2.new(1, -20, 0, 35)
             Label.Font = Enum.Font.Gotham
             Label.Text = dOpts.Name .. " [" .. (dOpts.CurrentOption and dOpts.CurrentOption[1] or "...") .. "]"
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
+            
+            local OptionsContainer = Instance.new("Frame")
+            OptionsContainer.Name = "OptionsContainer"
+            OptionsContainer.Parent = DdFrame
+            OptionsContainer.BackgroundTransparency = 1
+            OptionsContainer.Position = UDim2.new(0, 10, 0, 35)
+            OptionsContainer.Size = UDim2.new(1, -20, 0, #dOpts.Options * 25)
+            
+            local OptionsLayout = Instance.new("UIListLayout")
+            OptionsLayout.Parent = OptionsContainer
+            OptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            OptionsLayout.Padding = UDim.new(0, 2)
+            
+            local currentSelected = dOpts.CurrentOption and dOpts.CurrentOption[1] or ""
+            local expanded = false
+            
+            local function updateLabel(val)
+                Label.Text = dOpts.Name .. " [" .. val .. "]"
+            end
+            
+            local dropdownObj = {
+                CurrentOption = {currentSelected}
+            }
+            
+            local function selectOption(val)
+                currentSelected = val
+                dropdownObj.CurrentOption[1] = val
+                updateLabel(val)
+                if dOpts.Callback then
+                    task.spawn(function()
+                        dOpts.Callback({val})
+                    end)
+                end
+            end
+            
+            for i, opt in ipairs(dOpts.Options) do
+                local OptBtn = Instance.new("TextButton")
+                OptBtn.Name = opt
+                OptBtn.Parent = OptionsContainer
+                OptBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                OptBtn.Size = UDim2.new(1, 0, 0, 22)
+                OptBtn.Font = Enum.Font.Gotham
+                OptBtn.Text = opt
+                OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                OptBtn.TextSize = 12
+                
+                local OptCorner = Instance.new("UICorner")
+                OptCorner.CornerRadius = UDim.new(0, 4)
+                OptCorner.Parent = OptBtn
+                
+                OptBtn.MouseButton1Click:Connect(function()
+                    selectOption(opt)
+                    expanded = false
+                    TweenService:Create(DdFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 35)}):Play()
+                    for k = 1, 15 do
+                        task.wait(0.02)
+                        UpdateCanvas()
+                    end
+                end)
+            end
+            
+            OpenBtn.MouseButton1Click:Connect(function()
+                expanded = not expanded
+                local targetHeight = 35 + (#dOpts.Options * 24) + 4
+                TweenService:Create(DdFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, expanded and targetHeight or 35)}):Play()
+                for i = 1, 15 do
+                    task.wait(0.02)
+                    UpdateCanvas()
+                end
+            end)
+            
             UpdateCanvas()
+            
+            function dropdownObj:Set(val)
+                selectOption(val)
+            end
+            
+            return dropdownObj
         end
 
         function Tab:CreateKeybind(kOpts)
