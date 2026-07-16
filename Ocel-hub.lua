@@ -3597,31 +3597,48 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 customModelSpawned = customModelAsset:Clone()
                 customModelSpawned.Parent = ignore
                 
+                -- Helper to find first base part recursively
+                local function findFirstBasePart(parent)
+                    for _, child in ipairs(parent:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            return child
+                        end
+                    end
+                    return nil
+                end
+
+                local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart", true) or customModelSpawned.PrimaryPart or findFirstBasePart(customModelSpawned)
+                if customHrp then
+                    customModelSpawned.PrimaryPart = customHrp
+                end
+
                 for _, part in ipairs(customModelSpawned:GetDescendants()) do
                     if part:IsA("BasePart") then
-                        part.Anchored = false
+                        part.Anchored = true -- Keep it anchored so it doesn't fall into the void!
                         part.CanCollide = false
+                        part.Transparency = 0
+                        part.LocalTransparencyModifier = 0
                         pcall(function()
                             part.CollisionGroup = "VisualOnly"
                         end)
                     end
                 end
-                
-                local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart") or customModelSpawned.PrimaryPart or customModelSpawned:FindFirstChildOfClass("BasePart")
-                if customHrp then
-                    customModelSpawned.PrimaryPart = customHrp
-                    customModelSpawned:PivotTo(character:GetPivot())
-                    
-                    local weld = Instance.new("WeldConstraint")
-                    weld.Part0 = humanoidRootPart
-                    weld.Part1 = customHrp
-                    weld.Parent = customHrp
-                end
             end
+
+            -- Align CFrame frame-by-frame
+            customModelSpawned:PivotTo(humanoidRootPart.CFrame)
 
             -- Keep custom model inside ignore list
             if customModelSpawned.Parent ~= ignore then
                 customModelSpawned.Parent = ignore
+            end
+
+            -- Force visibility of custom model parts
+            for _, part in ipairs(customModelSpawned:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 0
+                    part.LocalTransparencyModifier = 0
+                end
             end
 
             -- Hide original character parts
