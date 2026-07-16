@@ -798,6 +798,114 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
         headTransparency = v18;
     end
 });
+-- Anti-Aim & Spinner State Variables
+_G.SpinnerEnabled = false
+_G.SpinnerSpeed = 20
+_G.AntiAimEnabled = false
+_G.AntiAimYawMode = "Jitter"
+_G.AntiAimYawAngle = 180
+_G.AntiAimPitchMode = "Down"
+_G.AntiAimPitchAngle = 80
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSection("Spinner");
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Enable Spinner",
+    CurrentValue = false,
+    Flag = "SpinnerToggle",
+    Callback = function(v)
+        _G.SpinnerEnabled = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Spinner Speed",
+    Range = {1, 100},
+    Increment = 1,
+    CurrentValue = 20,
+    Flag = "SpinnerSpeed",
+    Callback = function(v)
+        _G.SpinnerSpeed = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSection("Anti-Aim");
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Enable Anti-Aim",
+    CurrentValue = false,
+    Flag = "AntiAimToggle",
+    Callback = function(v)
+        _G.AntiAimEnabled = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
+    Name = "Yaw Mode",
+    Options = {
+        "Jitter",
+        "Left",
+        "Right",
+        "Back",
+        "Custom"
+    },
+    CurrentOption = {
+        "Jitter"
+    },
+    MultipleOptions = false,
+    Flag = "AntiAimYawMode",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
+        end
+        _G.AntiAimYawMode = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Custom Yaw Offset",
+    Range = {-180, 180},
+    Increment = 1,
+    CurrentValue = 180,
+    Flag = "AntiAimYawAngle",
+    Callback = function(v)
+        _G.AntiAimYawAngle = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
+    Name = "Pitch Mode",
+    Options = {
+        "Down",
+        "Up",
+        "Jitter",
+        "Zero",
+        "Custom"
+    },
+    CurrentOption = {
+        "Down"
+    },
+    MultipleOptions = false,
+    Flag = "AntiAimPitchMode",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
+        end
+        _G.AntiAimPitchMode = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Custom Pitch Angle",
+    Range = {-80, 80},
+    Increment = 1,
+    CurrentValue = 80,
+    Flag = "AntiAimPitchAngle",
+    Callback = function(v)
+        _G.AntiAimPitchAngle = v
+    end
+});
+
 local l_l_v0_Window_0_Tab_1 = l_v0_Window_0:CreateTab("ESP", nil);
 local _ = l_l_v0_Window_0_Tab_1:CreateSection("Players");
 local l_RunService_0 = game:GetService("RunService");
@@ -2918,98 +3026,6 @@ l_RunService_3.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
         v423.FieldOfView = v424;
     end;
 end);
-
--- Spinner state
-_G.SpinnerEnabled = false
-_G.SpinnerSpeed = 20
-local spinAngle = 0
-
--- Anti-Aim state
-_G.AntiAimEnabled = false
-_G.AntiAimYawMode = "Jitter"
-_G.AntiAimYawAngle = 180
-_G.AntiAimPitchMode = "Down"
-_G.AntiAimPitchAngle = 80
-
--- Network Hook for Spinner & Anti-Aim
-task.spawn(function()
-    while not (_G.NEXT and _G.NEXT.SendTCP) do
-        task.wait(0.5)
-    end
-    
-    local function hookSend(targetTable)
-        for _, methodName in ipairs({"SendTCP", "SendUDP"}) do
-            if targetTable and targetTable[methodName] and not targetTable[methodName .. "_Hooked"] then
-                targetTable[methodName .. "_Hooked"] = true
-                local oldSend = targetTable[methodName]
-                targetTable[methodName] = function(code, ...)
-                    local args = {...}
-                    if code == 1 then -- SendCodes.PLAYER_MOVE is 1
-                        local rot = args[2] -- Vector3 (pitch, yaw, roll)
-                        
-                        if typeof(rot) == "Vector3" then
-                            local pitch = rot.X
-                            local yaw = rot.Y
-                            local roll = rot.Z
-                            
-                            -- Calculate Yaw
-                            if _G.SpinnerEnabled then
-                                spinAngle = (spinAngle + _G.SpinnerSpeed) % 360
-                                yaw = math.rad(spinAngle)
-                            end
-                            
-                            if _G.AntiAimEnabled then
-                                if _G.AntiAimYawMode == "Jitter" then
-                                    local offset = (math.random(0, 1) == 0 and 90 or -90)
-                                    yaw = (yaw + math.rad(offset + math.random(-15, 15))) % (math.pi * 2)
-                                elseif _G.AntiAimYawMode == "Left" then
-                                    yaw = (yaw + math.rad(90)) % (math.pi * 2)
-                                elseif _G.AntiAimYawMode == "Right" then
-                                    yaw = (yaw - math.rad(90)) % (math.pi * 2)
-                                elseif _G.AntiAimYawMode == "Back" then
-                                    yaw = (yaw + math.rad(180)) % (math.pi * 2)
-                                elseif _G.AntiAimYawMode == "Custom" then
-                                    yaw = (yaw + math.rad(_G.AntiAimYawAngle)) % (math.pi * 2)
-                                end
-                            end
-                            
-                            -- Calculate Pitch
-                            if _G.AntiAimEnabled then
-                                if _G.AntiAimPitchMode == "Down" then
-                                    pitch = math.rad(80)
-                                elseif _G.AntiAimPitchMode == "Up" then
-                                    pitch = math.rad(-80)
-                                elseif _G.AntiAimPitchMode == "Jitter" then
-                                    pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
-                                elseif _G.AntiAimPitchMode == "Zero" then
-                                    pitch = 0
-                                elseif _G.AntiAimPitchMode == "Custom" then
-                                    pitch = math.rad(_G.AntiAimPitchAngle)
-                                end
-                            end
-                            
-                            args[2] = Vector3.new(pitch, yaw, roll)
-                        end
-                    end
-                    return oldSend(code, unpack(args))
-                end
-            end
-        end
-    end
-
-    hookSend(_G.NEXT)
-    
-    -- Also watch for _G.classes.NetClient if it loads later
-    task.spawn(function()
-        while true do
-            if _G.classes and _G.classes.NetClient and not _G.classes.NetClient.SendTCP_Hooked then
-                hookSend(_G.classes.NetClient)
-            end
-            task.wait(1)
-        end
-    end)
-end)
-
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("HitSounds");
 local v441 = {
     Default = "rbxassetid://9119561046", 
@@ -3592,98 +3608,6 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     end
 });
 
-local _ = l_l_v0_Window_0_Tab_4:CreateSection("Spinner");
-local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
-    Name = "Enable Spinner",
-    CurrentValue = false,
-    Flag = "SpinnerToggle",
-    Callback = function(v)
-        _G.SpinnerEnabled = v
-    end
-})
-local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
-    Name = "Spinner Speed",
-    Range = {1, 100},
-    Increment = 1,
-    CurrentValue = 20,
-    Flag = "SpinnerSpeedSlider",
-    Callback = function(v)
-        _G.SpinnerSpeed = v
-    end
-})
-
-local _ = l_l_v0_Window_0_Tab_4:CreateSection("Anti-Aim");
-local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
-    Name = "Enable Anti-Aim",
-    CurrentValue = false,
-    Flag = "AntiAimToggle",
-    Callback = function(v)
-        _G.AntiAimEnabled = v
-    end
-})
-local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
-    Name = "Yaw Mode",
-    Options = {
-        "Jitter",
-        "Left",
-        "Right",
-        "Back",
-        "Custom"
-    },
-    CurrentOption = {
-        "Jitter"
-    },
-    MultipleOptions = false,
-    Flag = "AntiAimYawDropdown",
-    Callback = function(v)
-        if type(v) == "table" then
-            v = v[1]
-        end
-        _G.AntiAimYawMode = v
-    end
-})
-local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
-    Name = "Custom Yaw Offset",
-    Range = {-180, 180},
-    Increment = 1,
-    CurrentValue = 180,
-    Flag = "AntiAimYawAngleSlider",
-    Callback = function(v)
-        _G.AntiAimYawAngle = v
-    end
-})
-local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
-    Name = "Pitch Mode",
-    Options = {
-        "Down",
-        "Up",
-        "Jitter",
-        "Zero",
-        "Custom"
-    },
-    CurrentOption = {
-        "Down"
-    },
-    MultipleOptions = false,
-    Flag = "AntiAimPitchDropdown",
-    Callback = function(v)
-        if type(v) == "table" then
-            v = v[1]
-        end
-        _G.AntiAimPitchMode = v
-    end
-})
-local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
-    Name = "Custom Pitch Angle",
-    Range = {-80, 80},
-    Increment = 1,
-    CurrentValue = 80,
-    Flag = "AntiAimPitchAngleSlider",
-    Callback = function(v)
-        _G.AntiAimPitchAngle = v
-    end
-})
-
 -- Third Person settings
 local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
 local originalTransparencies = {}
@@ -4161,4 +4085,141 @@ SettingsTab:CreateButton({
         v0:Destroy();
     end
 });
+
+-- Network Hook for Spinner & Anti-Aim
+task.spawn(function()
+    local hookedClasses = {}
+    local spinAngle = 0
+    
+    local function hookTable(t, tableName)
+        if not t then return end
+        if hookedClasses[t] then return end
+        
+        -- Hook SendTCP
+        if t.SendTCP and type(t.SendTCP) == "function" then
+            local oldSendTCP = t.SendTCP
+            t.SendTCP = function(code, ...)
+                local n = select("#", ...)
+                local args = {...}
+                if code == 1 then -- PLAYER_MOVE is 1
+                    local rot = args[2]
+                    if typeof(rot) == "Vector3" then
+                        local pitch = rot.X
+                        local yaw = rot.Y
+                        local roll = rot.Z
+                        
+                        -- Apply Spinner
+                        if _G.SpinnerEnabled then
+                            spinAngle = (spinAngle + _G.SpinnerSpeed) % 360
+                            yaw = math.rad(spinAngle)
+                        end
+                        
+                        -- Apply Anti-Aim
+                        if _G.AntiAimEnabled then
+                            local yawOffset = 0
+                            if _G.AntiAimYawMode == "Jitter" then
+                                yawOffset = (math.random(0, 1) == 0 and 90 or -90) + math.random(-15, 15)
+                            elseif _G.AntiAimYawMode == "Left" then
+                                yawOffset = 90
+                            elseif _G.AntiAimYawMode == "Right" then
+                                yawOffset = -90
+                            elseif _G.AntiAimYawMode == "Back" then
+                                yawOffset = 180
+                            elseif _G.AntiAimYawMode == "Custom" then
+                                yawOffset = _G.AntiAimYawAngle or 180
+                            end
+                            yaw = (yaw + math.rad(yawOffset)) % (math.pi * 2)
+                            
+                            if _G.AntiAimPitchMode == "Down" then
+                                pitch = math.rad(80)
+                            elseif _G.AntiAimPitchMode == "Up" then
+                                pitch = math.rad(-80)
+                            elseif _G.AntiAimPitchMode == "Jitter" then
+                                pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
+                            elseif _G.AntiAimPitchMode == "Zero" then
+                                pitch = 0
+                            elseif _G.AntiAimPitchMode == "Custom" then
+                                pitch = math.rad(_G.AntiAimPitchAngle or 80)
+                            end
+                        end
+                        
+                        args[2] = Vector3.new(pitch, yaw, roll)
+                    end
+                end
+                return oldSendTCP(code, table.unpack(args, 1, n))
+            end
+            hookedClasses[t] = true
+            print("[Ocel-hub]: Hooked SendTCP on " .. tostring(tableName))
+        end
+
+        -- Hook SendUDP
+        if t.SendUDP and type(t.SendUDP) == "function" then
+            local oldSendUDP = t.SendUDP
+            t.SendUDP = function(code, ...)
+                local n = select("#", ...)
+                local args = {...}
+                if code == 1 then -- PLAYER_MOVE is 1
+                    local rot = args[2]
+                    if typeof(rot) == "Vector3" then
+                        local pitch = rot.X
+                        local yaw = rot.Y
+                        local roll = rot.Z
+                        
+                        -- Apply Spinner
+                        if _G.SpinnerEnabled then
+                            spinAngle = (spinAngle + _G.SpinnerSpeed) % 360
+                            yaw = math.rad(spinAngle)
+                        end
+                        
+                        -- Apply Anti-Aim
+                        if _G.AntiAimEnabled then
+                            local yawOffset = 0
+                            if _G.AntiAimYawMode == "Jitter" then
+                                yawOffset = (math.random(0, 1) == 0 and 90 or -90) + math.random(-15, 15)
+                            elseif _G.AntiAimYawMode == "Left" then
+                                yawOffset = 90
+                            elseif _G.AntiAimYawMode == "Right" then
+                                yawOffset = -90
+                            elseif _G.AntiAimYawMode == "Back" then
+                                yawOffset = 180
+                            elseif _G.AntiAimYawMode == "Custom" then
+                                yawOffset = _G.AntiAimYawAngle or 180
+                            end
+                            yaw = (yaw + math.rad(yawOffset)) % (math.pi * 2)
+                            
+                            if _G.AntiAimPitchMode == "Down" then
+                                pitch = math.rad(80)
+                            elseif _G.AntiAimPitchMode == "Up" then
+                                pitch = math.rad(-80)
+                            elseif _G.AntiAimPitchMode == "Jitter" then
+                                pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
+                            elseif _G.AntiAimPitchMode == "Zero" then
+                                pitch = 0
+                            elseif _G.AntiAimPitchMode == "Custom" then
+                                pitch = math.rad(_G.AntiAimPitchAngle or 80)
+                            end
+                        end
+                        
+                        args[2] = Vector3.new(pitch, yaw, roll)
+                    end
+                end
+                return oldSendUDP(code, table.unpack(args, 1, n))
+            end
+            print("[Ocel-hub]: Hooked SendUDP on " .. tostring(tableName))
+        end
+    end
+
+    while true do
+        pcall(function()
+            if _G.NEXT then
+                hookTable(_G.NEXT, "_G.NEXT")
+            end
+            if _G.classes and _G.classes.NetClient then
+                hookTable(_G.classes.NetClient, "_G.classes.NetClient")
+            end
+        end)
+        task.wait(1)
+    end
+end)
+
 return G2L["1"]
