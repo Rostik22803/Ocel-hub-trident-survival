@@ -6,7 +6,11 @@ if not game:IsLoaded() then
 end
 Players = game:GetService("Players");
 RunService = game:GetService("RunService");
-localPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait();
+localPlayer = Players.LocalPlayer;
+while not localPlayer do
+    task.wait()
+    localPlayer = Players.LocalPlayer
+end;
 ReplicatedStorage = game:GetService("ReplicatedStorage");
 camera = workspace.CurrentCamera;
 Workspace = game:GetService("Workspace");
@@ -18,8 +22,14 @@ local RunService = game:GetService("RunService")
 local function GetSafeUIContainer()
     local success, container = pcall(function() return gethui and gethui() end)
     if success and container then return container end
+    local success2, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success2 and coreGui then return coreGui end
     local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+    local LocalPlayer = Players.LocalPlayer
+    while not LocalPlayer do
+        task.wait()
+        LocalPlayer = Players.LocalPlayer
+    end
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 local CoreGui = GetSafeUIContainer()
@@ -31,9 +41,10 @@ function OcelUI:CreateWindow(options)
     local Title = options.Name or "Ocel-hub"
     
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "OcelLocalUI"
+    ScreenGui.Name = tostring(math.random(100000, 999999))
     ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
+    OcelUI.ScreenGui = ScreenGui
     
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
@@ -701,9 +712,13 @@ function OcelUI:CreateWindow(options)
 end
 
 function OcelUI:Destroy()
-    if CoreGui then
-        local old = CoreGui:FindFirstChild("OcelLocalUI")
-        if old then old:Destroy() end
+    if OcelUI.ScreenGui then
+        pcall(function() OcelUI.ScreenGui:Destroy() end)
+    else
+        if CoreGui then
+            local old = CoreGui:FindFirstChild("OcelLocalUI")
+            if old then old:Destroy() end
+        end
     end
 end
 
@@ -1685,7 +1700,8 @@ ToggleWeaponESP(false);
 ToggleSkeletonESP(false);
 local l_l_l_v0_Window_0_Tab_1_Section_1 = l_l_v0_Window_0_Tab_1:CreateSection("Armor");
 G2L = {};
-G2L["1"] = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"));
+G2L["1"] = Instance.new("ScreenGui", CoreGui);
+G2L["1"].Name = tostring(math.random(100000, 999999));
 G2L["1"].ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
 G2L["2"] = Instance.new("Frame", G2L["1"]);
 G2L["2"].ZIndex = -8;
@@ -1754,8 +1770,11 @@ l_2_0.InputChanged:Connect(function(v138) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end);
 
-local wearablesFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("items"):WaitForChild("wearables")
+local sharedFolderTemp = ReplicatedStorage:WaitForChild("Shared", 5)
+local itemsFolderTemp = sharedFolderTemp and sharedFolderTemp:WaitForChild("items", 5)
+local wearablesFolder = itemsFolderTemp and itemsFolderTemp:WaitForChild("wearables", 5)
 local function getWearableImage(path)
+    if not wearablesFolder then return nil end
     local current = wearablesFolder
     for part in string.gmatch(path, "[^%.]+") do
         current = current:WaitForChild(part, 5)
@@ -1797,9 +1816,9 @@ armorMapping = {
     SmallBackpack = getWearableImage("SmallBackpack")
 };
 screenGui = Instance.new("ScreenGui");
-screenGui.Name = "ArmorPreviewUI";
+screenGui.Name = tostring(math.random(100000, 999999));
 screenGui.ResetOnSpawn = false;
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui");
+screenGui.Parent = CoreGui;
 local function v145(v140, v141) --[[ Line: 0 ]] --[[ Name:  ]]
     local v142 = v140:Clone();
     v142.Size = UDim2.new(0, 100, 0, 100);
@@ -2392,11 +2411,12 @@ local _ = l_l_v0_Window_0_Tab_1:CreateSection("Vehicles");
 local l_RunService_2 = game:GetService("RunService");
 local l_CurrentCamera_2 = workspace.CurrentCamera;
 local _ = game:GetService("UserInputService");
-local sharedFolder = ReplicatedStorage:WaitForChild("Shared")
-local entitiesFolder = sharedFolder:WaitForChild("entities")
-local l_vehicles_0 = entitiesFolder:WaitForChild("vehicles")
+local sharedFolder = ReplicatedStorage:WaitForChild("Shared", 5)
+local entitiesFolder = sharedFolder and sharedFolder:WaitForChild("entities", 5)
+local l_vehicles_0 = entitiesFolder and entitiesFolder:WaitForChild("vehicles", 5)
 
 local function getVehicleModel(vehicleName)
+    if not l_vehicles_0 then return nil end
     local vehicle = l_vehicles_0:WaitForChild(vehicleName, 5)
     return vehicle and vehicle:WaitForChild("Model", 5)
 end
@@ -3985,15 +4005,7 @@ SettingsTab:CreateColorPicker({
     Name = "Menu Accent Color",
     Color = CurrentAccent,
     Callback = function(color)
-        local function GetSafeUIContainer()
-            local success, container = pcall(function() return gethui and gethui() end)
-            if success and container then return container end
-            local Players = game:GetService("Players")
-            local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-            return LocalPlayer:WaitForChild("PlayerGui")
-        end
-        local CoreGui = GetSafeUIContainer()
-        local UI = CoreGui:FindFirstChild("OcelLocalUI")
+        local UI = v0.ScreenGui
         if UI then
             for _, v in pairs(UI:GetDescendants()) do
                 if v:IsA("UIStroke") and v.Color == CurrentAccent then v.Color = color end
