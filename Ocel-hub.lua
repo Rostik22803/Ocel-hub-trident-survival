@@ -3595,6 +3595,13 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             -- Spawn custom model if needed
             if not customModelSpawned then
                 customModelSpawned = customModelAsset:Clone()
+                
+                -- Destroy any Humanoid to prevent character physics conflict
+                local hum = customModelSpawned:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    pcall(function() hum:Destroy() end)
+                end
+
                 customModelSpawned.Parent = ignore
                 
                 -- Helper to find first base part recursively
@@ -3616,6 +3623,9 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                     if part:IsA("BasePart") then
                         part.Anchored = true -- Keep it anchored so it doesn't fall into the void!
                         part.CanCollide = false
+                        pcall(function() part.CanTouch = false end)
+                        pcall(function() part.CanQuery = false end)
+                        pcall(function() part.Massless = true end)
                         part.Transparency = 0
                         part.LocalTransparencyModifier = 0
                         pcall(function()
@@ -3633,9 +3643,13 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 customModelSpawned.Parent = ignore
             end
 
-            -- Force visibility of custom model parts
+            -- Force visibility and collision-free settings of custom model parts every frame
             for _, part in ipairs(customModelSpawned:GetDescendants()) do
                 if part:IsA("BasePart") then
+                    part.Anchored = true
+                    part.CanCollide = false
+                    pcall(function() part.CanTouch = false end)
+                    pcall(function() part.CanQuery = false end)
                     part.Transparency = 0
                     part.LocalTransparencyModifier = 0
                 end
