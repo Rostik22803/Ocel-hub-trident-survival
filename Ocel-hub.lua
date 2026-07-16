@@ -3479,8 +3479,37 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     end
 })
 
-l_RunService_3:BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
-    if not ThirdPersonEnabled or FreeCamEnabled then
+local originalTransparencies = {}
+
+local function getCharacter()
+    local char
+    local success = pcall(function()
+        if _G.classes and _G.classes.Character and _G.classes.Character.GetModel then
+            char = _G.classes.Character.GetModel()
+        end
+    end)
+    if success and char then
+        return char
+    end
+    local lp = game:GetService("Players").LocalPlayer
+    return lp and lp.Character
+end
+
+game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
+    local character = getCharacter()
+    
+    if not ThirdPersonEnabled or FreeCamEnabled or not character then
+        -- Restore original transparencies
+        for part, trans in pairs(originalTransparencies) do
+            pcall(function()
+                if part and part.Parent then
+                    part.Transparency = trans
+                end
+            end)
+        end
+        table.clear(originalTransparencies)
+
+        -- Restore first-person arms parent
         local FPSArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
         if FPSArms and FPSArms.Parent == nil then
             FPSArms.Parent = workspace.Const.Ignore
@@ -3488,10 +3517,7 @@ l_RunService_3:BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value 
         return
     end
 
-    local character = Player.Character
-    if not character then return end
-
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character.PrimaryPart
     if not humanoidRootPart then return end
 
     local currentCamera = workspace.CurrentCamera
@@ -3503,9 +3529,13 @@ l_RunService_3:BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value 
         FPSArms.Parent = nil
     end
 
-    -- Force character visibility
+    -- Force character parts to be visible and track their original transparencies
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Transparency
+            end
+            part.Transparency = 0
             part.LocalTransparencyModifier = 0
         end
     end
@@ -3514,8 +3544,8 @@ l_RunService_3:BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value 
     local cameraCFrame = currentCamera.CFrame
     local cameraRotation = cameraCFrame - cameraCFrame.Position
 
-    local head = character:FindFirstChild("Head")
-    local origin = head and head.Position or humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+    local head = character:FindFirstChild("Top") or character:FindFirstChild("Head") or humanoidRootPart
+    local origin = head.Position
 
     local rightOffset = cameraRotation.RightVector * ThirdPersonRightOffset
     local upOffset = cameraRotation.UpVector * ThirdPersonUpOffset
