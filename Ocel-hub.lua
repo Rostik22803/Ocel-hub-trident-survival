@@ -813,38 +813,89 @@ task.spawn(function()
     end
     
     local netClient = _G.classes.NetClient
-    local oldSendTCP = netClient.SendTCP
     
-    netClient.SendTCP = function(code, position, anglesVector, ...)
-        if AntiAimEnabled and code == 1 and anglesVector and typeof(anglesVector) == "Vector3" then
-            local pitch = anglesVector.X
-            if AntiAimPitch == "Down" then
-                pitch = 1.5
-            elseif AntiAimPitch == "Up" then
-                pitch = -1.5
-            elseif AntiAimPitch == "Zero" then
-                pitch = 0
+    -- Hook SendTCP
+    if netClient.SendTCP then
+        local oldSendTCP = netClient.SendTCP
+        netClient.SendTCP = function(code, ...)
+            if AntiAimEnabled and code == 1 then
+                local args = {...}
+                local position = args[1]
+                local anglesVector = args[2]
+                if anglesVector and typeof(anglesVector) == "Vector3" then
+                    local pitch = anglesVector.X
+                    if AntiAimPitch == "Down" then
+                        pitch = 1.5
+                    elseif AntiAimPitch == "Up" then
+                        pitch = -1.5
+                    elseif AntiAimPitch == "Zero" then
+                        pitch = 0
+                    end
+                    
+                    local yaw = anglesVector.Y
+                    if SpinbotEnabled then
+                        local radSpeed = math.rad(SpinSpeed)
+                        yaw = (os.clock() * radSpeed) % (math.pi * 2)
+                    elseif AntiAimYaw == "Jitter" then
+                        local radRange = math.rad(JitterRange)
+                        local offset = (math.floor(os.clock() * 10) % 2 == 0) and radRange or -radRange
+                        yaw = (anglesVector.Y + offset) % (math.pi * 2)
+                    elseif AntiAimYaw == "Backwards" then
+                        yaw = (anglesVector.Y + math.pi) % (math.pi * 2)
+                    elseif AntiAimYaw == "Left" then
+                        yaw = (anglesVector.Y + math.pi / 2) % (math.pi * 2)
+                    elseif AntiAimYaw == "Right" then
+                        yaw = (anglesVector.Y - math.pi / 2) % (math.pi * 2)
+                    end
+                    
+                    args[2] = Vector3.new(pitch, yaw, anglesVector.Z)
+                end
+                return oldSendTCP(code, table.unpack(args))
             end
-            
-            local yaw = anglesVector.Y
-            if SpinbotEnabled then
-                local radSpeed = math.rad(SpinSpeed)
-                yaw = (os.clock() * radSpeed) % (math.pi * 2)
-            elseif AntiAimYaw == "Jitter" then
-                local radRange = math.rad(JitterRange)
-                local offset = (math.floor(os.clock() * 10) % 2 == 0) and radRange or -radRange
-                yaw = (anglesVector.Y + offset) % (math.pi * 2)
-            elseif AntiAimYaw == "Backwards" then
-                yaw = (anglesVector.Y + math.pi) % (math.pi * 2)
-            elseif AntiAimYaw == "Left" then
-                yaw = (anglesVector.Y + math.pi / 2) % (math.pi * 2)
-            elseif AntiAimYaw == "Right" then
-                yaw = (anglesVector.Y - math.pi / 2) % (math.pi * 2)
-            end
-            
-            anglesVector = Vector3.new(pitch, yaw, anglesVector.Z)
+            return oldSendTCP(code, ...)
         end
-        return oldSendTCP(code, position, anglesVector, ...)
+    end
+
+    -- Hook SendUDP
+    if netClient.SendUDP then
+        local oldSendUDP = netClient.SendUDP
+        netClient.SendUDP = function(code, ...)
+            if AntiAimEnabled and code == 1 then
+                local args = {...}
+                local position = args[1]
+                local anglesVector = args[2]
+                if anglesVector and typeof(anglesVector) == "Vector3" then
+                    local pitch = anglesVector.X
+                    if AntiAimPitch == "Down" then
+                        pitch = 1.5
+                    elseif AntiAimPitch == "Up" then
+                        pitch = -1.5
+                    elseif AntiAimPitch == "Zero" then
+                        pitch = 0
+                    end
+                    
+                    local yaw = anglesVector.Y
+                    if SpinbotEnabled then
+                        local radSpeed = math.rad(SpinSpeed)
+                        yaw = (os.clock() * radSpeed) % (math.pi * 2)
+                    elseif AntiAimYaw == "Jitter" then
+                        local radRange = math.rad(JitterRange)
+                        local offset = (math.floor(os.clock() * 10) % 2 == 0) and radRange or -radRange
+                        yaw = (anglesVector.Y + offset) % (math.pi * 2)
+                    elseif AntiAimYaw == "Backwards" then
+                        yaw = (anglesVector.Y + math.pi) % (math.pi * 2)
+                    elseif AntiAimYaw == "Left" then
+                        yaw = (anglesVector.Y + math.pi / 2) % (math.pi * 2)
+                    elseif AntiAimYaw == "Right" then
+                        yaw = (anglesVector.Y - math.pi / 2) % (math.pi * 2)
+                    end
+                    
+                    args[2] = Vector3.new(pitch, yaw, anglesVector.Z)
+                end
+                return oldSendUDP(code, table.unpack(args))
+            end
+            return oldSendUDP(code, ...)
+        end
     end
 end)
 
@@ -894,7 +945,7 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
     Name = "Spin Speed",
     Range = {1, 360},
     Increment = 1,
-    Suffix = "°/s",
+    Suffix = " deg/s",
     CurrentValue = 100,
     Flag = "SpinSpeedSlider",
     Callback = function(val)
@@ -906,7 +957,7 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
     Name = "Jitter Range",
     Range = {0, 180},
     Increment = 5,
-    Suffix = "°",
+    Suffix = " deg",
     CurrentValue = 45,
     Flag = "JitterRangeSlider",
     Callback = function(val)
