@@ -223,7 +223,7 @@ function OcelUI:CreateWindow(options)
             Btn.TextSize = 14
             
             Btn.MouseButton1Click:Connect(function()
-                if bOpts.Callback then bOpts.Callback(Btn) end
+                if bOpts.Callback then bOpts.Callback() end
             end)
             UpdateCanvas()
         end
@@ -3417,18 +3417,18 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
 
 -- Third Person settings
 local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
+local originalTransparencies = {}
+local customModelAsset = nil
+local customModelSpawned = nil
+local customModelWeldedCharacter = nil
+local modelLoading = false
+
 ThirdPersonEnabled = false;
 ThirdPersonDistance = 8;
 ThirdPersonRightOffset = 2;
 ThirdPersonUpOffset = 1.5;
 UseCustomModel = false;
 CustomModelGitHubURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt";
-
-local originalTransparencies = {}
-local customModelAsset = nil
-local customModelSpawned = nil
-local customModelWeldedCharacter = nil
-local modelLoading = false
 
 local thirdPersonToggleObj
 thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
@@ -3450,27 +3450,43 @@ useCustomModelToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
     end
 })
 
-local ModelList = {
-    { Name = "Tung Tung", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt" },
-    { Name = "Pipi Kiwi", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/pipi%20kiwi_id.txt" },
-    { Name = "Donkey", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/donkey_id.txt" }
-}
-local currentModelIndex = 1
-
-l_l_v0_Window_0_Tab_4:CreateButton({
-    Name = "Select Model: Tung Tung",
-    Callback = function(btn)
-        currentModelIndex = currentModelIndex % #ModelList + 1
-        btn.Text = "Select Model: " .. ModelList[currentModelIndex].Name
-        
-        CustomModelGitHubURL = ModelList[currentModelIndex].URL
-        
-        -- Reset spawned model and cache to trigger download of the new selected asset
-        if customModelSpawned then
-            customModelSpawned:Destroy()
-            customModelSpawned = nil
+local customModelDropdownObj = l_l_v0_Window_0_Tab_4:CreateDropdown({
+    Name = "Custom Model Selection",
+    Options = {
+        "Tung Tung",
+        "Pipi Kiwi",
+        "Donkey"
+    },
+    CurrentOption = {
+        "Tung Tung"
+    },
+    MultipleOptions = false,
+    Flag = "CustomModelDropdown",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
         end
-        customModelAsset = nil
+        
+        local newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt"
+        if v == "Pipi Kiwi" then
+            newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/pipi%20kiwi_id.txt"
+        elseif v == "Donkey" then
+            newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/donkey_id.txt"
+        end
+        
+        if CustomModelGitHubURL ~= newURL then
+            CustomModelGitHubURL = newURL
+            
+            -- Clear loaded model cache to force reload next frame
+            customModelAsset = nil
+            if customModelSpawned then
+                pcall(function()
+                    customModelSpawned:Destroy()
+                end)
+                customModelSpawned = nil
+            end
+            customModelWeldedCharacter = nil
+        end
     end
 })
 
