@@ -1,7 +1,6 @@
 --[[
 	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
-_G.OcelUIElements = {}
 Players = game:GetService("Players");
 RunService = game:GetService("RunService");
 localPlayer = Players.LocalPlayer;
@@ -264,28 +263,22 @@ function OcelUI:CreateWindow(options)
             
             local State = tOpts.CurrentValue or false
             
-            local function set(newState)
-                State = newState
+            local function toggle()
+                State = not State
                 TweenService:Create(Check, TweenInfo.new(0.2), {BackgroundColor3 = State and Color3.fromRGB(0, 110, 255) or Color3.fromRGB(50, 50, 50)}):Play()
                 if tOpts.Callback then tOpts.Callback(State) end
             end
             
-            local function toggle()
-                set(not State)
-            end
-            
             Check.MouseButton1Click:Connect(toggle)
             UpdateCanvas()
-
-            local element = {
-                Set = set,
-                Get = function() return State end,
-                Type = "Toggle"
+            return {
+                Set = function(self, val)
+                    if State ~= val then
+                        toggle()
+                    end
+                end,
+                Toggle = toggle
             }
-            if tOpts.Flag then
-                _G.OcelUIElements[tOpts.Flag] = element
-            end
-            return element
         end
         
         function Tab:CreateSlider(sOpts)
@@ -315,8 +308,7 @@ function OcelUI:CreateWindow(options)
             ValLabel.Position = UDim2.new(1, -60, 0, 0)
             ValLabel.Size = UDim2.new(0, 50, 0, 25)
             ValLabel.Font = Enum.Font.Gotham
-            local currentVal = sOpts.CurrentValue or sOpts.Range[1]
-            ValLabel.Text = tostring(currentVal) .. (sOpts.Suffix or "")
+            ValLabel.Text = tostring(sOpts.CurrentValue) .. (sOpts.Suffix or "")
             ValLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
             ValLabel.TextSize = 14
             ValLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -335,7 +327,7 @@ function OcelUI:CreateWindow(options)
             local SliderFill = Instance.new("Frame")
             SliderFill.Parent = SliderBg
             SliderFill.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
-            SliderFill.Size = UDim2.new((currentVal - sOpts.Range[1]) / (sOpts.Range[2] - sOpts.Range[1]), 0, 1, 0)
+            SliderFill.Size = UDim2.new((sOpts.CurrentValue - sOpts.Range[1]) / (sOpts.Range[2] - sOpts.Range[1]), 0, 1, 0)
             
             local FillCorner = Instance.new("UICorner")
             FillCorner.CornerRadius = UDim.new(1, 0)
@@ -343,22 +335,15 @@ function OcelUI:CreateWindow(options)
             
             local sliding = false
             
-            local function set(val)
-                local inc = sOpts.Increment or 1
-                val = math.floor(val / inc + 0.5) * inc
-                val = math.clamp(val, sOpts.Range[1], sOpts.Range[2])
-                currentVal = val
-                
-                local pos = (val - sOpts.Range[1]) / (sOpts.Range[2] - sOpts.Range[1])
-                SliderFill.Size = UDim2.new(pos, 0, 1, 0)
-                ValLabel.Text = tostring(val) .. (sOpts.Suffix or "")
-                if sOpts.Callback then sOpts.Callback(val) end
-            end
-            
             local function update(input)
                 local pos = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+                SliderFill.Size = UDim2.new(pos, 0, 1, 0)
                 local val = sOpts.Range[1] + (sOpts.Range[2] - sOpts.Range[1]) * pos
-                set(val)
+                local inc = sOpts.Increment or 1
+                val = math.floor(val / inc + 0.5) * inc
+                
+                ValLabel.Text = tostring(val) .. (sOpts.Suffix or "")
+                if sOpts.Callback then sOpts.Callback(val) end
             end
             
             SliderBg.InputBegan:Connect(function(input)
@@ -380,16 +365,6 @@ function OcelUI:CreateWindow(options)
                 end
             end)
             UpdateCanvas()
-
-            local element = {
-                Set = set,
-                Get = function() return currentVal end,
-                Type = "Slider"
-            }
-            if sOpts.Flag then
-                _G.OcelUIElements[sOpts.Flag] = element
-            end
-            return element
         end
 
         function Tab:CreateColorPicker(cOpts)
@@ -462,15 +437,6 @@ function OcelUI:CreateWindow(options)
                 if cOpts.Callback then cOpts.Callback(newCol) end
             end
             
-            local function set(color)
-                currentR, currentG, currentB = color.R, color.G, color.B
-                ColorDispBtn.BackgroundColor3 = color
-                rFill.Size = UDim2.new(currentR, 0, 1, 0)
-                gFill.Size = UDim2.new(currentG, 0, 1, 0)
-                bFill.Size = UDim2.new(currentB, 0, 1, 0)
-                if cOpts.Callback then cOpts.Callback(color) end
-            end
-            
             local function hookSlider(bg, fill, component)
                 local sliding = false
                 bg.InputBegan:Connect(function(input)
@@ -515,16 +481,6 @@ function OcelUI:CreateWindow(options)
             
             if cOpts.Callback then task.spawn(function() cOpts.Callback(ColorDispBtn.BackgroundColor3) end) end
             UpdateCanvas()
-
-            local element = {
-                Set = set,
-                Get = function() return ColorDispBtn.BackgroundColor3 end,
-                Type = "ColorPicker"
-            }
-            if cOpts.Flag then
-                _G.OcelUIElements[cOpts.Flag] = element
-            end
-            return element
         end
 
         function Tab:CreateDropdown(dOpts)
@@ -532,79 +488,107 @@ function OcelUI:CreateWindow(options)
             DdFrame.Parent = Page
             DdFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             DdFrame.Size = UDim2.new(1, 0, 0, 35)
+            DdFrame.ClipsDescendants = true
             
             local DdCorner = Instance.new("UICorner")
             DdCorner.CornerRadius = UDim.new(0, 6)
             DdCorner.Parent = DdFrame
             
+            local OpenBtn = Instance.new("TextButton")
+            OpenBtn.Parent = DdFrame
+            OpenBtn.BackgroundTransparency = 1
+            OpenBtn.Size = UDim2.new(1, 0, 0, 35)
+            OpenBtn.Font = Enum.Font.Gotham
+            OpenBtn.Text = ""
+            
             local Label = Instance.new("TextLabel")
             Label.Parent = DdFrame
             Label.BackgroundTransparency = 1
             Label.Position = UDim2.new(0, 10, 0, 0)
-            Label.Size = UDim2.new(1, -20, 1, 0)
+            Label.Size = UDim2.new(1, -20, 0, 35)
             Label.Font = Enum.Font.Gotham
-            
-            local optionsList = dOpts.Options or {}
-            local currentIdx = 1
-            local currentOption = dOpts.CurrentOption and dOpts.CurrentOption[1] or optionsList[1] or "None"
-            for i, opt in ipairs(optionsList) do
-                if opt == currentOption then
-                    currentIdx = i
-                    break
-                end
-            end
-            
-            local function updateText()
-                Label.Text = dOpts.Name .. " [" .. tostring(currentOption) .. "]"
-            end
-            updateText()
-            
+            Label.Text = dOpts.Name .. " [" .. (dOpts.CurrentOption and dOpts.CurrentOption[1] or "...") .. "]"
             Label.TextColor3 = Color3.fromRGB(255, 255, 255)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
             
-            local function set(option)
-                if type(option) == "table" then
-                    option = option[1]
-                end
-                currentOption = option
-                for i, opt in ipairs(optionsList) do
-                    if opt == option then
-                        currentIdx = i
-                        break
-                    end
-                end
-                updateText()
-                if dOpts.Callback then dOpts.Callback({currentOption}) end
+            local OptionsContainer = Instance.new("Frame")
+            OptionsContainer.Name = "OptionsContainer"
+            OptionsContainer.Parent = DdFrame
+            OptionsContainer.BackgroundTransparency = 1
+            OptionsContainer.Position = UDim2.new(0, 10, 0, 35)
+            OptionsContainer.Size = UDim2.new(1, -20, 0, #dOpts.Options * 25)
+            
+            local OptionsLayout = Instance.new("UIListLayout")
+            OptionsLayout.Parent = OptionsContainer
+            OptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            OptionsLayout.Padding = UDim.new(0, 2)
+            
+            local currentSelected = dOpts.CurrentOption and dOpts.CurrentOption[1] or ""
+            local expanded = false
+            
+            local function updateLabel(val)
+                Label.Text = dOpts.Name .. " [" .. val .. "]"
             end
             
-            local ClickBtn = Instance.new("TextButton")
-            ClickBtn.Parent = DdFrame
-            ClickBtn.BackgroundTransparency = 1
-            ClickBtn.Size = UDim2.new(1, 0, 1, 0)
-            ClickBtn.Text = ""
+            local dropdownObj = {
+                CurrentOption = {currentSelected}
+            }
             
-            ClickBtn.MouseButton1Click:Connect(function()
-                if #optionsList > 0 then
-                    currentIdx = currentIdx + 1
-                    if currentIdx > #optionsList then
-                        currentIdx = 1
+            local function selectOption(val)
+                currentSelected = val
+                dropdownObj.CurrentOption[1] = val
+                updateLabel(val)
+                if dOpts.Callback then
+                    task.spawn(function()
+                        dOpts.Callback({val})
+                    end)
+                end
+            end
+            
+            for i, opt in ipairs(dOpts.Options) do
+                local OptBtn = Instance.new("TextButton")
+                OptBtn.Name = opt
+                OptBtn.Parent = OptionsContainer
+                OptBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                OptBtn.Size = UDim2.new(1, 0, 0, 22)
+                OptBtn.Font = Enum.Font.Gotham
+                OptBtn.Text = opt
+                OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                OptBtn.TextSize = 12
+                
+                local OptCorner = Instance.new("UICorner")
+                OptCorner.CornerRadius = UDim.new(0, 4)
+                OptCorner.Parent = OptBtn
+                
+                OptBtn.MouseButton1Click:Connect(function()
+                    selectOption(opt)
+                    expanded = false
+                    TweenService:Create(DdFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 35)}):Play()
+                    for k = 1, 15 do
+                        task.wait(0.02)
+                        UpdateCanvas()
                     end
-                    set(optionsList[currentIdx])
+                end)
+            end
+            
+            OpenBtn.MouseButton1Click:Connect(function()
+                expanded = not expanded
+                local targetHeight = 35 + (#dOpts.Options * 24) + 4
+                TweenService:Create(DdFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, expanded and targetHeight or 35)}):Play()
+                for i = 1, 15 do
+                    task.wait(0.02)
+                    UpdateCanvas()
                 end
             end)
             
             UpdateCanvas()
-
-            local element = {
-                Set = set,
-                Get = function() return {currentOption} end,
-                Type = "Dropdown"
-            }
-            if dOpts.Flag then
-                _G.OcelUIElements[dOpts.Flag] = element
+            
+            function dropdownObj:Set(val)
+                selectOption(val)
             end
-            return element
+            
+            return dropdownObj
         end
 
         function Tab:CreateKeybind(kOpts)
@@ -634,64 +618,14 @@ function OcelUI:CreateWindow(options)
             BindLabel.Position = UDim2.new(1, -90, 0.5, -12)
             BindLabel.Size = UDim2.new(0, 80, 0, 24)
             BindLabel.Font = Enum.Font.Gotham
-            local currentKey = kOpts.CurrentKeybind or "None"
-            BindLabel.Text = currentKey
+            BindLabel.Text = kOpts.CurrentKeybind or "None"
             BindLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
             BindLabel.TextSize = 12
             
             local BindCorner = Instance.new("UICorner")
             BindCorner.CornerRadius = UDim.new(0, 4)
             BindCorner.Parent = BindLabel
-            
-            local waitingForBind = false
-            
-            local function set(key)
-                currentKey = key
-                BindLabel.Text = tostring(key)
-                if kOpts.Callback then kOpts.Callback(key) end
-            end
-            
-            local BindBtn = Instance.new("TextButton")
-            BindBtn.Parent = KbFrame
-            BindBtn.BackgroundTransparency = 1
-            BindBtn.Size = UDim2.new(1, 0, 1, 0)
-            BindBtn.Text = ""
-            
-            BindBtn.MouseButton1Click:Connect(function()
-                waitingForBind = true
-                BindLabel.Text = "..."
-            end)
-            
-            UserInputService.InputBegan:Connect(function(input, gp)
-                if waitingForBind and not gp then
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        waitingForBind = false
-                        set(input.KeyCode.Name)
-                    end
-                elseif not gp and currentKey ~= "None" and input.KeyCode == Enum.KeyCode[currentKey] then
-                    if kOpts.Callback then kOpts.Callback(not kOpts.HoldToInteract or true) end
-                end
-            end)
-            
-            if kOpts.HoldToInteract then
-                UserInputService.InputEnded:Connect(function(input, gp)
-                    if not gp and currentKey ~= "None" and input.KeyCode == Enum.KeyCode[currentKey] then
-                        if kOpts.Callback then kOpts.Callback(false) end
-                    end
-                end)
-            end
-            
             UpdateCanvas()
-
-            local element = {
-                Set = set,
-                Get = function() return currentKey end,
-                Type = "Keybind"
-            }
-            if kOpts.Flag then
-                _G.OcelUIElements[kOpts.Flag] = element
-            end
-            return element
         end
 
         return Tab
@@ -763,212 +697,15 @@ function OcelUI:CreateWindow(options)
     return Window
 end
 
+function OcelUI:Destroy()
+    if CoreGui then
+        local old = CoreGui:FindFirstChild("OcelLocalUI")
+        if old then old:Destroy() end
+    end
+end
+
 return OcelUI
 end)()
-
--- Configuration Manager, Third Person and Custom Character Logic
-local HttpService = game:GetService("HttpService")
-
-local function SaveConfig()
-    local config = {}
-    for flag, element in pairs(_G.OcelUIElements) do
-        local val = element:Get()
-        if typeof(val) == "Color3" then
-            config[flag] = {r = val.R, g = val.G, b = val.B, isColor = true}
-        else
-            config[flag] = val
-        end
-    end
-    local success, encoded = pcall(function() return HttpService:JSONEncode(config) end)
-    if success then
-        writefile("ocel_hub_config.json", encoded)
-    else
-        warn("[Ocel-hub]: Failed to encode config")
-    end
-end
-
-local function LoadConfig()
-    if isfile and isfile("ocel_hub_config.json") then
-        local success, content = pcall(function() return readfile("ocel_hub_config.json") end)
-        if not success or not content then return end
-        
-        local success2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
-        if not success2 or not decoded then return end
-        
-        for flag, val in pairs(decoded) do
-            local element = _G.OcelUIElements[flag]
-            if element then
-                pcall(function()
-                    if type(val) == "table" and val.isColor then
-                        element:Set(Color3.new(val.r, val.g, val.b))
-                    else
-                        element:Set(val)
-                    end
-                end)
-            end
-        end
-    end
-end
-
-local function SetAutoLoad(state)
-    writefile("ocel_autoload.txt", state and "true" or "false")
-end
-
-local function GetAutoLoad()
-    if isfile and isfile("ocel_autoload.txt") then
-        local content = readfile("ocel_autoload.txt")
-        return content == "true"
-    end
-    return false
-end
-
-local ThirdPersonEnabled = false
-local ThirdPersonDistance = 12
-local ThirdPersonHeight = 2
-local ThirdPersonShoulderOffset = 0
-
-local function updateThirdPerson(dt)
-    if not ThirdPersonEnabled then return end
-    
-    local localChar = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("LocalCharacter")
-    if not localChar or not localChar:FindFirstChild("Middle") then return end
-    
-    local targetPos = localChar.Middle.Position
-    local currentCF = camera.CFrame
-    local rotation = currentCF - currentCF.Position
-    
-    -- Calculate target camera position (offset backward, up, and to the side)
-    local targetCameraPos = targetPos + rotation * Vector3.new(ThirdPersonShoulderOffset, ThirdPersonHeight, ThirdPersonDistance)
-    
-    -- Wall Collision Detection
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = { localChar, workspace.Const.Ignore }
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    
-    local rayDirection = targetCameraPos - targetPos
-    local raycastResult = workspace:Raycast(targetPos, rayDirection, raycastParams)
-    
-    if raycastResult then
-        -- Collision detected! Place camera slightly in front of the collision point
-        targetCameraPos = targetPos + rayDirection.Unit * math.max(0.5, raycastResult.Distance - 0.5)
-    end
-    
-    camera.CFrame = rotation + targetCameraPos
-end
-
--- Hide FPSArms in third person
-local function updateFPSArms()
-    local fpsArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
-    if fpsArms then
-        for _, part in ipairs(fpsArms:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.LocalTransparencyModifier = ThirdPersonEnabled and 1 or 0
-            end
-        end
-    end
-end
-
-local CustomCharacters = {
-    ["None"] = nil,
-    ["Ocel"] = "82135169780313",
-    ["Donkey"] = "15258571412",
-    ["Pipi Kiwi"] = "82648228408900"
-}
-local SelectedCustomCharacter = "None"
-local SpawnedCustomModel = nil
-local CurrentModelId = nil
-
-local function removeCustomCharacter()
-    if SpawnedCustomModel then
-        SpawnedCustomModel:Destroy()
-        SpawnedCustomModel = nil
-    end
-    CurrentModelId = nil
-end
-
-local function spawnCustomCharacter(modelId)
-    removeCustomCharacter()
-    if not modelId then return end
-    
-    CurrentModelId = modelId
-    task.spawn(function()
-        local success, objects = pcall(function()
-            return game:GetObjects("rbxassetid://" .. tostring(modelId))
-        end)
-        
-        if not success or not objects or #objects == 0 then
-            warn("[Ocel-hub]: Failed to load character model:", modelId)
-            return
-        end
-        
-        local model = objects[1]
-        if not model or not model:IsA("Model") then return end
-        
-        -- If user changed option while loading
-        if CurrentModelId ~= modelId then
-            model:Destroy()
-            return
-        end
-        
-        model.Name = "VisualCustomCharacter"
-        
-        -- Configure parts for visuals only
-        for _, part in ipairs(model:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-                part.Massless = true
-            elseif part:IsA("Humanoid") then
-                part.PlatformStand = true
-                part.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-            end
-        end
-        
-        SpawnedCustomModel = model
-        model.Parent = workspace.Const.Ignore
-    end)
-end
-
-RunService.RenderStepped:Connect(function(dt)
-    -- 1. Update Third Person Camera
-    updateThirdPerson(dt)
-    
-    -- 2. Hide first person arms if in third person
-    updateFPSArms()
-    
-    -- 3. Update Custom Character position & visibility
-    local localChar = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("LocalCharacter")
-    
-    if localChar then
-        -- Hide the original character visual capsule parts if custom character is active
-        for _, part in ipairs(localChar:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.LocalTransparencyModifier = (SelectedCustomCharacter ~= "None") and 1 or 0
-            end
-        end
-        -- Also hide any weapons or accessories attached directly to localChar
-        for _, v in ipairs(localChar:GetDescendants()) do
-            if v:IsA("BasePart") and v.Parent ~= SpawnedCustomModel then
-                v.LocalTransparencyModifier = (SelectedCustomCharacter ~= "None") and 1 or 0
-            end
-        end
-    end
-    
-    if SpawnedCustomModel and localChar then
-        local targetPart = localChar:FindFirstChild("Middle") or localChar.PrimaryPart
-        if targetPart then
-            -- Position model at character CFrame
-            SpawnedCustomModel:PivotTo(targetPart.CFrame * CFrame.new(0, -1, 0))
-            
-            -- Visibility: visible only in third person to not obstruct view
-            for _, part in ipairs(SpawnedCustomModel:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.LocalTransparencyModifier = ThirdPersonEnabled and 0 or 1
-                end
-            end
-        end
-    end
-end)
-
 local l_v0_Window_0 = v0:CreateWindow({
     Name = "🌟 Ocel-hub 🌟",
     ToggleUIKeybind = "RightShift", 
@@ -3762,6 +3499,430 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
         FreeCamSpeed = v582;
     end
 });
+
+-- Third Person settings
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
+local originalTransparencies = {}
+local customModelAsset = nil
+local customModelSpawned = nil
+local customModelWeldedCharacter = nil
+local modelLoading = false
+
+ThirdPersonEnabled = false;
+ThirdPersonDistance = 8;
+ThirdPersonRightOffset = 2;
+ThirdPersonUpOffset = 1.5;
+UseCustomModel = false;
+CustomModelGitHubURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt";
+
+local thirdPersonToggleObj
+thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Third Person",
+    CurrentValue = false,
+    Flag = "ThirdPersonToggle",
+    Callback = function(v)
+        ThirdPersonEnabled = v
+    end
+})
+
+local useCustomModelToggleObj
+useCustomModelToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Use Custom Model",
+    CurrentValue = false,
+    Flag = "UseCustomModelToggle",
+    Callback = function(v)
+        UseCustomModel = v
+    end
+})
+
+local customModelDropdownObj = l_l_v0_Window_0_Tab_4:CreateDropdown({
+    Name = "Custom Model Selection",
+    Options = {
+        "Tung Tung",
+        "Pipi Kiwi",
+        "Donkey"
+    },
+    CurrentOption = {
+        "Tung Tung"
+    },
+    MultipleOptions = false,
+    Flag = "CustomModelDropdown",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
+        end
+        
+        local newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt"
+        if v == "Pipi Kiwi" then
+            newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/pipi%20kiwi_id.txt"
+        elseif v == "Donkey" then
+            newURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/donkey_id.txt"
+        end
+        
+        if CustomModelGitHubURL ~= newURL then
+            CustomModelGitHubURL = newURL
+            
+            -- Clear loaded model cache to force reload next frame
+            customModelAsset = nil
+            if customModelSpawned then
+                pcall(function()
+                    customModelSpawned:Destroy()
+                end)
+                customModelSpawned = nil
+            end
+            customModelWeldedCharacter = nil
+        end
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateKeybind({
+    Name = "Third Person Keybind",
+    CurrentKeybind = "T",
+    HoldToInteract = false,
+    Flag = "ThirdPersonKeybind",
+    Callback = function()
+        if thirdPersonToggleObj then
+            thirdPersonToggleObj:Toggle()
+        else
+            ThirdPersonEnabled = not ThirdPersonEnabled
+        end
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Distance",
+    Range = {1, 30},
+    Increment = 1,
+    CurrentValue = 8,
+    Flag = "ThirdPersonDistance",
+    Callback = function(v)
+        ThirdPersonDistance = v
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Right Offset",
+    Range = {-10, 10},
+    Increment = 0.5,
+    CurrentValue = 2,
+    Flag = "ThirdPersonRightOffset",
+    Callback = function(v)
+        ThirdPersonRightOffset = v
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Up Offset",
+    Range = {-5, 5},
+    Increment = 0.5,
+    CurrentValue = 1.5,
+    Flag = "ThirdPersonUpOffset",
+    Callback = function(v)
+        ThirdPersonUpOffset = v
+    end
+})
+
+local function getCharacter()
+    local char
+    local success = pcall(function()
+        if _G.classes and _G.classes.Character and _G.classes.Character.GetModel then
+            char = _G.classes.Character.GetModel()
+        end
+    end)
+    if success and char then
+        return char
+    end
+    local const = workspace:FindFirstChild("Const")
+    local ignore = const and const:FindFirstChild("Ignore")
+    local localChar = ignore and ignore:FindFirstChild("LocalCharacter")
+    if localChar then
+        return localChar
+    end
+    local lp = game:GetService("Players").LocalPlayer
+    return lp and lp.Character
+end
+
+local function loadCustomModel()
+    if customModelAsset or modelLoading then return end
+    modelLoading = true
+    task.spawn(function()
+        local success, err = pcall(function()
+            local idStr = game:HttpGet(CustomModelGitHubURL)
+            local assetId = tonumber(idStr:match("%d+"))
+            if assetId then
+                local objects = game:GetObjects("rbxassetid://" .. assetId)
+                if objects and #objects > 0 then
+                    customModelAsset = objects[1]
+                end
+            end
+        end)
+        if not success then
+            warn("Failed to load custom model from GitHub: " .. tostring(err))
+        end
+        modelLoading = false
+    end)
+end
+
+game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
+    local success, err = pcall(function()
+        local character = getCharacter()
+        
+        local distance = ThirdPersonDistance or 8
+        local rightOffsetVal = ThirdPersonRightOffset or 2
+        local upOffsetVal = ThirdPersonUpOffset or 1.5
+
+        -- Trigger model loading if custom model is selected but not loaded yet
+        if ThirdPersonEnabled and not FreeCamEnabled and UseCustomModel and not customModelAsset then
+            loadCustomModel()
+        end
+
+        if not ThirdPersonEnabled or FreeCamEnabled or not character then
+            -- Clean up custom model
+            if customModelSpawned then
+                customModelSpawned:Destroy()
+                customModelSpawned = nil
+            end
+            customModelWeldedCharacter = nil
+
+            -- Restore original transparencies
+            for part, trans in pairs(originalTransparencies) do
+                pcall(function()
+                    if part and part.Parent then
+                        part.Transparency = trans
+                    end
+                end)
+            end
+            table.clear(originalTransparencies)
+
+            -- Restore first-person arms parent
+            local const = workspace:FindFirstChild("Const")
+            local ignore = const and const:FindFirstChild("Ignore")
+            local FPSArms = ignore and ignore:FindFirstChild("FPSArms")
+            if FPSArms and FPSArms.Parent == nil then
+                FPSArms.Parent = ignore
+            end
+            return
+        end
+
+        local visualChar = game:GetService("Players").LocalPlayer.Character
+        local physicsChar = character
+        local humanoidRootPart = physicsChar:FindFirstChild("Middle") or physicsChar:FindFirstChild("Top") or physicsChar.PrimaryPart
+        if not humanoidRootPart then return end
+
+        -- Recreate custom model if character changes (e.g. respawn)
+        if customModelSpawned and customModelWeldedCharacter ~= physicsChar then
+            customModelSpawned:Destroy()
+            customModelSpawned = nil
+            customModelWeldedCharacter = nil
+        end
+
+        local currentCamera = workspace.CurrentCamera
+        if not currentCamera then return end
+
+        -- Hide viewmodel arms
+        local const = workspace:FindFirstChild("Const")
+        local ignore = const and const:FindFirstChild("Ignore")
+        local FPSArms = ignore and ignore:FindFirstChild("FPSArms")
+        if FPSArms and FPSArms.Parent ~= nil then
+            FPSArms.Parent = nil
+        end
+
+        if UseCustomModel and customModelAsset then
+            -- Verify if the custom model was destroyed externally
+            if customModelSpawned and (not customModelSpawned.Parent or not customModelSpawned:IsDescendantOf(workspace)) then
+                customModelSpawned = nil
+            end
+
+            -- Spawn custom model if needed
+            if not customModelSpawned then
+                customModelSpawned = customModelAsset:Clone()
+                customModelWeldedCharacter = physicsChar
+                
+                -- Destroy any Humanoid to prevent character physics conflict
+                local hum = customModelSpawned:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    pcall(function() hum:Destroy() end)
+                end
+
+                customModelSpawned.Parent = ignore
+                
+                -- Helper to find first base part recursively
+                local function findFirstBasePart(parent)
+                    for _, child in ipairs(parent:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            return child
+                        end
+                    end
+                    return nil
+                end
+
+                local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart", true) or customModelSpawned.PrimaryPart or findFirstBasePart(customModelSpawned)
+                if customHrp then
+                    customModelSpawned.PrimaryPart = customHrp
+                    customModelSpawned:PivotTo(humanoidRootPart.CFrame)
+                end
+
+                -- To prevent loose parts from falling, we weld them to customHrp
+                local connectedParts = {}
+                for _, joint in ipairs(customModelSpawned:GetDescendants()) do
+                    if joint:IsA("Motor6D") or joint:IsA("Weld") or joint:IsA("ManualWeld") or joint:IsA("WeldConstraint") then
+                        if joint.Part0 and joint.Part1 then
+                            connectedParts[joint.Part0] = true
+                            connectedParts[joint.Part1] = true
+                        end
+                    end
+                end
+
+                for _, part in ipairs(customModelSpawned:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = false -- Must be false so it doesn't freeze character movement!
+                        part.CanCollide = false
+                        pcall(function() part.CanTouch = false end)
+                        pcall(function() part.CanQuery = false end)
+                        pcall(function() part.Massless = true end)
+                        part.Transparency = 0
+                        part.LocalTransparencyModifier = 0
+                        pcall(function()
+                            part.CollisionGroup = "VisualOnly"
+                        end)
+                        
+                        -- Weld to customHrp if not connected by any joints
+                        if customHrp and part ~= customHrp and not connectedParts[part] then
+                            local w = Instance.new("WeldConstraint")
+                            w.Part0 = customHrp
+                            w.Part1 = part
+                            w.Parent = customHrp
+                        end
+                    end
+                end
+
+                -- Weld the custom model upright to the sideways physical capsule
+                if customHrp then
+                    local weld = Instance.new("Weld")
+                    weld.Name = "CustomModelWeld"
+                    weld.Part0 = humanoidRootPart
+                    weld.Part1 = customHrp
+                    
+                    local targetC0 = CFrame.new()
+                    local isLocalChar = (physicsChar.Name == "LocalCharacter" or physicsChar.Parent.Name == "Ignore")
+                    if isLocalChar then
+                        -- Rotate 90 degrees around Z axis and offset down by 1.5 studs
+                        targetC0 = CFrame.Angles(0, 0, 1.5707963) * CFrame.new(0, -1.5, 0)
+                    end
+                    weld.C0 = targetC0
+                    weld.C1 = CFrame.new()
+                    weld.Parent = customHrp
+                end
+            end
+
+            -- Keep custom model inside ignore list
+            if customModelSpawned.Parent ~= ignore then
+                customModelSpawned.Parent = ignore
+            end
+
+            -- Enforce visual-only ghost properties every frame without breaking the weld assembly
+            for _, part in ipairs(customModelSpawned:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Anchored then part.Anchored = false end
+                    if part.CanCollide then part.CanCollide = false end
+                    pcall(function() part.CanTouch = false end)
+                    pcall(function() part.CanQuery = false end)
+                    part.Transparency = 0
+                    part.LocalTransparencyModifier = 0
+                end
+            end
+
+            -- Hide original character parts (both visual character and physical capsule)
+            local function hideModel(m)
+                for _, part in ipairs(m:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            if not originalTransparencies[part] then
+                                originalTransparencies[part] = part.Transparency
+                            end
+                            part.Transparency = 1
+                            part.LocalTransparencyModifier = 1
+                        end)
+                    end
+                end
+            end
+            if visualChar then hideModel(visualChar) end
+            if physicsChar then hideModel(physicsChar) end
+
+            -- Copy joints to custom model (mirror animations)
+            if visualChar then
+                for _, motor in ipairs(visualChar:GetDescendants()) do
+                    if motor:IsA("Motor6D") then
+                        local targetMotor = customModelSpawned:FindFirstChild(motor.Name, true)
+                        if targetMotor and targetMotor:IsA("Motor6D") then
+                            targetMotor.Transform = motor.Transform
+                        end
+                    end
+                end
+            end
+        else
+            -- Clean up custom model if UseCustomModel was toggled off
+            if customModelSpawned then
+                customModelSpawned:Destroy()
+                customModelSpawned = nil
+            end
+            customModelWeldedCharacter = nil
+
+            -- Make original character visible
+            local function showModel(m)
+                for _, part in ipairs(m:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            local orig = originalTransparencies[part] or 0
+                            part.Transparency = orig
+                            part.LocalTransparencyModifier = 0
+                        end)
+                    end
+                end
+            end
+            if visualChar then showModel(visualChar) end
+            if physicsChar and physicsChar ~= visualChar then showModel(physicsChar) end
+        end
+
+        -- Calculate camera CFrame
+        local cameraCFrame = currentCamera.CFrame
+        local cameraRotation = cameraCFrame - cameraCFrame.Position
+
+        local head = character:FindFirstChild("Top") or character:FindFirstChild("Head") or humanoidRootPart
+        local origin = head:IsA("BasePart") and head.Position or humanoidRootPart.Position
+
+        local rightOffset = cameraRotation.RightVector * rightOffsetVal
+        local upOffset = cameraRotation.UpVector * upOffsetVal
+        local backOffset = -cameraRotation.LookVector * distance
+
+        local targetPosition = origin + rightOffset + upOffset + backOffset
+
+        -- Raycast for collisions
+        local raycastParams = RaycastParams.new()
+        local ignoreList = { character }
+        if ignore then
+            table.insert(ignoreList, ignore)
+        end
+        if customModelSpawned then
+            table.insert(ignoreList, customModelSpawned)
+        end
+        raycastParams.FilterDescendantsInstances = ignoreList
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        local direction = targetPosition - origin
+        local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+
+        local finalPosition = targetPosition
+        if raycastResult then
+            finalPosition = raycastResult.Position + raycastResult.Normal * 0.2
+        end
+
+        currentCamera.CFrame = CFrame.new(finalPosition) * cameraRotation
+    end)
+    if not success then
+        warn("ThirdPerson RenderStep Error: " .. tostring(err))
+    end
+end)
 l_UserInputService_3.InputBegan:Connect(function(v584, v585) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v566 (ref), v567 (ref)
     if v585 then
@@ -3779,70 +3940,6 @@ l_UserInputService_3.InputEnded:Connect(function(v586) --[[ Line: 0 ]] --[[ Name
         v567[v586.KeyCode] = false;
     end;
 end);
-
-local tpSection = l_l_v0_Window_0_Tab_4:CreateSection("Third Person & Custom Character")
-
-tpSection:CreateToggle({
-    Name = "Third Person",
-    CurrentValue = false,
-    Flag = "ThirdPersonToggle",
-    Callback = function(state)
-        ThirdPersonEnabled = state
-        updateFPSArms()
-    end
-})
-
-tpSection:CreateSlider({
-    Name = "Camera Distance",
-    Range = { 5, 25 },
-    Increment = 1,
-    CurrentValue = 12,
-    Flag = "ThirdPersonDistance",
-    Callback = function(val)
-        ThirdPersonDistance = val
-    end
-})
-
-tpSection:CreateSlider({
-    Name = "Camera Height",
-    Range = { -5, 5 },
-    Increment = 0.5,
-    CurrentValue = 2,
-    Flag = "ThirdPersonHeight",
-    Callback = function(val)
-        ThirdPersonHeight = val
-    end
-})
-
-tpSection:CreateSlider({
-    Name = "Camera Shoulder Offset",
-    Range = { -5, 5 },
-    Increment = 0.5,
-    CurrentValue = 0,
-    Flag = "ThirdPersonShoulderOffset",
-    Callback = function(val)
-        ThirdPersonShoulderOffset = val
-    end
-})
-
-tpSection:CreateDropdown({
-    Name = "Custom Character",
-    Options = { "None", "Ocel", "Donkey", "Pipi Kiwi" },
-    CurrentOption = { "None" },
-    MultipleOptions = false,
-    Flag = "CustomCharacterDropdown",
-    Callback = function(option)
-        local optName = type(option) == "table" and option[1] or option
-        SelectedCustomCharacter = optName
-        local modelId = CustomCharacters[optName]
-        if modelId then
-            spawnCustomCharacter(modelId)
-        else
-            removeCustomCharacter()
-        end
-    end
-})
-
 local SettingsTab = l_v0_Window_0:CreateTab("⚙️ Settings", nil)
 SettingsTab:CreateSection("Menu Customization")
 
@@ -3873,39 +3970,6 @@ SettingsTab:CreateColorPicker({
     end
 })
 
-SettingsTab:CreateSection("📁 Configuration Manager")
-
-SettingsTab:CreateToggle({
-    Name = "Auto-Load Config on startup",
-    CurrentValue = GetAutoLoad(),
-    Flag = "AutoLoadToggle",
-    Callback = function(state)
-        SetAutoLoad(state)
-    end
-})
-
-SettingsTab:CreateButton({
-    Name = "Save Config",
-    Callback = function()
-        SaveConfig()
-        l_v0_Window_0:Notify({
-            Title = "Config Saved",
-            Content = "Successfully saved settings to ocel_hub_config.json"
-        })
-    end
-})
-
-SettingsTab:CreateButton({
-    Name = "Load Config",
-    Callback = function()
-        LoadConfig()
-        l_v0_Window_0:Notify({
-            Title = "Config Loaded",
-            Content = "Successfully loaded settings from ocel_hub_config.json"
-        })
-    end
-})
-
 SettingsTab:CreateSection("⚠️ System")
 SettingsTab:CreateButton({
     Name = "Unload Ocel-hub", 
@@ -3913,12 +3977,4 @@ SettingsTab:CreateButton({
         v0:Destroy();
     end
 });
-
-task.spawn(function()
-    task.wait(1)
-    if GetAutoLoad() then
-        LoadConfig()
-    end
-end)
-
 return G2L["1"]
