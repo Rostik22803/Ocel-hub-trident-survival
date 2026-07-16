@@ -3579,12 +3579,13 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             return
         end
 
-        local visualChar = game:GetService("Players").LocalPlayer.Character or character
-        local humanoidRootPart = visualChar:FindFirstChild("HumanoidRootPart") or visualChar:FindFirstChild("Torso") or visualChar:FindFirstChild("UpperTorso") or visualChar.PrimaryPart
+        local visualChar = game:GetService("Players").LocalPlayer.Character
+        local physicsChar = character
+        local humanoidRootPart = physicsChar:FindFirstChild("Middle") or physicsChar:FindFirstChild("Top") or physicsChar.PrimaryPart
         if not humanoidRootPart then return end
 
         -- Recreate custom model if character changes (e.g. respawn)
-        if customModelSpawned and customModelWeldedCharacter ~= visualChar then
+        if customModelSpawned and customModelWeldedCharacter ~= physicsChar then
             customModelSpawned:Destroy()
             customModelSpawned = nil
             customModelWeldedCharacter = nil
@@ -3610,7 +3611,7 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             -- Spawn custom model if needed
             if not customModelSpawned then
                 customModelSpawned = customModelAsset:Clone()
-                customModelWeldedCharacter = visualChar
+                customModelWeldedCharacter = physicsChar
                 
                 -- Destroy any Humanoid to prevent character physics conflict
                 local hum = customModelSpawned:FindFirstChildOfClass("Humanoid")
@@ -3634,11 +3635,11 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 if customHrp then
                     customModelSpawned.PrimaryPart = customHrp
                     
-                    local targetCFrame = humanoidRootPart.CFrame
-                    local isLocalChar = (visualChar.Name == "LocalCharacter" or visualChar.Parent.Name == "Ignore")
-                    if isLocalChar then
-                        targetCFrame = targetCFrame * CFrame.Angles(0, 0, 1.5707963)
-                    end
+                    -- Align to the physics capsule upright position
+                    local pos = humanoidRootPart.Position + Vector3.new(0, -1.5, 0)
+                    local look = humanoidRootPart.CFrame.LookVector
+                    local horizontalLook = Vector3.new(look.X, 0, look.Z).Unit
+                    local targetCFrame = CFrame.lookAt(pos, pos + horizontalLook, Vector3.new(0, 1, 0))
                     customModelSpawned:PivotTo(targetCFrame)
                 end
 
@@ -3659,11 +3660,10 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             end
 
             -- Align CFrame frame-by-frame (no physical welds, preventing any physics interference!)
-            local targetCFrame = humanoidRootPart.CFrame
-            local isLocalChar = (visualChar.Name == "LocalCharacter" or visualChar.Parent.Name == "Ignore")
-            if isLocalChar then
-                targetCFrame = targetCFrame * CFrame.Angles(0, 0, 1.5707963)
-            end
+            local pos = humanoidRootPart.Position + Vector3.new(0, -1.5, 0)
+            local look = humanoidRootPart.CFrame.LookVector
+            local horizontalLook = Vector3.new(look.X, 0, look.Z).Unit
+            local targetCFrame = CFrame.lookAt(pos, pos + horizontalLook, Vector3.new(0, 1, 0))
             customModelSpawned:PivotTo(targetCFrame)
 
             -- Keep custom model inside ignore list
@@ -3697,17 +3697,17 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                     end
                 end
             end
-            hideModel(visualChar)
-            if character ~= visualChar then
-                hideModel(character)
-            end
+            if visualChar then hideModel(visualChar) end
+            if physicsChar then hideModel(physicsChar) end
 
             -- Copy joints to custom model (mirror animations)
-            for _, motor in ipairs(visualChar:GetDescendants()) do
-                if motor:IsA("Motor6D") then
-                    local targetMotor = customModelSpawned:FindFirstChild(motor.Name, true)
-                    if targetMotor and targetMotor:IsA("Motor6D") then
-                        targetMotor.Transform = motor.Transform
+            if visualChar then
+                for _, motor in ipairs(visualChar:GetDescendants()) do
+                    if motor:IsA("Motor6D") then
+                        local targetMotor = customModelSpawned:FindFirstChild(motor.Name, true)
+                        if targetMotor and targetMotor:IsA("Motor6D") then
+                            targetMotor.Transform = motor.Transform
+                        end
                     end
                 end
             end
@@ -3732,7 +3732,7 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 end
             end
             if visualChar then showModel(visualChar) end
-            if character and character ~= visualChar then showModel(character) end
+            if physicsChar and physicsChar ~= visualChar then showModel(physicsChar) end
         end
 
         -- Calculate camera CFrame
