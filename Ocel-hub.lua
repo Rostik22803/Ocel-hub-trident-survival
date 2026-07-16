@@ -3620,20 +3620,9 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                     customModelSpawned:PivotTo(humanoidRootPart.CFrame)
                 end
 
-                -- To prevent loose parts from falling, we weld them to customHrp
-                local connectedParts = {}
-                for _, joint in ipairs(customModelSpawned:GetDescendants()) do
-                    if joint:IsA("Motor6D") or joint:IsA("Weld") or joint:IsA("ManualWeld") or joint:IsA("WeldConstraint") then
-                        if joint.Part0 and joint.Part1 then
-                            connectedParts[joint.Part0] = true
-                            connectedParts[joint.Part1] = true
-                        end
-                    end
-                end
-
                 for _, part in ipairs(customModelSpawned:GetDescendants()) do
                     if part:IsA("BasePart") then
-                        part.Anchored = false -- Unanchored!
+                        part.Anchored = true -- Keep it anchored so it doesn't fall into the void!
                         part.CanCollide = false
                         pcall(function() part.CanTouch = false end)
                         pcall(function() part.CanQuery = false end)
@@ -3643,37 +3632,25 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                         pcall(function()
                             part.CollisionGroup = "VisualOnly"
                         end)
-                        
-                        -- Weld to customHrp if not connected by any joints
-                        if customHrp and part ~= customHrp and not connectedParts[part] then
-                            local w = Instance.new("WeldConstraint")
-                            w.Part0 = customHrp
-                            w.Part1 = part
-                            w.Parent = customHrp
-                        end
                     end
                 end
-
-                -- Weld customHrp to the player character's humanoidRootPart
-                if customHrp then
-                    local weld = Instance.new("Weld")
-                    weld.Name = "CustomModelWeld"
-                    weld.Part0 = humanoidRootPart
-                    weld.Part1 = customHrp
-                    weld.C0 = CFrame.new()
-                    weld.C1 = CFrame.new()
-                    weld.Parent = customHrp
-                end
             end
+
+            -- Align CFrame frame-by-frame (no physical welds, preventing any physics interference!)
+            customModelSpawned:PivotTo(humanoidRootPart.CFrame)
 
             -- Keep custom model inside ignore list
             if customModelSpawned.Parent ~= ignore then
                 customModelSpawned.Parent = ignore
             end
 
-            -- Force visibility of custom model parts every frame
+            -- Force visibility and collision-free settings of custom model parts every frame
             for _, part in ipairs(customModelSpawned:GetDescendants()) do
                 if part:IsA("BasePart") then
+                    part.Anchored = true
+                    part.CanCollide = false
+                    pcall(function() part.CanTouch = false end)
+                    pcall(function() part.CanQuery = false end)
                     part.Transparency = 0
                     part.LocalTransparencyModifier = 0
                 end
