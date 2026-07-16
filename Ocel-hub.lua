@@ -3491,82 +3491,107 @@ local function getCharacter()
     if success and char then
         return char
     end
+    local const = workspace:FindFirstChild("Const")
+    local ignore = const and const:FindFirstChild("Ignore")
+    local localChar = ignore and ignore:FindFirstChild("LocalCharacter")
+    if localChar then
+        return localChar
+    end
     local lp = game:GetService("Players").LocalPlayer
     return lp and lp.Character
 end
 
 game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
-    local character = getCharacter()
-    
-    if not ThirdPersonEnabled or FreeCamEnabled or not character then
-        -- Restore original transparencies
-        for part, trans in pairs(originalTransparencies) do
-            pcall(function()
-                if part and part.Parent then
-                    part.Transparency = trans
-                end
-            end)
-        end
-        table.clear(originalTransparencies)
+    local success, err = pcall(function()
+        local character = getCharacter()
+        
+        local distance = ThirdPersonDistance or 8
+        local rightOffsetVal = ThirdPersonRightOffset or 2
+        local upOffsetVal = ThirdPersonUpOffset or 1.5
 
-        -- Restore first-person arms parent
-        local FPSArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
-        if FPSArms and FPSArms.Parent == nil then
-            FPSArms.Parent = workspace.Const.Ignore
-        end
-        return
-    end
-
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character.PrimaryPart
-    if not humanoidRootPart then return end
-
-    local currentCamera = workspace.CurrentCamera
-    if not currentCamera then return end
-
-    -- Hide viewmodel arms
-    local FPSArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
-    if FPSArms and FPSArms.Parent ~= nil then
-        FPSArms.Parent = nil
-    end
-
-    -- Force character parts to be visible and track their original transparencies
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if not originalTransparencies[part] then
-                originalTransparencies[part] = part.Transparency
+        if not ThirdPersonEnabled or FreeCamEnabled or not character then
+            -- Restore original transparencies
+            for part, trans in pairs(originalTransparencies) do
+                pcall(function()
+                    if part and part.Parent then
+                        part.Transparency = trans
+                    end
+                end)
             end
-            part.Transparency = 0
-            part.LocalTransparencyModifier = 0
+            table.clear(originalTransparencies)
+
+            -- Restore first-person arms parent
+            local const = workspace:FindFirstChild("Const")
+            local ignore = const and const:FindFirstChild("Ignore")
+            local FPSArms = ignore and ignore:FindFirstChild("FPSArms")
+            if FPSArms and FPSArms.Parent == nil then
+                FPSArms.Parent = ignore
+            end
+            return
         end
+
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character.PrimaryPart
+        if not humanoidRootPart then return end
+
+        local currentCamera = workspace.CurrentCamera
+        if not currentCamera then return end
+
+        -- Hide viewmodel arms
+        local const = workspace:FindFirstChild("Const")
+        local ignore = const and const:FindFirstChild("Ignore")
+        local FPSArms = ignore and ignore:FindFirstChild("FPSArms")
+        if FPSArms and FPSArms.Parent ~= nil then
+            FPSArms.Parent = nil
+        end
+
+        -- Force character parts to be visible and track their original transparencies
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pcall(function()
+                    if not originalTransparencies[part] then
+                        originalTransparencies[part] = part.Transparency
+                    end
+                    part.Transparency = 0
+                    part.LocalTransparencyModifier = 0
+                end)
+            end
+        end
+
+        -- Calculate camera CFrame
+        local cameraCFrame = currentCamera.CFrame
+        local cameraRotation = cameraCFrame - cameraCFrame.Position
+
+        local head = character:FindFirstChild("Top") or character:FindFirstChild("Head") or humanoidRootPart
+        local origin = head:IsA("BasePart") and head.Position or humanoidRootPart.Position
+
+        local rightOffset = cameraRotation.RightVector * rightOffsetVal
+        local upOffset = cameraRotation.UpVector * upOffsetVal
+        local backOffset = -cameraRotation.LookVector * distance
+
+        local targetPosition = origin + rightOffset + upOffset + backOffset
+
+        -- Raycast for collisions
+        local raycastParams = RaycastParams.new()
+        local ignoreList = { character }
+        if ignore then
+            table.insert(ignoreList, ignore)
+        end
+        raycastParams.FilterDescendantsInstances = ignoreList
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        local direction = targetPosition - origin
+        local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+
+        local finalPosition = targetPosition
+        if raycastResult then
+            finalPosition = raycastResult.Position + raycastResult.Normal * 0.2
+        end
+
+        currentCamera.CFrame = CFrame.new(finalPosition) * cameraRotation
+    end)
+    if not success then
+        warn("ThirdPerson RenderStep Error: " .. tostring(err))
     end
-
-    -- Calculate camera CFrame
-    local cameraCFrame = currentCamera.CFrame
-    local cameraRotation = cameraCFrame - cameraCFrame.Position
-
-    local head = character:FindFirstChild("Top") or character:FindFirstChild("Head") or humanoidRootPart
-    local origin = head.Position
-
-    local rightOffset = cameraRotation.RightVector * ThirdPersonRightOffset
-    local upOffset = cameraRotation.UpVector * ThirdPersonUpOffset
-    local backOffset = -cameraRotation.LookVector * ThirdPersonDistance
-
-    local targetPosition = origin + rightOffset + upOffset + backOffset
-
-    -- Raycast for collisions
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = { workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore"), character }
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    local direction = targetPosition - origin
-    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-
-    local finalPosition = targetPosition
-    if raycastResult then
-        finalPosition = raycastResult.Position + raycastResult.Normal * 0.2
-    end
-
-    currentCamera.CFrame = CFrame.new(finalPosition) * cameraRotation
 end)
 l_UserInputService_3.InputBegan:Connect(function(v584, v585) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v566 (ref), v567 (ref)
