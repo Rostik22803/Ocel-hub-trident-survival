@@ -3634,18 +3634,23 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart", true) or customModelSpawned.PrimaryPart or findFirstBasePart(customModelSpawned)
                 if customHrp then
                     customModelSpawned.PrimaryPart = customHrp
-                    
-                    -- Align to the physics capsule upright position
-                    local pos = humanoidRootPart.Position + Vector3.new(0, -1.5, 0)
-                    local look = humanoidRootPart.CFrame.LookVector
-                    local horizontalLook = Vector3.new(look.X, 0, look.Z).Unit
-                    local targetCFrame = CFrame.lookAt(pos, pos + horizontalLook, Vector3.new(0, 1, 0))
-                    customModelSpawned:PivotTo(targetCFrame)
+                    customModelSpawned:PivotTo(humanoidRootPart.CFrame)
+                end
+
+                -- To prevent loose parts from falling, we weld them to customHrp
+                local connectedParts = {}
+                for _, joint in ipairs(customModelSpawned:GetDescendants()) do
+                    if joint:IsA("Motor6D") or joint:IsA("Weld") or joint:IsA("ManualWeld") or joint:IsA("WeldConstraint") then
+                        if joint.Part0 and joint.Part1 then
+                            connectedParts[joint.Part0] = true
+                            connectedParts[joint.Part1] = true
+                        end
+                    end
                 end
 
                 for _, part in ipairs(customModelSpawned:GetDescendants()) do
                     if part:IsA("BasePart") then
-                        part.Anchored = true -- Keep it anchored so it doesn't fall into the void!
+                        part.Anchored = false -- Must be false so it doesn't freeze character movement!
                         part.CanCollide = false
                         pcall(function() part.CanTouch = false end)
                         pcall(function() part.CanQuery = false end)
@@ -3655,27 +3660,46 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                         pcall(function()
                             part.CollisionGroup = "VisualOnly"
                         end)
+                        
+                        -- Weld to customHrp if not connected by any joints
+                        if customHrp and part ~= customHrp and not connectedParts[part] then
+                            local w = Instance.new("WeldConstraint")
+                            w.Part0 = customHrp
+                            w.Part1 = part
+                            w.Parent = customHrp
+                        end
                     end
                 end
-            end
 
-            -- Align CFrame frame-by-frame (no physical welds, preventing any physics interference!)
-            local pos = humanoidRootPart.Position + Vector3.new(0, -1.5, 0)
-            local look = humanoidRootPart.CFrame.LookVector
-            local horizontalLook = Vector3.new(look.X, 0, look.Z).Unit
-            local targetCFrame = CFrame.lookAt(pos, pos + horizontalLook, Vector3.new(0, 1, 0))
-            customModelSpawned:PivotTo(targetCFrame)
+                -- Weld the custom model upright to the sideways physical capsule
+                if customHrp then
+                    local weld = Instance.new("Weld")
+                    weld.Name = "CustomModelWeld"
+                    weld.Part0 = humanoidRootPart
+                    weld.Part1 = customHrp
+                    
+                    local targetC0 = CFrame.new()
+                    local isLocalChar = (physicsChar.Name == "LocalCharacter" or physicsChar.Parent.Name == "Ignore")
+                    if isLocalChar then
+                        -- Rotate 90 degrees around Z axis and offset down by 1.5 studs
+                        targetC0 = CFrame.Angles(0, 0, 1.5707963) * CFrame.new(0, -1.5, 0)
+                    end
+                    weld.C0 = targetC0
+                    weld.C1 = CFrame.new()
+                    weld.Parent = customHrp
+                end
+            end
 
             -- Keep custom model inside ignore list
             if customModelSpawned.Parent ~= ignore then
                 customModelSpawned.Parent = ignore
             end
 
-            -- Force visibility and collision-free settings of custom model parts every frame
+            -- Enforce visual-only ghost properties every frame without breaking the weld assembly
             for _, part in ipairs(customModelSpawned:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.Anchored = true
-                    part.CanCollide = false
+                    if part.Anchored then part.Anchored = false end
+                    if part.CanCollide then part.CanCollide = false end
                     pcall(function() part.CanTouch = false end)
                     pcall(function() part.CanQuery = false end)
                     part.Transparency = 0
