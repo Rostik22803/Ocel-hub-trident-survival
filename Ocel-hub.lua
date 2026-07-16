@@ -3406,6 +3406,190 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
         FreeCamSpeed = v582;
     end
 });
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Camera Settings");
+
+local ThirdPersonEnabled = false
+local ThirdPersonDistance = 10
+local ThirdPersonXOffset = 2
+local ThirdPersonYOffset = 1.5
+local FirstPersonOnADS = true
+local ShowCharacter = true
+local lastVisibilityState = nil
+
+local function getLocalCharacter()
+    local ignore = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+    if ignore then
+        local char = ignore:FindFirstChild("LocalCharacter")
+        if char then return char end
+    end
+    local lp = game:GetService("Players").LocalPlayer
+    return lp and lp.Character
+end
+
+local function getViewModel()
+    local ignore = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+    if ignore then
+        return ignore:FindFirstChild("FPSArms")
+    end
+    return nil
+end
+
+local function updateVisibility(isThirdPerson)
+    local state = isThirdPerson and "third" or "first"
+    if lastVisibilityState == state then return end
+    lastVisibilityState = state
+    
+    local fpsArms = getViewModel()
+    if fpsArms then
+        for _, part in ipairs(fpsArms:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.LocalTransparencyModifier = isThirdPerson and 1 or 0
+            end
+        end
+    end
+    
+    local localChar = getLocalCharacter()
+    if localChar then
+        for _, part in ipairs(localChar:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.LocalTransparencyModifier = (isThirdPerson and ShowCharacter) and 0 or 1
+            end
+        end
+    end
+end
+
+local function checkIsAiming()
+    if not FirstPersonOnADS then return false end
+    local uis = game:GetService("UserInputService")
+    
+    if uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        return true
+    end
+    
+    local success, gamepadState = pcall(function() return uis:GetGamepadState(Enum.UserInputType.Gamepad1) end)
+    if success and gamepadState then
+        for _, input in ipairs(gamepadState) do
+            if input.KeyCode == Enum.KeyCode.ButtonL2 and input.Position.Z > 0.5 then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+local function stepThirdPerson(deltaTime)
+    if not ThirdPersonEnabled or FreeCamEnabled then 
+        return 
+    end
+    
+    if checkIsAiming() then
+        updateVisibility(false)
+        return
+    end
+    
+    updateVisibility(true)
+    
+    local cam = workspace.CurrentCamera
+    local firstPersonCFrame = cam.CFrame
+    local targetPos = firstPersonCFrame.Position 
+                    - (firstPersonCFrame.LookVector * ThirdPersonDistance)
+                    + (firstPersonCFrame.RightVector * ThirdPersonXOffset)
+                    + (firstPersonCFrame.UpVector * ThirdPersonYOffset)
+                    
+    local ignoreFolder = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore")
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = ignoreFolder and {ignoreFolder} or {}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.IgnoreWater = true
+    
+    local startPos = firstPersonCFrame.Position
+    local direction = targetPos - startPos
+    local raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    
+    local finalPos = targetPos
+    if raycastResult then
+        finalPos = raycastResult.Position + raycastResult.Normal * 0.2
+    end
+    
+    cam.CFrame = CFrame.new(finalPos) * firstPersonCFrame.Rotation
+end
+
+local function enableThirdPerson()
+    game:GetService("RunService"):BindToRenderStep("ThirdPersonCamera", Enum.RenderPriority.Camera.Value + 1, stepThirdPerson)
+end
+
+local function disableThirdPerson()
+    pcall(function() game:GetService("RunService"):UnbindFromRenderStep("ThirdPersonCamera") end)
+    updateVisibility(false)
+end
+
+local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Third Person",
+    CurrentValue = false,
+    Flag = "ThirdPersonToggle",
+    Callback = function(val)
+        ThirdPersonEnabled = val
+        if val then
+            enableThirdPerson()
+        else
+            disableThirdPerson()
+        end
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Third Person Distance",
+    Range = {2, 30},
+    Increment = 0.5,
+    CurrentValue = 10,
+    Flag = "ThirdPersonDistance",
+    Callback = function(val)
+        ThirdPersonDistance = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Third Person X Offset",
+    Range = {-10, 10},
+    Increment = 0.1,
+    CurrentValue = 2,
+    Flag = "ThirdPersonXOffset",
+    Callback = function(val)
+        ThirdPersonXOffset = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Third Person Y Offset",
+    Range = {-10, 10},
+    Increment = 0.1,
+    CurrentValue = 1.5,
+    Flag = "ThirdPersonYOffset",
+    Callback = function(val)
+        ThirdPersonYOffset = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "First Person on ADS",
+    CurrentValue = true,
+    Flag = "FirstPersonOnADS",
+    Callback = function(val)
+        FirstPersonOnADS = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Show Character",
+    CurrentValue = true,
+    Flag = "ThirdPersonShowCharacter",
+    Callback = function(val)
+        ShowCharacter = val
+        lastVisibilityState = nil
+    end
+})
 l_UserInputService_3.InputBegan:Connect(function(v584, v585) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v566 (ref), v567 (ref)
     if v585 then
