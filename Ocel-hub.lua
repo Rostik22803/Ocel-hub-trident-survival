@@ -2918,6 +2918,83 @@ l_RunService_3.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
         v423.FieldOfView = v424;
     end;
 end);
+
+-- Spinner state
+SpinnerEnabled = false
+SpinnerSpeed = 20
+local spinAngle = 0
+
+-- Anti-Aim state
+AntiAimEnabled = false
+AntiAimYawMode = "Jitter"
+AntiAimYawAngle = 180
+AntiAimPitchMode = "Down"
+AntiAimPitchAngle = 80
+
+-- Network Hook for Spinner & Anti-Aim
+task.spawn(function()
+    local localPlayer = game:GetService("Players").LocalPlayer
+    local TCP = localPlayer:WaitForChild("TCP", 15)
+    local UDP = localPlayer:WaitForChild("UDP", 15)
+    if not TCP or not UDP then return end
+    
+    local oldFireServer
+    oldFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
+        local args = {...}
+        if (self == TCP or self == UDP) then
+            local code = args[1]
+            if code == 1 then -- SendCodes.PLAYER_MOVE is 1
+                local rot = args[3] -- Vector3 (pitch, yaw, roll)
+                
+                if typeof(rot) == "Vector3" then
+                    local pitch = rot.X
+                    local yaw = rot.Y
+                    local roll = rot.Z
+                    
+                    -- Calculate Yaw
+                    if SpinnerEnabled then
+                        spinAngle = (spinAngle + SpinnerSpeed) % 360
+                        yaw = math.rad(spinAngle)
+                    end
+                    
+                    if AntiAimEnabled then
+                        if AntiAimYawMode == "Jitter" then
+                            local offset = (math.random(0, 1) == 0 and 90 or -90)
+                            yaw = (yaw + math.rad(offset + math.random(-15, 15))) % (math.pi * 2)
+                        elseif AntiAimYawMode == "Left" then
+                            yaw = (yaw + math.rad(90)) % (math.pi * 2)
+                        elseif AntiAimYawMode == "Right" then
+                            yaw = (yaw - math.rad(90)) % (math.pi * 2)
+                        elseif AntiAimYawMode == "Back" then
+                            yaw = (yaw + math.rad(180)) % (math.pi * 2)
+                        elseif AntiAimYawMode == "Custom" then
+                            yaw = (yaw + math.rad(AntiAimYawAngle)) % (math.pi * 2)
+                        end
+                    end
+                    
+                    -- Calculate Pitch
+                    if AntiAimEnabled then
+                        if AntiAimPitchMode == "Down" then
+                            pitch = math.rad(80)
+                        elseif AntiAimPitchMode == "Up" then
+                            pitch = math.rad(-80)
+                        elseif AntiAimPitchMode == "Jitter" then
+                            pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
+                        elseif AntiAimPitchMode == "Zero" then
+                            pitch = 0
+                        elseif AntiAimPitchMode == "Custom" then
+                            pitch = math.rad(AntiAimPitchAngle)
+                        end
+                    end
+                    
+                    args[3] = Vector3.new(pitch, yaw, roll)
+                end
+            end
+        end
+        return oldFireServer(self, unpack(args))
+    end))
+end)
+
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("HitSounds");
 local v441 = {
     Default = "rbxassetid://9119561046", 
@@ -3500,143 +3577,97 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     end
 });
 
--- Spinbot / Anti-Aim settings
-local _ = l_l_v0_Window_0_Tab_4:CreateSection("Spinbot / Anti-Aim");
-SpinbotEnabled = false;
-SpinbotYawMode = "Default";
-SpinbotPitchMode = "Default";
-SpinbotSpeed = 50;
-SpinbotDisableOnShoot = true;
-
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Spinner");
 local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
-    Name = "Spinbot Enabled",
+    Name = "Enable Spinner",
     CurrentValue = false,
-    Flag = "SpinbotEnabled",
+    Flag = "SpinnerToggle",
     Callback = function(v)
-        SpinbotEnabled = v
+        SpinnerEnabled = v
     end
-});
+})
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Spinner Speed",
+    Range = {1, 100},
+    Increment = 1,
+    CurrentValue = 20,
+    Flag = "SpinnerSpeedSlider",
+    Callback = function(v)
+        SpinnerSpeed = v
+    end
+})
 
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Anti-Aim");
 local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
-    Name = "Disable While Shooting",
-    CurrentValue = true,
-    Flag = "SpinbotDisableOnShoot",
+    Name = "Enable Anti-Aim",
+    CurrentValue = false,
+    Flag = "AntiAimToggle",
     Callback = function(v)
-        SpinbotDisableOnShoot = v
+        AntiAimEnabled = v
     end
-});
-
+})
 local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
     Name = "Yaw Mode",
     Options = {
-        "Default",
-        "Spin",
         "Jitter",
-        "Backwards",
         "Left",
-        "Right"
+        "Right",
+        "Back",
+        "Custom"
     },
     CurrentOption = {
-        "Default"
+        "Jitter"
     },
     MultipleOptions = false,
-    Flag = "SpinbotYawMode",
+    Flag = "AntiAimYawDropdown",
     Callback = function(v)
         if type(v) == "table" then
             v = v[1]
         end
-        SpinbotYawMode = v
+        AntiAimYawMode = v
     end
-});
-
+})
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Custom Yaw Offset",
+    Range = {-180, 180},
+    Increment = 1,
+    CurrentValue = 180,
+    Flag = "AntiAimYawAngleSlider",
+    Callback = function(v)
+        AntiAimYawAngle = v
+    end
+})
 local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
     Name = "Pitch Mode",
     Options = {
-        "Default",
         "Down",
         "Up",
-        "Jitter"
+        "Jitter",
+        "Zero",
+        "Custom"
     },
     CurrentOption = {
-        "Default"
+        "Down"
     },
     MultipleOptions = false,
-    Flag = "SpinbotPitchMode",
+    Flag = "AntiAimPitchDropdown",
     Callback = function(v)
         if type(v) == "table" then
             v = v[1]
         end
-        SpinbotPitchMode = v
+        AntiAimPitchMode = v
     end
-});
-
+})
 local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
-    Name = "Spin Speed",
-    Range = {
-        1,
-        100
-    },
+    Name = "Custom Pitch Angle",
+    Range = {-80, 80},
     Increment = 1,
-    CurrentValue = 50,
-    Flag = "SpinbotSpeed",
+    CurrentValue = 80,
+    Flag = "AntiAimPitchAngleSlider",
     Callback = function(v)
-        SpinbotSpeed = v
+        AntiAimPitchAngle = v
     end
-});
-
--- Hook PLAYER_MOVE to apply Spinbot/Anti-Aim settings
-task.spawn(function()
-    while not (_G.classes and _G.classes.NetClient and _G.classes.NetClient.SendTCP) do
-        task.wait(1)
-    end
-    
-    local classes = _G.classes
-    if not classes.NetClient._hooked then
-        classes.NetClient._hooked = true
-        local originalSendTCP = classes.NetClient.SendTCP
-        classes.NetClient.SendTCP = function(code, ...)
-            local args = {...}
-            if code == 1 and SpinbotEnabled then -- PLAYER_MOVE
-                local uis = game:GetService("UserInputService")
-                local isShooting = SpinbotDisableOnShoot and (uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or uis:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR2))
-                
-                if not isShooting then
-                    local originalAngles = args[2]
-                    if typeof(originalAngles) == "Vector3" then
-                        local currentPitch = originalAngles.X
-                        local currentYaw = originalAngles.Y
-                        
-                        local newYaw = currentYaw
-                        if SpinbotYawMode == "Spin" then
-                            newYaw = (tick() * SpinbotSpeed) % (math.pi * 2)
-                        elseif SpinbotYawMode == "Jitter" then
-                            local offset = (tick() * 10) % 2 < 1 and math.rad(35) or math.rad(-35)
-                            newYaw = (currentYaw + math.pi + offset) % (math.pi * 2)
-                        elseif SpinbotYawMode == "Backwards" then
-                            newYaw = (currentYaw + math.pi) % (math.pi * 2)
-                        elseif SpinbotYawMode == "Left" then
-                            newYaw = (currentYaw + math.pi/2) % (math.pi * 2)
-                        elseif SpinbotYawMode == "Right" then
-                            newYaw = (currentYaw - math.pi/2) % (math.pi * 2)
-                        end
-                        
-                        local newPitch = currentPitch
-                        if SpinbotPitchMode == "Down" then
-                            newPitch = -math.rad(80)
-                        elseif SpinbotPitchMode == "Up" then
-                            newPitch = math.rad(80)
-                        elseif SpinbotPitchMode == "Jitter" then
-                            newPitch = (tick() * 10) % 2 < 1 and math.rad(80) or -math.rad(80)
-                        end
-                        
-                        args[2] = Vector3.new(newPitch, newYaw, originalAngles.Z)
-                    end
-                end
-            end
-            return originalSendTCP(code, table.unpack(args))
-        end
-    end
-end)
+})
 
 -- Third Person settings
 local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
