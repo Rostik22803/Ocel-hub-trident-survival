@@ -3421,6 +3421,8 @@ ThirdPersonEnabled = false;
 ThirdPersonDistance = 8;
 ThirdPersonRightOffset = 2;
 ThirdPersonUpOffset = 1.5;
+UseCustomModel = false;
+CustomModelGitHubURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt";
 
 local thirdPersonToggleObj
 thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
@@ -3429,6 +3431,16 @@ thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
     Flag = "ThirdPersonToggle",
     Callback = function(v)
         ThirdPersonEnabled = v
+    end
+})
+
+local useCustomModelToggleObj
+useCustomModelToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Use Custom Model",
+    CurrentValue = false,
+    Flag = "UseCustomModelToggle",
+    Callback = function(v)
+        UseCustomModel = v
     end
 })
 
@@ -3480,6 +3492,9 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
 })
 
 local originalTransparencies = {}
+local customModelAsset = nil
+local customModelSpawned = nil
+local modelLoading = false
 
 local function getCharacter()
     local char
@@ -3501,6 +3516,27 @@ local function getCharacter()
     return lp and lp.Character
 end
 
+local function loadCustomModel()
+    if customModelAsset or modelLoading then return end
+    modelLoading = true
+    task.spawn(function()
+        local success, err = pcall(function()
+            local idStr = game:HttpGet(CustomModelGitHubURL)
+            local assetId = tonumber(idStr:match("%d+"))
+            if assetId then
+                local objects = game:GetObjects("rbxassetid://" .. assetId)
+                if objects and #objects > 0 then
+                    customModelAsset = objects[1]
+                end
+            end
+        end)
+        if not success then
+            warn("Failed to load custom model from GitHub: " .. tostring(err))
+        end
+        modelLoading = false
+    end)
+end
+
 game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
     local success, err = pcall(function()
         local character = getCharacter()
@@ -3509,7 +3545,18 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
         local rightOffsetVal = ThirdPersonRightOffset or 2
         local upOffsetVal = ThirdPersonUpOffset or 1.5
 
+        -- Trigger model loading if custom model is selected but not loaded yet
+        if ThirdPersonEnabled and not FreeCamEnabled and UseCustomModel and not customModelAsset then
+            loadCustomModel()
+        end
+
         if not ThirdPersonEnabled or FreeCamEnabled or not character then
+            -- Clean up custom model
+            if customModelSpawned then
+                customModelSpawned:Destroy()
+                customModelSpawned = nil
+            end
+
             -- Restore original transparencies
             for part, trans in pairs(originalTransparencies) do
                 pcall(function()
@@ -3544,16 +3591,79 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             FPSArms.Parent = nil
         end
 
-        -- Force character parts to be visible and track their original transparencies
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                pcall(function()
-                    if not originalTransparencies[part] then
-                        originalTransparencies[part] = part.Transparency
+        if UseCustomModel and customModelAsset then
+            -- Spawn custom model if needed
+            if not customModelSpawned then
+                customModelSpawned = customModelAsset:Clone()
+                customModelSpawned.Parent = ignore
+                
+                for _, part in ipairs(customModelSpawned:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = false
+                        part.CanCollide = false
+                        pcall(function()
+                            part.CollisionGroup = "VisualOnly"
+                        end)
                     end
-                    part.Transparency = 0
-                    part.LocalTransparencyModifier = 0
-                end)
+                end
+                
+                local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart") or customModelSpawned.PrimaryPart or customModelSpawned:FindFirstChildOfClass("BasePart")
+                if customHrp then
+                    customModelSpawned.PrimaryPart = customHrp
+                    customModelSpawned:PivotTo(character:GetPivot())
+                    
+                    local weld = Instance.new("WeldConstraint")
+                    weld.Part0 = humanoidRootPart
+                    weld.Part1 = customHrp
+                    weld.Parent = customHrp
+                end
+            end
+
+            -- Keep custom model inside ignore list
+            if customModelSpawned.Parent ~= ignore then
+                customModelSpawned.Parent = ignore
+            end
+
+            -- Hide original character parts
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        if not originalTransparencies[part] then
+                            originalTransparencies[part] = part.Transparency
+                        end
+                        part.Transparency = 1
+                        part.LocalTransparencyModifier = 1
+                    end)
+                end
+            end
+
+            -- Copy joints to custom model (mirror animations)
+            for _, motor in ipairs(character:GetDescendants()) do
+                if motor:IsA("Motor6D") then
+                    local targetMotor = customModelSpawned:FindFirstChild(motor.Name, true)
+                    if targetMotor and targetMotor:IsA("Motor6D") then
+                        targetMotor.Transform = motor.Transform
+                    end
+                end
+            end
+        else
+            -- Clean up custom model if UseCustomModel was toggled off
+            if customModelSpawned then
+                customModelSpawned:Destroy()
+                customModelSpawned = nil
+            end
+
+            -- Make original character visible
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        if not originalTransparencies[part] then
+                            originalTransparencies[part] = part.Transparency
+                        end
+                        part.Transparency = 0
+                        part.LocalTransparencyModifier = 0
+                    end)
+                end
             end
         end
 
@@ -3575,6 +3685,9 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
         local ignoreList = { character }
         if ignore then
             table.insert(ignoreList, ignore)
+        end
+        if customModelSpawned then
+            table.insert(ignoreList, customModelSpawned)
         end
         raycastParams.FilterDescendantsInstances = ignoreList
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
