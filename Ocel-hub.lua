@@ -3494,6 +3494,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
 local originalTransparencies = {}
 local customModelAsset = nil
 local customModelSpawned = nil
+local customModelWeldedCharacter = nil
 local modelLoading = false
 
 local function getCharacter()
@@ -3556,6 +3557,7 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 customModelSpawned:Destroy()
                 customModelSpawned = nil
             end
+            customModelWeldedCharacter = nil
 
             -- Restore original transparencies
             for part, trans in pairs(originalTransparencies) do
@@ -3580,6 +3582,13 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character.PrimaryPart
         if not humanoidRootPart then return end
 
+        -- Recreate custom model if character changes (e.g. respawn)
+        if customModelSpawned and customModelWeldedCharacter ~= character then
+            customModelSpawned:Destroy()
+            customModelSpawned = nil
+            customModelWeldedCharacter = nil
+        end
+
         local currentCamera = workspace.CurrentCamera
         if not currentCamera then return end
 
@@ -3592,9 +3601,15 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
         end
 
         if UseCustomModel and customModelAsset then
+            -- Verify if the custom model was destroyed externally
+            if customModelSpawned and (not customModelSpawned.Parent or not customModelSpawned:IsDescendantOf(workspace)) then
+                customModelSpawned = nil
+            end
+
             -- Spawn custom model if needed
             if not customModelSpawned then
                 customModelSpawned = customModelAsset:Clone()
+                customModelWeldedCharacter = character
                 
                 -- Destroy any Humanoid to prevent character physics conflict
                 local hum = customModelSpawned:FindFirstChildOfClass("Humanoid")
@@ -3684,6 +3699,7 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 customModelSpawned:Destroy()
                 customModelSpawned = nil
             end
+            customModelWeldedCharacter = nil
 
             -- Make original character visible
             for _, part in ipairs(character:GetDescendants()) do
