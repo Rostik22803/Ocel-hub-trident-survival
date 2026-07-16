@@ -271,6 +271,14 @@ function OcelUI:CreateWindow(options)
             
             Check.MouseButton1Click:Connect(toggle)
             UpdateCanvas()
+            return {
+                Set = function(self, val)
+                    if State ~= val then
+                        toggle()
+                    end
+                end,
+                Toggle = toggle
+            }
         end
         
         function Tab:CreateSlider(sOpts)
@@ -3406,6 +3414,130 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
         FreeCamSpeed = v582;
     end
 });
+
+-- Third Person settings
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
+ThirdPersonEnabled = false;
+ThirdPersonDistance = 8;
+ThirdPersonRightOffset = 2;
+ThirdPersonUpOffset = 1.5;
+
+local thirdPersonToggleObj
+thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Third Person",
+    CurrentValue = false,
+    Flag = "ThirdPersonToggle",
+    Callback = function(v)
+        ThirdPersonEnabled = v
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateKeybind({
+    Name = "Third Person Keybind",
+    CurrentKeybind = "T",
+    HoldToInteract = false,
+    Flag = "ThirdPersonKeybind",
+    Callback = function()
+        if thirdPersonToggleObj then
+            thirdPersonToggleObj:Toggle()
+        else
+            ThirdPersonEnabled = not ThirdPersonEnabled
+        end
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Distance",
+    Range = {1, 30},
+    Increment = 1,
+    CurrentValue = 8,
+    Flag = "ThirdPersonDistance",
+    Callback = function(v)
+        ThirdPersonDistance = v
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Right Offset",
+    Range = {-10, 10},
+    Increment = 0.5,
+    CurrentValue = 2,
+    Flag = "ThirdPersonRightOffset",
+    Callback = function(v)
+        ThirdPersonRightOffset = v
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Up Offset",
+    Range = {-5, 5},
+    Increment = 0.5,
+    CurrentValue = 1.5,
+    Flag = "ThirdPersonUpOffset",
+    Callback = function(v)
+        ThirdPersonUpOffset = v
+    end
+})
+
+l_RunService_3:BindToRenderStep("ThirdPerson", Enum.RenderPriority.Camera.Value + 2, function()
+    if not ThirdPersonEnabled or FreeCamEnabled then
+        local FPSArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
+        if FPSArms and FPSArms.Parent == nil then
+            FPSArms.Parent = workspace.Const.Ignore
+        end
+        return
+    end
+
+    local character = Player.Character
+    if not character then return end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+    if not humanoidRootPart then return end
+
+    local currentCamera = workspace.CurrentCamera
+    if not currentCamera then return end
+
+    -- Hide viewmodel arms
+    local FPSArms = workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("FPSArms")
+    if FPSArms and FPSArms.Parent ~= nil then
+        FPSArms.Parent = nil
+    end
+
+    -- Force character visibility
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.LocalTransparencyModifier = 0
+        end
+    end
+
+    -- Calculate camera CFrame
+    local cameraCFrame = currentCamera.CFrame
+    local cameraRotation = cameraCFrame - cameraCFrame.Position
+
+    local head = character:FindFirstChild("Head")
+    local origin = head and head.Position or humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+
+    local rightOffset = cameraRotation.RightVector * ThirdPersonRightOffset
+    local upOffset = cameraRotation.UpVector * ThirdPersonUpOffset
+    local backOffset = -cameraRotation.LookVector * ThirdPersonDistance
+
+    local targetPosition = origin + rightOffset + upOffset + backOffset
+
+    -- Raycast for collisions
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = { workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore"), character }
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local direction = targetPosition - origin
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+
+    local finalPosition = targetPosition
+    if raycastResult then
+        finalPosition = raycastResult.Position + raycastResult.Normal * 0.2
+    end
+
+    currentCamera.CFrame = CFrame.new(finalPosition) * cameraRotation
+end)
 l_UserInputService_3.InputBegan:Connect(function(v584, v585) --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v566 (ref), v567 (ref)
     if v585 then
