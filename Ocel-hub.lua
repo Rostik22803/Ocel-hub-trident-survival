@@ -15,8 +15,14 @@ local RunService = game:GetService("RunService")
 local function GetSafeUIContainer()
     local success, container = pcall(function() return gethui and gethui() end)
     if success and container then return container end
+    local success2, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success2 and coreGui then return coreGui end
     local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+    local LocalPlayer = Players.LocalPlayer
+    while not LocalPlayer do
+        task.wait(0.1)
+        LocalPlayer = Players.LocalPlayer
+    end
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 local CoreGui = GetSafeUIContainer()
@@ -4205,6 +4211,7 @@ task.spawn(function()
                 end
                 return oldSendUDP(code, table.unpack(args, 1, n))
             end
+            hookedClasses[t] = true
             print("[Ocel-hub]: Hooked SendUDP on " .. tostring(tableName))
         end
     end
