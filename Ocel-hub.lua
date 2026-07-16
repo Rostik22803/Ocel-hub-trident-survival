@@ -3671,13 +3671,9 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 customModelSpawned.Parent = ignore
             end
 
-            -- Enforce visual-only ghost properties every frame
+            -- Force visibility of custom model parts every frame
             for _, part in ipairs(customModelSpawned:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.Anchored = false
-                    part.CanCollide = false
-                    pcall(function() part.CanTouch = false end)
-                    pcall(function() part.CanQuery = false end)
                     part.Transparency = 0
                     part.LocalTransparencyModifier = 0
                 end
