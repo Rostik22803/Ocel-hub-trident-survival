@@ -226,6 +226,12 @@ function OcelUI:CreateWindow(options)
                 if bOpts.Callback then bOpts.Callback() end
             end)
             UpdateCanvas()
+
+            return {
+                SetText = function(text)
+                    Btn.Text = text
+                end
+            }
         end
         
         function Tab:CreateToggle(tOpts)
@@ -3441,6 +3447,31 @@ useCustomModelToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
     Flag = "UseCustomModelToggle",
     Callback = function(v)
         UseCustomModel = v
+    end
+})
+
+local ModelList = {
+    { Name = "Tung Tung", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt" },
+    { Name = "Pipi Kiwi", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/pipi%20kiwi_id.txt" },
+    { Name = "Donkey", URL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/donkey_id.txt" }
+}
+local currentModelIndex = 1
+
+local selectModelBtn
+selectModelBtn = l_l_v0_Window_0_Tab_4:CreateButton({
+    Name = "Select Model: Tung Tung",
+    Callback = function()
+        currentModelIndex = currentModelIndex % #ModelList + 1
+        selectModelBtn.SetText("Select Model: " .. ModelList[currentModelIndex].Name)
+        
+        CustomModelGitHubURL = ModelList[currentModelIndex].URL
+        
+        -- Reset spawned model and cache to trigger download of the new selected asset
+        if customModelSpawned then
+            customModelSpawned:Destroy()
+            customModelSpawned = nil
+        end
+        customModelAsset = nil
     end
 })
 
