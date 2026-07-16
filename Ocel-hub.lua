@@ -223,15 +223,9 @@ function OcelUI:CreateWindow(options)
             Btn.TextSize = 14
             
             Btn.MouseButton1Click:Connect(function()
-                if bOpts.Callback then bOpts.Callback() end
+                if bOpts.Callback then bOpts.Callback(Btn) end
             end)
             UpdateCanvas()
-
-            return {
-                SetText = function(text)
-                    Btn.Text = text
-                end
-            }
         end
         
         function Tab:CreateToggle(tOpts)
@@ -3430,6 +3424,12 @@ ThirdPersonUpOffset = 1.5;
 UseCustomModel = false;
 CustomModelGitHubURL = "https://raw.githubusercontent.com/Rostik22803/Ocel-hub-trident-survival/refs/heads/main/model_id.txt";
 
+local originalTransparencies = {}
+local customModelAsset = nil
+local customModelSpawned = nil
+local customModelWeldedCharacter = nil
+local modelLoading = false
+
 local thirdPersonToggleObj
 thirdPersonToggleObj = l_l_v0_Window_0_Tab_4:CreateToggle({
     Name = "Third Person",
@@ -3457,12 +3457,11 @@ local ModelList = {
 }
 local currentModelIndex = 1
 
-local selectModelBtn
-selectModelBtn = l_l_v0_Window_0_Tab_4:CreateButton({
+l_l_v0_Window_0_Tab_4:CreateButton({
     Name = "Select Model: Tung Tung",
-    Callback = function()
+    Callback = function(btn)
         currentModelIndex = currentModelIndex % #ModelList + 1
-        selectModelBtn.SetText("Select Model: " .. ModelList[currentModelIndex].Name)
+        btn.Text = "Select Model: " .. ModelList[currentModelIndex].Name
         
         CustomModelGitHubURL = ModelList[currentModelIndex].URL
         
@@ -3521,12 +3520,6 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
         ThirdPersonUpOffset = v
     end
 })
-
-local originalTransparencies = {}
-local customModelAsset = nil
-local customModelSpawned = nil
-local customModelWeldedCharacter = nil
-local modelLoading = false
 
 local function getCharacter()
     local char
