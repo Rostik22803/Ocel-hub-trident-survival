@@ -2920,79 +2920,94 @@ l_RunService_3.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
 end);
 
 -- Spinner state
-SpinnerEnabled = false
-SpinnerSpeed = 20
+_G.SpinnerEnabled = false
+_G.SpinnerSpeed = 20
 local spinAngle = 0
 
 -- Anti-Aim state
-AntiAimEnabled = false
-AntiAimYawMode = "Jitter"
-AntiAimYawAngle = 180
-AntiAimPitchMode = "Down"
-AntiAimPitchAngle = 80
+_G.AntiAimEnabled = false
+_G.AntiAimYawMode = "Jitter"
+_G.AntiAimYawAngle = 180
+_G.AntiAimPitchMode = "Down"
+_G.AntiAimPitchAngle = 80
 
 -- Network Hook for Spinner & Anti-Aim
 task.spawn(function()
-    local localPlayer = game:GetService("Players").LocalPlayer
-    local TCP = localPlayer:WaitForChild("TCP", 15)
-    local UDP = localPlayer:WaitForChild("UDP", 15)
-    if not TCP or not UDP then return end
+    while not (_G.NEXT and _G.NEXT.SendTCP) do
+        task.wait(0.5)
+    end
     
-    local oldFireServer
-    oldFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-        local args = {...}
-        if (self == TCP or self == UDP) then
-            local code = args[1]
-            if code == 1 then -- SendCodes.PLAYER_MOVE is 1
-                local rot = args[3] -- Vector3 (pitch, yaw, roll)
-                
-                if typeof(rot) == "Vector3" then
-                    local pitch = rot.X
-                    local yaw = rot.Y
-                    local roll = rot.Z
-                    
-                    -- Calculate Yaw
-                    if SpinnerEnabled then
-                        spinAngle = (spinAngle + SpinnerSpeed) % 360
-                        yaw = math.rad(spinAngle)
-                    end
-                    
-                    if AntiAimEnabled then
-                        if AntiAimYawMode == "Jitter" then
-                            local offset = (math.random(0, 1) == 0 and 90 or -90)
-                            yaw = (yaw + math.rad(offset + math.random(-15, 15))) % (math.pi * 2)
-                        elseif AntiAimYawMode == "Left" then
-                            yaw = (yaw + math.rad(90)) % (math.pi * 2)
-                        elseif AntiAimYawMode == "Right" then
-                            yaw = (yaw - math.rad(90)) % (math.pi * 2)
-                        elseif AntiAimYawMode == "Back" then
-                            yaw = (yaw + math.rad(180)) % (math.pi * 2)
-                        elseif AntiAimYawMode == "Custom" then
-                            yaw = (yaw + math.rad(AntiAimYawAngle)) % (math.pi * 2)
+    local function hookSend(targetTable)
+        for _, methodName in ipairs({"SendTCP", "SendUDP"}) do
+            if targetTable and targetTable[methodName] and not targetTable[methodName .. "_Hooked"] then
+                targetTable[methodName .. "_Hooked"] = true
+                local oldSend = targetTable[methodName]
+                targetTable[methodName] = function(code, ...)
+                    local args = {...}
+                    if code == 1 then -- SendCodes.PLAYER_MOVE is 1
+                        local rot = args[2] -- Vector3 (pitch, yaw, roll)
+                        
+                        if typeof(rot) == "Vector3" then
+                            local pitch = rot.X
+                            local yaw = rot.Y
+                            local roll = rot.Z
+                            
+                            -- Calculate Yaw
+                            if _G.SpinnerEnabled then
+                                spinAngle = (spinAngle + _G.SpinnerSpeed) % 360
+                                yaw = math.rad(spinAngle)
+                            end
+                            
+                            if _G.AntiAimEnabled then
+                                if _G.AntiAimYawMode == "Jitter" then
+                                    local offset = (math.random(0, 1) == 0 and 90 or -90)
+                                    yaw = (yaw + math.rad(offset + math.random(-15, 15))) % (math.pi * 2)
+                                elseif _G.AntiAimYawMode == "Left" then
+                                    yaw = (yaw + math.rad(90)) % (math.pi * 2)
+                                elseif _G.AntiAimYawMode == "Right" then
+                                    yaw = (yaw - math.rad(90)) % (math.pi * 2)
+                                elseif _G.AntiAimYawMode == "Back" then
+                                    yaw = (yaw + math.rad(180)) % (math.pi * 2)
+                                elseif _G.AntiAimYawMode == "Custom" then
+                                    yaw = (yaw + math.rad(_G.AntiAimYawAngle)) % (math.pi * 2)
+                                end
+                            end
+                            
+                            -- Calculate Pitch
+                            if _G.AntiAimEnabled then
+                                if _G.AntiAimPitchMode == "Down" then
+                                    pitch = math.rad(80)
+                                elseif _G.AntiAimPitchMode == "Up" then
+                                    pitch = math.rad(-80)
+                                elseif _G.AntiAimPitchMode == "Jitter" then
+                                    pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
+                                elseif _G.AntiAimPitchMode == "Zero" then
+                                    pitch = 0
+                                elseif _G.AntiAimPitchMode == "Custom" then
+                                    pitch = math.rad(_G.AntiAimPitchAngle)
+                                end
+                            end
+                            
+                            args[2] = Vector3.new(pitch, yaw, roll)
                         end
                     end
-                    
-                    -- Calculate Pitch
-                    if AntiAimEnabled then
-                        if AntiAimPitchMode == "Down" then
-                            pitch = math.rad(80)
-                        elseif AntiAimPitchMode == "Up" then
-                            pitch = math.rad(-80)
-                        elseif AntiAimPitchMode == "Jitter" then
-                            pitch = math.rad(math.random(0, 1) == 0 and 80 or -80)
-                        elseif AntiAimPitchMode == "Zero" then
-                            pitch = 0
-                        elseif AntiAimPitchMode == "Custom" then
-                            pitch = math.rad(AntiAimPitchAngle)
-                        end
-                    end
-                    
-                    args[3] = Vector3.new(pitch, yaw, roll)
+                    return oldSend(code, unpack(args))
                 end
             end
         end
-        return oldFireServer(self, unpack(args))
-    end))
+    end
+
+    hookSend(_G.NEXT)
+    
+    -- Also watch for _G.classes.NetClient if it loads later
+    task.spawn(function()
+        while true do
+            if _G.classes and _G.classes.NetClient and not _G.classes.NetClient.SendTCP_Hooked then
+                hookSend(_G.classes.NetClient)
+            end
+            task.wait(1)
+        end
+    end)
 end)
 
 local _ = l_l_v0_Window_0_Tab_3:CreateSection("HitSounds");
@@ -3583,7 +3598,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
     CurrentValue = false,
     Flag = "SpinnerToggle",
     Callback = function(v)
-        SpinnerEnabled = v
+        _G.SpinnerEnabled = v
     end
 })
 local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
@@ -3593,7 +3608,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     CurrentValue = 20,
     Flag = "SpinnerSpeedSlider",
     Callback = function(v)
-        SpinnerSpeed = v
+        _G.SpinnerSpeed = v
     end
 })
 
@@ -3603,7 +3618,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
     CurrentValue = false,
     Flag = "AntiAimToggle",
     Callback = function(v)
-        AntiAimEnabled = v
+        _G.AntiAimEnabled = v
     end
 })
 local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
@@ -3624,7 +3639,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
         if type(v) == "table" then
             v = v[1]
         end
-        AntiAimYawMode = v
+        _G.AntiAimYawMode = v
     end
 })
 local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
@@ -3634,7 +3649,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     CurrentValue = 180,
     Flag = "AntiAimYawAngleSlider",
     Callback = function(v)
-        AntiAimYawAngle = v
+        _G.AntiAimYawAngle = v
     end
 })
 local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
@@ -3655,7 +3670,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
         if type(v) == "table" then
             v = v[1]
         end
-        AntiAimPitchMode = v
+        _G.AntiAimPitchMode = v
     end
 })
 local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
@@ -3665,7 +3680,7 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     CurrentValue = 80,
     Flag = "AntiAimPitchAngleSlider",
     Callback = function(v)
-        AntiAimPitchAngle = v
+        _G.AntiAimPitchAngle = v
     end
 })
 
