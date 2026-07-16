@@ -1,9 +1,12 @@
 --[[
 	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 Players = game:GetService("Players");
 RunService = game:GetService("RunService");
-localPlayer = Players.LocalPlayer;
+localPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait();
 ReplicatedStorage = game:GetService("ReplicatedStorage");
 camera = workspace.CurrentCamera;
 Workspace = game:GetService("Workspace");
@@ -1682,7 +1685,7 @@ ToggleWeaponESP(false);
 ToggleSkeletonESP(false);
 local l_l_l_v0_Window_0_Tab_1_Section_1 = l_l_v0_Window_0_Tab_1:CreateSection("Armor");
 G2L = {};
-G2L["1"] = Instance.new("ScreenGui", game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"));
+G2L["1"] = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"));
 G2L["1"].ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
 G2L["2"] = Instance.new("Frame", G2L["1"]);
 G2L["2"].ZIndex = -8;
@@ -1750,33 +1753,48 @@ l_2_0.InputChanged:Connect(function(v138) --[[ Line: 0 ]] --[[ Name:  ]]
         l_2_0.Position = UDim2.new(v135.X.Scale, v135.X.Offset + v139.X, v135.Y.Scale, v135.Y.Offset + v139.Y);
     end;
 end);
+
+local wearablesFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("items"):WaitForChild("wearables")
+local function getWearableImage(path)
+    local current = wearablesFolder
+    for part in string.gmatch(path, "[^%.]+") do
+        current = current:WaitForChild(part, 5)
+        if not current then
+            warn("Failed to find wearable component: " .. path)
+            return nil
+        end
+    end
+    local image = current:WaitForChild("Image", 5)
+    return image
+end
+
 armorMapping = {
-    IronHelmet = ReplicatedStorage.Shared.items.wearables.Iron.IronHelmet.Image, 
-    IronChestplate = ReplicatedStorage.Shared.items.wearables.Iron.IronChestplate.Image, 
-    IronLeggings = ReplicatedStorage.Shared.items.wearables.Iron.IronLeggings.Image, 
-    WoodHelmet = ReplicatedStorage.Shared.items.wearables.wood.WoodHelmet.Image, 
-    WoodChestplate = ReplicatedStorage.Shared.items.wearables.wood.WoodChestplate.Image, 
-    WoodLeggings = ReplicatedStorage.Shared.items.wearables.wood.WoodLeggings.Image, 
-    Boots = ReplicatedStorage.Shared.items.wearables.clothes.Boots.Image, 
-    CamoPants = ReplicatedStorage.Shared.items.wearables.clothes.CamoPants.Image, 
-    CamoShirt = ReplicatedStorage.Shared.items.wearables.clothes.CamoShirt.Image, 
-    Flippers = ReplicatedStorage.Shared.items.wearables.clothes.Flippers.Image, 
-    PolicePants = ReplicatedStorage.Shared.items.wearables.clothes.PolicePants.Image, 
-    PoliceShirt = ReplicatedStorage.Shared.items.wearables.clothes.PoliceShirt.Image, 
-    RiotChestplate = ReplicatedStorage.Shared.items.wearables.riot.RiotChestplate.Image, 
-    RiotHelmet = ReplicatedStorage.Shared.items.wearables.riot.RiotHelmet.Image, 
-    RiotLeggings = ReplicatedStorage.Shared.items.wearables.riot.RiotLeggings.Image, 
-    SteelChestplate = ReplicatedStorage.Shared.items.wearables.steel.SteelChestplate.Image, 
-    SteelHelmet = ReplicatedStorage.Shared.items.wearables.steel.SteelHelmet.Image, 
-    SteelLeggings = ReplicatedStorage.Shared.items.wearables.steel.SteelLeggings.Image, 
-    CombatHelmet = ReplicatedStorage.Shared.items.wearables.CombatHelmet.Image, 
-    GasMask = ReplicatedStorage.Shared.items.wearables.GasMask.Image, 
-    JetPack = ReplicatedStorage.Shared.items.wearables.Jetpack.Image, 
-    KevlarVest = ReplicatedStorage.Shared.items.wearables.KevlarVest.Image, 
-    Rebreather = ReplicatedStorage.Shared.items.wearables.Rebreather.Image, 
-    ShoulderLight = ReplicatedStorage.Shared.items.wearables.ShoulderLight.Image, 
-    Sling = ReplicatedStorage.Shared.items.wearables.Sling.Image, 
-    SmallBackpack = ReplicatedStorage.Shared.items.wearables.SmallBackpack.Image
+    IronHelmet = getWearableImage("Iron.IronHelmet"), 
+    IronChestplate = getWearableImage("Iron.IronChestplate"), 
+    IronLeggings = getWearableImage("Iron.IronLeggings"), 
+    WoodHelmet = getWearableImage("wood.WoodHelmet"), 
+    WoodChestplate = getWearableImage("wood.WoodChestplate"), 
+    WoodLeggings = getWearableImage("wood.WoodLeggings"), 
+    Boots = getWearableImage("clothes.Boots"), 
+    CamoPants = getWearableImage("clothes.CamoPants"), 
+    CamoShirt = getWearableImage("clothes.CamoShirt"), 
+    Flippers = getWearableImage("clothes.Flippers"), 
+    PolicePants = getWearableImage("clothes.PolicePants"), 
+    PoliceShirt = getWearableImage("clothes.PoliceShirt"), 
+    RiotChestplate = getWearableImage("riot.RiotChestplate"), 
+    RiotHelmet = getWearableImage("riot.RiotHelmet"), 
+    RiotLeggings = getWearableImage("riot.RiotLeggings"), 
+    SteelChestplate = getWearableImage("steel.SteelChestplate"), 
+    SteelHelmet = getWearableImage("steel.SteelHelmet"), 
+    SteelLeggings = getWearableImage("steel.SteelLeggings"), 
+    CombatHelmet = getWearableImage("CombatHelmet"), 
+    GasMask = getWearableImage("GasMask"), 
+    JetPack = getWearableImage("Jetpack"), 
+    KevlarVest = getWearableImage("KevlarVest"), 
+    Rebreather = getWearableImage("Rebreather"), 
+    ShoulderLight = getWearableImage("ShoulderLight"), 
+    Sling = getWearableImage("Sling"), 
+    SmallBackpack = getWearableImage("SmallBackpack")
 };
 screenGui = Instance.new("ScreenGui");
 screenGui.Name = "ArmorPreviewUI";
@@ -2374,12 +2392,20 @@ local _ = l_l_v0_Window_0_Tab_1:CreateSection("Vehicles");
 local l_RunService_2 = game:GetService("RunService");
 local l_CurrentCamera_2 = workspace.CurrentCamera;
 local _ = game:GetService("UserInputService");
-local l_vehicles_0 = game:GetService("ReplicatedStorage").Shared.entities.vehicles;
+local sharedFolder = ReplicatedStorage:WaitForChild("Shared")
+local entitiesFolder = sharedFolder:WaitForChild("entities")
+local l_vehicles_0 = entitiesFolder:WaitForChild("vehicles")
+
+local function getVehicleModel(vehicleName)
+    local vehicle = l_vehicles_0:WaitForChild(vehicleName, 5)
+    return vehicle and vehicle:WaitForChild("Model", 5)
+end
+
 VehicleBlueprints = {
-    ATV = l_vehicles_0.ATV.Model, 
-    Boat = l_vehicles_0.Boat.Model, 
-    Helicopter = l_vehicles_0.Helicopter.Model, 
-    Trolly = l_vehicles_0.Trolly.Model
+    ATV = getVehicleModel("ATV"), 
+    Boat = getVehicleModel("Boat"), 
+    Helicopter = getVehicleModel("Helicopter"), 
+    Trolly = getVehicleModel("Trolly")
 };
 VehicleESP = {};
 EspEnabled = {
@@ -2742,20 +2768,28 @@ local _ = l_l_v0_Window_0_Tab_2:CreateToggle({
     end
 });
 local _ = l_l_v0_Window_0_Tab_2:CreateSection("Lighting");
+local function setStimEffectProperty(prop, value)
+    local stimEffect = game:GetService("Lighting"):FindFirstChild("StimEffect")
+    if stimEffect then
+        pcall(function()
+            stimEffect[prop] = value
+        end)
+    end
+end
 local _ = l_l_v0_Window_0_Tab_2:CreateToggle({
     Name = "Lighting", 
     CurrentValue = false, 
     Flag = "Toggle1", 
-    Callback = function(v393) --[[ Line: 0 ]] --[[ Name:  ]]
-        game:GetService("Lighting").StimEffect.Enabled = v393;
+    Callback = function(v393)
+        setStimEffectProperty("Enabled", v393);
     end
 });
 local _ = l_l_v0_Window_0_Tab_2:CreateColorPicker({
     Name = "TintColor", 
     Color = Color3.fromRGB(255, 255, 255), 
     Flag = "ColorPicker1", 
-    Callback = function(v395) --[[ Line: 0 ]] --[[ Name:  ]]
-        game:GetService("Lighting").StimEffect.TintColor = v395;
+    Callback = function(v395)
+        setStimEffectProperty("TintColor", v395);
     end
 });
 local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
@@ -2768,8 +2802,8 @@ local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
     Suffix = "Brightness", 
     CurrentValue = 0.1, 
     Flag = "Slider1", 
-    Callback = function(v397) --[[ Line: 0 ]] --[[ Name:  ]]
-        game:GetService("Lighting").StimEffect.Brightness = v397;
+    Callback = function(v397)
+        setStimEffectProperty("Brightness", v397);
     end
 });
 local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
@@ -2782,8 +2816,8 @@ local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
     Suffix = "Contrast", 
     CurrentValue = 1, 
     Flag = "Slider1", 
-    Callback = function(v399) --[[ Line: 0 ]] --[[ Name:  ]]
-        game:GetService("Lighting").StimEffect.Contrast = v399;
+    Callback = function(v399)
+        setStimEffectProperty("Contrast", v399);
     end
 });
 local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
@@ -2796,8 +2830,8 @@ local _ = l_l_v0_Window_0_Tab_2:CreateSlider({
     Suffix = "Saturation", 
     CurrentValue = 10, 
     Flag = "Slider1", 
-    Callback = function(v401) --[[ Line: 0 ]] --[[ Name:  ]]
-        game:GetService("Lighting").StimEffect.Saturation = v401;
+    Callback = function(v401)
+        setStimEffectProperty("Saturation", v401);
     end
 });
 local l_l_v0_Window_0_Tab_3 = l_v0_Window_0:CreateTab("Player", nil);
@@ -2884,32 +2918,35 @@ local _ = l_l_v0_Window_0_Tab_3:CreateSlider({
         v424 = v430;
     end
 });
-local v432 = getrawmetatable(game);
-setreadonly(v432, false);
-local l___index_0 = v432.__index;
-local l___newindex_0 = v432.__newindex;
-v432.__index = newcclosure(function(v435, v436) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v423 (ref), v425 (ref), l___index_0 (ref)
-    if v435 == v423 and v436 == "FieldOfView" then
-        return v425;
-    else
-        return l___index_0(v435, v436);
-    end;
-end);
-v432.__newindex = newcclosure(function(v437, v438, v439) --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v423 (ref), v427 (ref), l___newindex_0 (ref), v426 (ref), v424 (ref)
-    if v437 == v423 and v438 == "FieldOfView" then
-        if v427 then
-            l___newindex_0(v437, v438, v426);
+local successHook, hookErr = pcall(function()
+    local v432 = getrawmetatable(game);
+    setreadonly(v432, false);
+    local l___index_0 = v432.__index;
+    local l___newindex_0 = v432.__newindex;
+    v432.__index = newcclosure(function(v435, v436)
+        if v435 == v423 and v436 == "FieldOfView" then
+            return v425;
         else
-            l___newindex_0(v437, v438, v424);
+            return l___index_0(v435, v436);
         end;
-        return;
-    else
-        return l___newindex_0(v437, v438, v439);
-    end;
-end);
-setreadonly(v432, true);
+    end);
+    v432.__newindex = newcclosure(function(v437, v438, v439)
+        if v437 == v423 and v438 == "FieldOfView" then
+            if v427 then
+                l___newindex_0(v437, v438, v426);
+            else
+                l___newindex_0(v437, v438, v424);
+            end;
+            return;
+        else
+            return l___newindex_0(v437, v438, v439);
+        end;
+    end);
+    setreadonly(v432, true);
+end)
+if not successHook then
+    warn("Failed to hook metatable (FOV Changer might not work): " .. tostring(hookErr))
+end
 l_RunService_3.RenderStepped:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
     -- upvalues: v427 (ref), v423 (ref), v426 (ref), v424 (ref)
     if v427 then
@@ -3279,12 +3316,11 @@ task.spawn(function() --[[ Line: 0 ]] --[[ Name:  ]]
 end);
 Player = game:GetService("Players").LocalPlayer;
 ReplicatedStorage = game:GetService("ReplicatedStorage");
-local l_HandModels_0 = ReplicatedStorage:WaitForChild("HandModels");
-local function v520(v513) --[[ Line: 0 ]] --[[ Name:  ]]
+local l_HandModels_0 = ReplicatedStorage:WaitForChild("HandModels", 10);
+local function v520(v513)
     local v514 = {};
     local v515 = {};
-    local function v516(v517) --[[ Line: 0 ]] --[[ Name:  ]]
-        -- upvalues: v514 (ref), v515 (ref), v516 (ref)
+    local function v516(v517)
         if v517:IsA("BasePart") then
             table.insert(v514, v517);
             if not v515[v517] then
@@ -3300,9 +3336,9 @@ local function v520(v513) --[[ Line: 0 ]] --[[ Name:  ]]
 end;
 local v521 = {};
 local v522 = {};
-local function v529() --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v521 (ref), l_HandModels_0 (ref), v520 (ref), v522 (ref)
+local function v529()
     v521 = {};
+    if not l_HandModels_0 then return end
     for _, v524 in ipairs(l_HandModels_0:GetChildren()) do
         local v525, v526 = v520(v524);
         v521[v524] = v525;
@@ -3365,13 +3401,14 @@ local function v552(v547) --[[ Line: 0 ]] --[[ Name:  ]]
     end;
 end;
 v529();
-l_HandModels_0.ChildAdded:Connect(function() --[[ Line: 0 ]] --[[ Name:  ]]
-    -- upvalues: v529 (ref), v546 (ref), l_l_l_v0_Window_0_Tab_3_Dropdown_1 (ref), v552 (ref), l_l_l_v0_Window_0_Tab_3_ColorPicker_2 (ref)
-    task.wait(0.5);
-    v529();
-    v546(l_l_l_v0_Window_0_Tab_3_Dropdown_1.CurrentOption[1]);
-    v552(l_l_l_v0_Window_0_Tab_3_ColorPicker_2.Color);
-end);
+if l_HandModels_0 then
+    l_HandModels_0.ChildAdded:Connect(function()
+        task.wait(0.5);
+        v529();
+        v546(l_l_l_v0_Window_0_Tab_3_Dropdown_1.CurrentOption[1]);
+        v552(l_l_l_v0_Window_0_Tab_3_ColorPicker_2.Color);
+    end);
+end;
 local _ = l_l_v0_Window_0_Tab_3:CreateDropdown({
     Name = "Weapon Chams", 
     Options = {
