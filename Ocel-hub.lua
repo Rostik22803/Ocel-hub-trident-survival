@@ -3500,6 +3500,144 @@ local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
     end
 });
 
+-- Spinbot / Anti-Aim settings
+local _ = l_l_v0_Window_0_Tab_4:CreateSection("Spinbot / Anti-Aim");
+SpinbotEnabled = false;
+SpinbotYawMode = "Default";
+SpinbotPitchMode = "Default";
+SpinbotSpeed = 50;
+SpinbotDisableOnShoot = true;
+
+local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Spinbot Enabled",
+    CurrentValue = false,
+    Flag = "SpinbotEnabled",
+    Callback = function(v)
+        SpinbotEnabled = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_4:CreateToggle({
+    Name = "Disable While Shooting",
+    CurrentValue = true,
+    Flag = "SpinbotDisableOnShoot",
+    Callback = function(v)
+        SpinbotDisableOnShoot = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
+    Name = "Yaw Mode",
+    Options = {
+        "Default",
+        "Spin",
+        "Jitter",
+        "Backwards",
+        "Left",
+        "Right"
+    },
+    CurrentOption = {
+        "Default"
+    },
+    MultipleOptions = false,
+    Flag = "SpinbotYawMode",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
+        end
+        SpinbotYawMode = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_4:CreateDropdown({
+    Name = "Pitch Mode",
+    Options = {
+        "Default",
+        "Down",
+        "Up",
+        "Jitter"
+    },
+    CurrentOption = {
+        "Default"
+    },
+    MultipleOptions = false,
+    Flag = "SpinbotPitchMode",
+    Callback = function(v)
+        if type(v) == "table" then
+            v = v[1]
+        end
+        SpinbotPitchMode = v
+    end
+});
+
+local _ = l_l_v0_Window_0_Tab_4:CreateSlider({
+    Name = "Spin Speed",
+    Range = {
+        1,
+        100
+    },
+    Increment = 1,
+    CurrentValue = 50,
+    Flag = "SpinbotSpeed",
+    Callback = function(v)
+        SpinbotSpeed = v
+    end
+});
+
+-- Hook PLAYER_MOVE to apply Spinbot/Anti-Aim settings
+task.spawn(function()
+    while not (_G.classes and _G.classes.NetClient and _G.classes.NetClient.SendTCP) do
+        task.wait(1)
+    end
+    
+    local classes = _G.classes
+    if not classes.NetClient._hooked then
+        classes.NetClient._hooked = true
+        local originalSendTCP = classes.NetClient.SendTCP
+        classes.NetClient.SendTCP = function(code, ...)
+            local args = {...}
+            if code == 1 and SpinbotEnabled then -- PLAYER_MOVE
+                local uis = game:GetService("UserInputService")
+                local isShooting = SpinbotDisableOnShoot and (uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or uis:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR2))
+                
+                if not isShooting then
+                    local originalAngles = args[2]
+                    if typeof(originalAngles) == "Vector3" then
+                        local currentPitch = originalAngles.X
+                        local currentYaw = originalAngles.Y
+                        
+                        local newYaw = currentYaw
+                        if SpinbotYawMode == "Spin" then
+                            newYaw = (tick() * SpinbotSpeed) % (math.pi * 2)
+                        elseif SpinbotYawMode == "Jitter" then
+                            local offset = (tick() * 10) % 2 < 1 and math.rad(35) or math.rad(-35)
+                            newYaw = (currentYaw + math.pi + offset) % (math.pi * 2)
+                        elseif SpinbotYawMode == "Backwards" then
+                            newYaw = (currentYaw + math.pi) % (math.pi * 2)
+                        elseif SpinbotYawMode == "Left" then
+                            newYaw = (currentYaw + math.pi/2) % (math.pi * 2)
+                        elseif SpinbotYawMode == "Right" then
+                            newYaw = (currentYaw - math.pi/2) % (math.pi * 2)
+                        end
+                        
+                        local newPitch = currentPitch
+                        if SpinbotPitchMode == "Down" then
+                            newPitch = -math.rad(80)
+                        elseif SpinbotPitchMode == "Up" then
+                            newPitch = math.rad(80)
+                        elseif SpinbotPitchMode == "Jitter" then
+                            newPitch = (tick() * 10) % 2 < 1 and math.rad(80) or -math.rad(80)
+                        end
+                        
+                        args[2] = Vector3.new(newPitch, newYaw, originalAngles.Z)
+                    end
+                end
+            end
+            return originalSendTCP(code, table.unpack(args))
+        end
+    end
+end)
+
 -- Third Person settings
 local _ = l_l_v0_Window_0_Tab_4:CreateSection("Third Person");
 local originalTransparencies = {}
