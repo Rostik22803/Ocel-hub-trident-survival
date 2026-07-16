@@ -3579,11 +3579,12 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             return
         end
 
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character.PrimaryPart
+        local visualChar = game:GetService("Players").LocalPlayer.Character or character
+        local humanoidRootPart = visualChar:FindFirstChild("HumanoidRootPart") or visualChar:FindFirstChild("Torso") or visualChar:FindFirstChild("UpperTorso") or visualChar.PrimaryPart
         if not humanoidRootPart then return end
 
         -- Recreate custom model if character changes (e.g. respawn)
-        if customModelSpawned and customModelWeldedCharacter ~= character then
+        if customModelSpawned and customModelWeldedCharacter ~= visualChar then
             customModelSpawned:Destroy()
             customModelSpawned = nil
             customModelWeldedCharacter = nil
@@ -3609,7 +3610,7 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             -- Spawn custom model if needed
             if not customModelSpawned then
                 customModelSpawned = customModelAsset:Clone()
-                customModelWeldedCharacter = character
+                customModelWeldedCharacter = visualChar
                 
                 -- Destroy any Humanoid to prevent character physics conflict
                 local hum = customModelSpawned:FindFirstChildOfClass("Humanoid")
@@ -3632,7 +3633,13 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 local customHrp = customModelSpawned:FindFirstChild("HumanoidRootPart", true) or customModelSpawned.PrimaryPart or findFirstBasePart(customModelSpawned)
                 if customHrp then
                     customModelSpawned.PrimaryPart = customHrp
-                    customModelSpawned:PivotTo(humanoidRootPart.CFrame)
+                    
+                    local targetCFrame = humanoidRootPart.CFrame
+                    local isLocalChar = (visualChar.Name == "LocalCharacter" or visualChar.Parent.Name == "Ignore")
+                    if isLocalChar then
+                        targetCFrame = targetCFrame * CFrame.Angles(0, 0, 1.5707963)
+                    end
+                    customModelSpawned:PivotTo(targetCFrame)
                 end
 
                 for _, part in ipairs(customModelSpawned:GetDescendants()) do
@@ -3652,7 +3659,12 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             end
 
             -- Align CFrame frame-by-frame (no physical welds, preventing any physics interference!)
-            customModelSpawned:PivotTo(humanoidRootPart.CFrame)
+            local targetCFrame = humanoidRootPart.CFrame
+            local isLocalChar = (visualChar.Name == "LocalCharacter" or visualChar.Parent.Name == "Ignore")
+            if isLocalChar then
+                targetCFrame = targetCFrame * CFrame.Angles(0, 0, 1.5707963)
+            end
+            customModelSpawned:PivotTo(targetCFrame)
 
             -- Keep custom model inside ignore list
             if customModelSpawned.Parent ~= ignore then
@@ -3671,21 +3683,27 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
                 end
             end
 
-            -- Hide original character parts
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        if not originalTransparencies[part] then
-                            originalTransparencies[part] = part.Transparency
-                        end
-                        part.Transparency = 1
-                        part.LocalTransparencyModifier = 1
-                    end)
+            -- Hide original character parts (both visual character and physical capsule)
+            local function hideModel(m)
+                for _, part in ipairs(m:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            if not originalTransparencies[part] then
+                                originalTransparencies[part] = part.Transparency
+                            end
+                            part.Transparency = 1
+                            part.LocalTransparencyModifier = 1
+                        end)
+                    end
                 end
+            end
+            hideModel(visualChar)
+            if character ~= visualChar then
+                hideModel(character)
             end
 
             -- Copy joints to custom model (mirror animations)
-            for _, motor in ipairs(character:GetDescendants()) do
+            for _, motor in ipairs(visualChar:GetDescendants()) do
                 if motor:IsA("Motor6D") then
                     local targetMotor = customModelSpawned:FindFirstChild(motor.Name, true)
                     if targetMotor and targetMotor:IsA("Motor6D") then
@@ -3702,17 +3720,19 @@ game:GetService("RunService"):BindToRenderStep("ThirdPerson", Enum.RenderPriorit
             customModelWeldedCharacter = nil
 
             -- Make original character visible
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function()
-                        if not originalTransparencies[part] then
-                            originalTransparencies[part] = part.Transparency
-                        end
-                        part.Transparency = 0
-                        part.LocalTransparencyModifier = 0
-                    end)
+            local function showModel(m)
+                for _, part in ipairs(m:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            local orig = originalTransparencies[part] or 0
+                            part.Transparency = orig
+                            part.LocalTransparencyModifier = 0
+                        end)
+                    end
                 end
             end
+            if visualChar then showModel(visualChar) end
+            if character and character ~= visualChar then showModel(character) end
         end
 
         -- Calculate camera CFrame
