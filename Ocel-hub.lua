@@ -1,79 +1,12 @@
 --[[
 	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
-local success, err = pcall(function()
-
 Players = game:GetService("Players");
 RunService = game:GetService("RunService");
 localPlayer = Players.LocalPlayer;
 ReplicatedStorage = game:GetService("ReplicatedStorage");
 camera = workspace.CurrentCamera;
 Workspace = game:GetService("Workspace");
-
-_G.AntiAimEnabled = false
-_G.AntiAimPitch = "None"
-_G.AntiAimYaw = "None"
-_G.SpinSpeed = 15
-_G.YawOffset = 0
-
-local pack = table.pack or function(...)
-    return {n = select("#", ...), ...}
-end
-
-task.spawn(function()
-    while not _G.classes or not _G.classes.NetClient or not _G.classes.NetClient.SendTCP do
-        task.wait(0.5)
-    end
-    
-    local NetClient = _G.classes.NetClient
-    local orgSendTCP = NetClient.SendTCP
-    
-    NetClient.SendTCP = function(code, ...)
-        if _G.AntiAimEnabled and code == 1 then -- PLAYER_MOVE
-            local args = pack(...)
-            local current_rot = args[2] or Vector3.new(0, 0, 0)
-            
-            local pitch = current_rot.X
-            local yaw = current_rot.Y
-            local roll = current_rot.Z
-            
-            -- Pitch
-            if _G.AntiAimPitch == "Down" then
-                pitch = 1.5
-            elseif _G.AntiAimPitch == "Up" then
-                pitch = -1.5
-            elseif _G.AntiAimPitch == "Jitter" then
-                pitch = (math.random(0, 1) == 0) and 1.5 or -1.5
-            elseif _G.AntiAimPitch == "Zero" then
-                pitch = 0
-            end
-            
-            -- Yaw
-            local base_yaw = yaw
-            if _G.AntiAimYaw == "Backwards" then
-                yaw = base_yaw + math.pi
-            elseif _G.AntiAimYaw == "Left" then
-                yaw = base_yaw - math.pi/2
-            elseif _G.AntiAimYaw == "Right" then
-                yaw = base_yaw + math.pi/2
-            elseif _G.AntiAimYaw == "Jitter" then
-                local offset = (math.random(0, 1) == 0) and (math.pi/2) or (-math.pi/2)
-                yaw = base_yaw + math.pi + offset
-            elseif _G.AntiAimYaw == "Spin" then
-                yaw = (os.clock() * (_G.SpinSpeed or 15)) % (math.pi * 2)
-            end
-            
-            if _G.YawOffset and _G.YawOffset ~= 0 then
-                yaw = yaw + math.rad(_G.YawOffset)
-            end
-            
-            args[2] = Vector3.new(pitch, yaw % (math.pi * 2), roll)
-            return orgSendTCP(code, table.unpack(args, 1, args.n))
-        end
-        return orgSendTCP(code, ...)
-    end
-end)
-
 local v0 = (function()
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -865,67 +798,6 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
         headTransparency = v18;
     end
 });
-
-local l_l_v0_Window_0_Tab_AntiAim = l_v0_Window_0:CreateTab("Anti-Aim", nil);
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateSection("Anti-Aim & Spinbot");
-
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateToggle({
-    Name = "Enable Anti-Aim / Spinbot",
-    CurrentValue = false,
-    Flag = "AntiAimEnabledToggle",
-    Callback = function(val)
-        _G.AntiAimEnabled = val
-    end
-});
-
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateDropdown({
-    Name = "Pitch Mode",
-    Options = {"None", "Down", "Up", "Jitter", "Zero"},
-    CurrentOption = {"None"},
-    MultipleOptions = false,
-    Flag = "AntiAimPitchDropdown",
-    Callback = function(val)
-        local selected = type(val) == "table" and val[1] or val
-        _G.AntiAimPitch = selected
-    end
-});
-
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateDropdown({
-    Name = "Yaw Mode",
-    Options = {"None", "Backwards", "Left", "Right", "Jitter", "Spin"},
-    CurrentOption = {"None"},
-    MultipleOptions = false,
-    Flag = "AntiAimYawDropdown",
-    Callback = function(val)
-        local selected = type(val) == "table" and val[1] or val
-        _G.AntiAimYaw = selected
-    end
-});
-
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateSlider({
-    Name = "Spin Speed",
-    Range = {1, 100},
-    Increment = 1,
-    Suffix = " rad/s",
-    CurrentValue = 15,
-    Flag = "AntiAimSpinSpeedSlider",
-    Callback = function(val)
-        _G.SpinSpeed = val
-    end
-});
-
-local _ = l_l_v0_Window_0_Tab_AntiAim:CreateSlider({
-    Name = "Yaw Offset",
-    Range = {-180, 180},
-    Increment = 5,
-    Suffix = "°",
-    CurrentValue = 0,
-    Flag = "AntiAimYawOffsetSlider",
-    Callback = function(val)
-        _G.YawOffset = val
-    end
-});
-
 local l_l_v0_Window_0_Tab_1 = l_v0_Window_0:CreateTab("ESP", nil);
 local _ = l_l_v0_Window_0_Tab_1:CreateSection("Players");
 local l_RunService_0 = game:GetService("RunService");
@@ -4105,11 +3977,4 @@ SettingsTab:CreateButton({
         v0:Destroy();
     end
 });
-end)
-if not success then
-    if writefile then
-        writefile("ocel_error_log.txt", tostring(err))
-    end
-    error(err)
-end
-return G2L and G2L["1"]
+return G2L["1"]
