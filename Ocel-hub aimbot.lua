@@ -828,11 +828,13 @@ local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
 -- State angles for camera hooks (GetX/GetY) to align character body
 local aimbotAngleX = nil
 local aimbotAngleY = nil
+local aimbotCameraCF = nil
 
 -- Regular Aimbot Loop (Priority.Camera + 1)
 pcall(function()
     rs:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
         if not _G.AimbotEnabled or not isKeyHeld(_G.AimbotKey) then
+            aimbotCameraCF = nil
             aimbotAngleX = nil
             aimbotAngleY = nil
             return
@@ -842,17 +844,28 @@ pcall(function()
         if targetPart then
             local camera = workspace.CurrentCamera
             local targetPos = targetPart.Position
-            local currentCF = camera.CFrame
-            local targetCF = CFrame.new(currentCF.Position, targetPos)
+            local currentPos = camera.CFrame.Position
             
-            -- Lerp the camera to face target
-            camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.1)
+            -- Initialize virtual CFrame if not set, or align position to current frame
+            if not aimbotCameraCF then
+                aimbotCameraCF = camera.CFrame
+            else
+                aimbotCameraCF = CFrame.new(currentPos) * (aimbotCameraCF - aimbotCameraCF.Position)
+            end
+            
+            -- Target CFrame looking from current camera position to target
+            local targetCF = CFrame.new(currentPos, targetPos)
+            
+            -- Smoothly lerp our virtual CFrame rotation towards target
+            aimbotCameraCF = aimbotCameraCF:Lerp(targetCF, _G.AimbotSmoothness or 0.1)
+            camera.CFrame = aimbotCameraCF
             
             -- Store angles for Character Body Rotation Hooks
-            local rx, ry, rz = targetCF:ToOrientation()
+            local rx, ry, rz = aimbotCameraCF:ToOrientation()
             aimbotAngleX = rx
             aimbotAngleY = ry
         else
+            aimbotCameraCF = nil
             aimbotAngleX = nil
             aimbotAngleY = nil
         end
@@ -877,43 +890,81 @@ end)
 
 -- Delayed API Hooks to wait for _G.classes to be populated
 task.spawn(function()
-    while not (_G.classes and _G.classes.Camera) do
+    while not (_G.classes and _G.classes.Camera and _G.classes.NetClient and _G.classes.RangedWeaponClient) do
         task.wait(0.5)
     end
     
     pcall(function()
         local CameraMod = _G.classes.Camera
-        if not CameraMod then return end
+        local NetClient = _G.classes.NetClient
+        local RangedWeapon = _G.classes.RangedWeaponClient
         
-        -- 1st/3rd Person Silent Aim Hook
-        if CameraMod.GetCFrame then
-            local origGetCFrame = CameraMod.GetCFrame
-            CameraMod.GetCFrame = function(...)
-                local origCF = origGetCFrame(...)
-                local success, result = pcall(function()
+        -- Hook RangedWeaponClient.CreateProjectile to redirect local client-side visual projectile path
+        if RangedWeapon and RangedWeapon.CreateProjectile then
+            local origCreateProjectile = RangedWeapon.CreateProjectile
+            RangedWeapon.CreateProjectile = function(...)
+                local args = {...}
+                pcall(function()
                     if _G.SilentAimEnabled then
-                        local traceback = debug.traceback()
-                        if traceback then
-                            traceback = string.lower(traceback)
-                            if string.find(traceback, "ranged") or string.find(traceback, "bow") or string.find(traceback, "projectile") then
-                                local targetPart = getClosestTarget(_G.SilentAimFOV)
-                                if targetPart and origCF then
-                                    -- Direct projectile trajectory toward target position while preserving starting location
-                                    return CFrame.new(origCF.Position, targetPart.Position)
+                        local offset = (args[1] == RangedWeapon) and 1 or 0
+                        local cf = args[1 + offset]
+                        local targetPart = getClosestTarget(_G.SilentAimFOV)
+                        if targetPart and typeof(cf) == "CFrame" then
+                            args[1 + offset] = CFrame.new(cf.Position, targetPart.Position)
+                        end
+                    end
+                end)
+                return origCreateProjectile(unpack(args))
+            end
+        end
+        
+        -- Hook NetClient.SendTCP to intercept and redirect fire/throw network packets directly to target
+        if NetClient and NetClient.SendTCP then
+            local origSendTCP = NetClient.SendTCP
+            NetClient.SendTCP = function(...)
+                local args = {...}
+                pcall(function()
+                    if _G.SilentAimEnabled then
+                        local offset = (args[1] == NetClient) and 1 or 0
+                        local action = args[2 + offset]
+                        
+                        if action == "Fire" then
+                            local targetPart = getClosestTarget(_G.SilentAimFOV)
+                            if targetPart then
+                                local origCF = args[4 + offset]
+                                if typeof(origCF) == "CFrame" then
+                                    args[4 + offset] = CFrame.new(origCF.Position, targetPart.Position)
+                                end
+                            end
+                        elseif action == "MultiFire" then
+                            local targetPart = getClosestTarget(_G.SilentAimFOV)
+                            if targetPart then
+                                local t = args[3 + offset]
+                                if type(t) == "table" then
+                                    for _, item in ipairs(t) do
+                                        if type(item) == "table" and typeof(item[1]) == "CFrame" then
+                                            item[1] = CFrame.new(item[1].Position, targetPart.Position)
+                                        end
+                                    end
+                                end
+                            end
+                        elseif action == "Throw" then
+                            local targetPart = getClosestTarget(_G.SilentAimFOV)
+                            if targetPart then
+                                local origCF = args[3 + offset]
+                                if typeof(origCF) == "CFrame" then
+                                    args[3 + offset] = CFrame.new(origCF.Position, targetPart.Position)
                                 end
                             end
                         end
                     end
                 end)
-                if success and result then
-                    return result
-                end
-                return origCF
+                return origSendTCP(unpack(args))
             end
         end
         
         -- Character Alignment (GetX/GetY) Hooks so physical model faces target
-        if CameraMod.GetX then
+        if CameraMod and CameraMod.GetX then
             local origGetX = CameraMod.GetX
             CameraMod.GetX = function(...)
                 if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
@@ -923,7 +974,7 @@ task.spawn(function()
             end
         end
         
-        if CameraMod.GetY then
+        if CameraMod and CameraMod.GetY then
             local origGetY = CameraMod.GetY
             CameraMod.GetY = function(...)
                 if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
