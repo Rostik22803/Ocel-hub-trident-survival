@@ -612,7 +612,7 @@ function OcelUI:CreateWindow(options)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
             
-            local BindLabel = Instance.new("TextButton")
+            local BindLabel = Instance.new("TextLabel")
             BindLabel.Parent = KbFrame
             BindLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
             BindLabel.Position = UDim2.new(1, -90, 0.5, -12)
@@ -625,52 +625,7 @@ function OcelUI:CreateWindow(options)
             local BindCorner = Instance.new("UICorner")
             BindCorner.CornerRadius = UDim.new(0, 4)
             BindCorner.Parent = BindLabel
-
-            local currentKey = kOpts.CurrentKeybind
-            local listening = false
-
-            BindLabel.MouseButton1Click:Connect(function()
-                listening = true
-                BindLabel.Text = "..."
-            end)
-
-            UserInputService.InputBegan:Connect(function(input, gp)
-                if listening then
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        currentKey = input.KeyCode.Name
-                        listening = false
-                        BindLabel.Text = currentKey
-                    elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
-                        currentKey = input.UserInputType.Name
-                        listening = false
-                        BindLabel.Text = currentKey
-                    end
-                else
-                    if not gp and kOpts.Callback then
-                        local matches = false
-                        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == currentKey then
-                            matches = true
-                        elseif (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3) and input.UserInputType.Name == currentKey then
-                            matches = true
-                        end
-                        if matches then
-                            kOpts.Callback(currentKey)
-                        end
-                    end
-                end
-            end)
-
             UpdateCanvas()
-            
-            local kbObj = {}
-            function kbObj:SetKey(newKey)
-                currentKey = newKey
-                BindLabel.Text = newKey
-            end
-            function kbObj:GetKey()
-                return currentKey
-            end
-            return kbObj
         end
 
         return Tab
@@ -842,9 +797,11 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
     Callback = function(v18) --[[ Line: 0 ]] --[[ Name:  ]]
         headTransparency = v18;
     end
-})-- ================= AIMBOT & SILENT AIM SYSTEM =================
+});
+
+-- ================= AIMBOT & SILENT AIM SYSTEM =================
 _G.AimbotEnabled = false
-_G.AimbotKey = "MouseButton2" -- Default to Right Click
+_G.AimbotKey = "Right Click"
 _G.AimbotSmoothness = 0.1
 _G.AimbotFOV = 100
 _G.AimbotTargetPart = "Head"
@@ -870,12 +827,16 @@ end)
 local uis = game:GetService("UserInputService")
 local rs = game:GetService("RunService")
 
-local function isKeyHeld(keyName)
-    if not keyName or keyName == "None" then return false end
-    if keyName == "MouseButton1" or keyName == "MouseButton2" or keyName == "MouseButton3" then
-        return uis:IsMouseButtonPressed(Enum.UserInputType[keyName])
+local function isKeyHeld(keyChoice)
+    if not keyChoice or keyChoice == "None" then return true end
+    if keyChoice == "Right Click" then
+        return uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    elseif keyChoice == "Left Click" then
+        return uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+    elseif keyChoice == "Shift" then
+        return uis:IsKeyDown(Enum.KeyCode.LeftShift)
     else
-        local success, keyCode = pcall(function() return Enum.KeyCode[keyName] end)
+        local success, keyCode = pcall(function() return Enum.KeyCode[keyChoice] end)
         if success and keyCode then
             return uis:IsKeyDown(keyCode)
         end
@@ -943,12 +904,15 @@ local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
     end
 })
 
-local _ = l_l_v0_Window_0_Tab_0:CreateKeybind({
+local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
     Name = "Aimbot Keybind",
-    CurrentKeybind = "MouseButton2",
-    Flag = "AimbotKeybind",
-    Callback = function(key)
-        _G.AimbotKey = key
+    Options = {"Right Click", "Left Click", "E", "Q", "C", "Shift", "None"},
+    CurrentOption = {"Right Click"},
+    MultipleOptions = false,
+    Flag = "AimbotKeyDropdown",
+    Callback = function(val)
+        local choice = type(val) == "table" and val[1] or val
+        _G.AimbotKey = choice
     end
 })
 
