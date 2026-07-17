@@ -716,14 +716,18 @@ local originalCreateProjectile = nil
 
 local targetPositions = {}
 local function getTargetVelocity(model, part)
+    if not part or not model then return Vector3.new(0, 0, 0) end
     local now = os.clock()
-    local pos = part.Position
-    local data = targetPositions[model]
+    local success, pos = pcall(function() return part.Position end)
+    if not success or not pos then return Vector3.new(0, 0, 0) end
     
+    local data = targetPositions[model]
     local velocity = Vector3.new(0, 0, 0)
-    if part:IsA("BasePart") then
-        velocity = part.AssemblyLinearVelocity
-    end
+    pcall(function()
+        if part:IsA("BasePart") then
+            velocity = part.AssemblyLinearVelocity or part.Velocity or velocity
+        end
+    end)
     
     if data then
         local dt = now - data.time
@@ -740,7 +744,10 @@ local function getTargetVelocity(model, part)
 end
 
 local function getPredictedPosition(targetPart, targetModel, bulletSpeed, bulletGravity)
-    local targetPos = targetPart.Position
+    if not targetPart then return Vector3.new(0, 0, 0) end
+    local success, targetPos = pcall(function() return targetPart.Position end)
+    if not success or not targetPos then return Vector3.new(0, 0, 0) end
+    
     if not (bulletSpeed and bulletSpeed > 0) then
         return targetPos
     end
@@ -858,8 +865,7 @@ local function getClosestTarget(maxFOV)
             end
             
             if part then
-                local localChar = localPlayer.Character or (workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("LocalCharacter"))
-                local localPos = localChar and localChar.PrimaryPart and localChar.PrimaryPart.Position or camera.CFrame.Position
+                local localPos = camera.CFrame.Position
                 local dist = (part.Position - localPos).Magnitude
                 
                 if dist <= (_G.AimbotMaxDistance or 300) then
