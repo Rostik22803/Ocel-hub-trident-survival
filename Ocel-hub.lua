@@ -1,6 +1,8 @@
 --[[
 	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
+local success, err = pcall(function()
+
 Players = game:GetService("Players");
 RunService = game:GetService("RunService");
 localPlayer = Players.LocalPlayer;
@@ -4103,4 +4105,11 @@ SettingsTab:CreateButton({
         v0:Destroy();
     end
 });
-return G2L["1"]
+end)
+if not success then
+    if writefile then
+        writefile("ocel_error_log.txt", tostring(err))
+    end
+    error(err)
+end
+return G2L and G2L["1"]
