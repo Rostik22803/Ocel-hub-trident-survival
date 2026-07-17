@@ -499,10 +499,65 @@ function OcelUI:CreateWindow(options)
     UserInputService.InputBegan:Connect(function(input, gp)
         if not gp and input.KeyCode == Enum.KeyCode[options.ToggleUIKeybind or "RightShift"] then
             UIVisible = not UIVisible
-            ScreenGui.Enabled = UIVisible
+            MainFrame.Visible = UIVisible
         end
     end)
     
+    if UserInputService.TouchEnabled then
+        local MobileToggle = Instance.new("TextButton")
+        MobileToggle.Parent = ScreenGui
+        MobileToggle.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        MobileToggle.Position = UDim2.new(0, 50, 0, 50)
+        MobileToggle.Size = UDim2.new(0, 45, 0, 45)
+        MobileToggle.Font = Enum.Font.GothamBold
+        MobileToggle.Text = "Ocel"
+        MobileToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        MobileToggle.TextSize = 14
+        
+        local MTCorner = Instance.new("UICorner")
+        MTCorner.CornerRadius = UDim.new(0.5, 0)
+        MTCorner.Parent = MobileToggle
+        
+        local MTStroke = Instance.new("UIStroke")
+        MTStroke.Color = Color3.fromRGB(0, 110, 255)
+        MTStroke.Thickness = 2
+        MTStroke.Parent = MobileToggle
+        
+        local dragging = false
+        local dragStart = nil
+        local startPos = nil
+
+        MobileToggle.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = MobileToggle.Position
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                MobileToggle.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        
+        MobileToggle.MouseButton1Click:Connect(function()
+            UIVisible = not UIVisible
+            MainFrame.Visible = UIVisible
+        end)
+    end
+    
+    function Window:Notify(nOpts)
+        print("[Ocel-hub]:", nOpts.Title, "-", nOpts.Content)
+    end
+
     return Window
 end
 
@@ -517,7 +572,7 @@ local l_v0_Window_0 = v0:CreateWindow({
 local l_l_v0_Window_0_Tab_0 = l_v0_Window_0:CreateTab("AimBot", nil);
 
 -- ================= AIMBOT & SILENT AIM SYSTEM =================
-_G.AimbotEnabled = false
+_G.AimbotEnabled = true
 _G.AimbotKey = "Right Click"
 _G.AimbotSmoothness = 0.1
 _G.AimbotFOV = 100
@@ -525,8 +580,12 @@ _G.AimbotTargetPart = "Head"
 _G.AimbotShowFOV = false
 _G.AimbotFOVColor = Color3.fromRGB(255, 255, 255)
 
-_G.SilentAimEnabled = false
+_G.SilentAimEnabled = true
 _G.SilentAimFOV = 150
+
+_G.AimbotTargetPlayers = true
+_G.AimbotTargetBots = true
+_G.AimbotVisibleCheck = true
 
 local fovCircle = nil
 pcall(function()
@@ -555,8 +614,8 @@ local function isKeyHeld(keyChoice)
         elseif keyChoice == "Shift" then
             pressed = uis:IsKeyDown(Enum.KeyCode.LeftShift)
         else
-            local keyCode = Enum.KeyCode[keyChoice]
-            if keyCode then
+            local success, keyCode = pcall(function() return Enum.KeyCode[keyChoice] end)
+            if success and keyCode then
                 pressed = uis:IsKeyDown(keyCode)
             end
         end
@@ -570,6 +629,17 @@ local function isTargetAlive(model)
     local torso = model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso")
     if not head or not torso then return false end
     
+    -- Player vs Bot check
+    local isPlayer = false
+    local checkTorso = model:FindFirstChild("Torso")
+    if checkTorso and checkTorso:FindFirstChild("LeftBooster") then
+        isPlayer = true
+    end
+    
+    if isPlayer and not _G.AimbotTargetPlayers then return false end
+    if not isPlayer and not _G.AimbotTargetBots then return false end
+    
+    -- Sleeper Check
     local lowerTorso = model:FindFirstChild("LowerTorso")
     if lowerTorso then
         local rootRig = lowerTorso:FindFirstChild("RootRig")
@@ -578,6 +648,24 @@ local function isTargetAlive(model)
         end
     end
     return true
+end
+
+local function isVisible(part, targetModel)
+    if not _G.AimbotVisibleCheck then return true end
+    local camera = workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local direction = part.Position - origin
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = { game:GetService("Players").LocalPlayer.Character, targetModel }
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.IgnoreWater = true
+    
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+    if raycastResult then
+        return false -- Something is blocking
+    end
+    return true -- Visible
 end
 
 local function getClosestTarget(maxFOV)
@@ -595,7 +683,7 @@ local function getClosestTarget(maxFOV)
                 part = model:FindFirstChild("Head") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso") or model.PrimaryPart
             end
             
-            if part then
+            if part and isVisible(part, model) then
                 local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
                 if onScreen then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
@@ -615,9 +703,33 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSection("Aimbot Settings")
 
 local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
     Name = "Aimbot",
-    CurrentValue = false,
+    CurrentValue = true,
     Callback = function(val)
         _G.AimbotEnabled = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Visible Check (Wall Check)",
+    CurrentValue = true,
+    Callback = function(val)
+        _G.AimbotVisibleCheck = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Target Players",
+    CurrentValue = true,
+    Callback = function(val)
+        _G.AimbotTargetPlayers = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Target Bots",
+    CurrentValue = true,
+    Callback = function(val)
+        _G.AimbotTargetBots = val
     end
 })
 
@@ -656,7 +768,7 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSection("Silent Aim Settings")
 
 local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
     Name = "Silent Aim",
-    CurrentValue = false,
+    CurrentValue = true,
     Callback = function(val)
         _G.SilentAimEnabled = val
     end
@@ -770,13 +882,16 @@ task.spawn(function()
             CameraMod.GetCFrame = function(...)
                 local origCF = origGetCFrame(...)
                 local success, result = pcall(function()
-                    if _G.SilentAimEnabled and debug and debug.traceback then
-                        local traceback = string.lower(debug.traceback())
-                        if string.find(traceback, "rangedweaponclient") or string.find(traceback, "bowclient") then
-                            local targetPart = getClosestTarget(_G.SilentAimFOV)
-                            if targetPart and origCF then
-                                -- Direct projectile trajectory toward target position while preserving starting location
-                                return CFrame.new(origCF.Position, targetPart.Position)
+                    if _G.SilentAimEnabled then
+                        local traceback = debug.traceback()
+                        if traceback then
+                            traceback = string.lower(traceback)
+                            if string.find(traceback, "ranged") or string.find(traceback, "bow") or string.find(traceback, "projectile") then
+                                local targetPart = getClosestTarget(_G.SilentAimFOV)
+                                if targetPart and origCF then
+                                    -- Direct projectile trajectory toward target position while preserving starting location
+                                    return CFrame.new(origCF.Position, targetPart.Position)
+                                end
                             end
                         end
                     end
