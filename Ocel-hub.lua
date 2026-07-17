@@ -842,9 +842,7 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
     Callback = function(v18) --[[ Line: 0 ]] --[[ Name:  ]]
         headTransparency = v18;
     end
-});
-
--- ================= AIMBOT & SILENT AIM SYSTEM =================
+})-- ================= AIMBOT & SILENT AIM SYSTEM =================
 _G.AimbotEnabled = false
 _G.AimbotKey = "MouseButton2" -- Default to Right Click
 _G.AimbotSmoothness = 0.1
@@ -856,12 +854,18 @@ _G.AimbotFOVColor = Color3.fromRGB(255, 255, 255)
 _G.SilentAimEnabled = false
 _G.SilentAimFOV = 150
 
-local fovCircle = Drawing.new("Circle")
-fovCircle.Thickness = 1.5
-fovCircle.NumSides = 64
-fovCircle.Filled = false
-fovCircle.Color = _G.AimbotFOVColor
-fovCircle.Visible = false
+local fovCircle = nil
+pcall(function()
+    if Drawing and Drawing.new then
+        local circle = Drawing.new("Circle")
+        circle.Thickness = 1.5
+        circle.NumSides = 64
+        circle.Filled = false
+        circle.Color = _G.AimbotFOVColor
+        circle.Visible = false
+        fovCircle = circle
+    end
+end)
 
 local uis = game:GetService("UserInputService")
 local rs = game:GetService("RunService")
@@ -1061,15 +1065,17 @@ end)
 
 -- FOV Circle Loop
 rs.RenderStepped:Connect(function()
-    if _G.AimbotShowFOV and (_G.AimbotEnabled or _G.SilentAimEnabled) then
-        local camera = workspace.CurrentCamera
-        local viewportSize = camera.ViewportSize
-        fovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-        fovCircle.Radius = _G.SilentAimEnabled and _G.SilentAimFOV or _G.AimbotFOV
-        fovCircle.Color = _G.AimbotFOVColor
-        fovCircle.Visible = true
-    else
-        fovCircle.Visible = false
+    if fovCircle then
+        if _G.AimbotShowFOV and (_G.AimbotEnabled or _G.SilentAimEnabled) then
+            local camera = workspace.CurrentCamera
+            local viewportSize = camera.ViewportSize
+            fovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+            fovCircle.Radius = _G.SilentAimEnabled and _G.SilentAimFOV or _G.AimbotFOV
+            fovCircle.Color = _G.AimbotFOVColor
+            fovCircle.Visible = true
+        else
+            fovCircle.Visible = false
+        end
     end
 end)
 
@@ -1080,37 +1086,44 @@ task.spawn(function()
     end
     
     local CameraMod = _G.classes.Camera
+    if not CameraMod then return end
     
     -- 1st/3rd Person Silent Aim Hook
-    local origGetCFrame = CameraMod.GetCFrame
-    CameraMod.GetCFrame = function(...)
-        local origCF = origGetCFrame(...)
-        local traceback = debug.traceback()
-        if _G.SilentAimEnabled and (string.find(traceback, "RangedWeaponClient") or string.find(traceback, "BowClient")) then
-            local targetPart = getClosestTarget(_G.SilentAimFOV)
-            if targetPart then
-                -- Direct projectile trajectory toward target position while preserving starting location
-                return CFrame.new(origCF.Position, targetPart.Position)
+    if CameraMod.GetCFrame then
+        local origGetCFrame = CameraMod.GetCFrame
+        CameraMod.GetCFrame = function(...)
+            local origCF = origGetCFrame(...)
+            local traceback = debug.traceback()
+            if _G.SilentAimEnabled and (string.find(traceback, "RangedWeaponClient") or string.find(traceback, "BowClient")) then
+                local targetPart = getClosestTarget(_G.SilentAimFOV)
+                if targetPart then
+                    -- Direct projectile trajectory toward target position while preserving starting location
+                    return CFrame.new(origCF.Position, targetPart.Position)
+                end
             end
+            return origCF
         end
-        return origCF
     end
     
     -- Character Alignment (GetX/GetY) Hooks so physical model faces target
-    local origGetX = CameraMod.GetX
-    CameraMod.GetX = function(...)
-        if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
-            return aimbotAngleX
+    if CameraMod.GetX then
+        local origGetX = CameraMod.GetX
+        CameraMod.GetX = function(...)
+            if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
+                return aimbotAngleX
+            end
+            return origGetX(...)
         end
-        return origGetX(...)
     end
     
-    local origGetY = CameraMod.GetY
-    CameraMod.GetY = function(...)
-        if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
-            return aimbotAngleY
+    if CameraMod.GetY then
+        local origGetY = CameraMod.GetY
+        CameraMod.GetY = function(...)
+            if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
+                return aimbotAngleY
+            end
+            return origGetY(...)
         end
-        return origGetY(...)
     end
 end)
 
