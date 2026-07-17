@@ -1042,16 +1042,27 @@ pcall(function()
             local drop = equipped and (equipped.ProjectileDrop or equipped.projectileDrop)
             
             local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
-            local currentCF = camera.CFrame
-            local targetCF = CFrame.new(currentCF.Position, targetPos)
-            
-            -- Lerp the camera to face target
-            camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.15)
             
             -- Store angles for Character Body Rotation Hooks
+            local targetCF = CFrame.new(camera.CFrame.Position, targetPos)
             local rx, ry, rz = targetCF:ToOrientation()
             aimbotAngleX = rx
             aimbotAngleY = ry
+            
+            -- Smooth camera lock
+            if mousemoverel then
+                local screenPos, onScreen = camera:WorldToViewportPoint(targetPos)
+                if onScreen then
+                    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                    local dx = (screenPos.X - screenCenter.X) * (_G.AimbotSmoothness or 0.15)
+                    local dy = (screenPos.Y - screenCenter.Y) * (_G.AimbotSmoothness or 0.15)
+                    mousemoverel(dx, dy)
+                end
+            else
+                -- Fallback to CFrame Lerp
+                local currentCF = camera.CFrame
+                camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.15)
+            end
         else
             aimbotAngleX = nil
             aimbotAngleY = nil
