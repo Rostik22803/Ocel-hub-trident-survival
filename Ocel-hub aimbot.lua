@@ -573,7 +573,7 @@ local l_l_v0_Window_0_Tab_0 = l_v0_Window_0:CreateTab("AimBot", nil);
 
 -- ================= AIMBOT & SILENT AIM SYSTEM =================
 _G.AimbotEnabled = true
-_G.AimbotKey = "Right Click"
+_G.AimbotKey = "Left Click"
 _G.AimbotSmoothness = 0.1
 _G.AimbotFOV = 100
 _G.AimbotTargetPart = "Head"
@@ -603,6 +603,15 @@ end)
 local uis = game:GetService("UserInputService")
 local rs = game:GetService("RunService")
 
+-- Touch tracking for mobile/tablet devices
+local isTouchingScreen = false
+uis.TouchStarted:Connect(function()
+    isTouchingScreen = true
+end)
+uis.TouchEnded:Connect(function()
+    isTouchingScreen = false
+end)
+
 local function isKeyHeld(keyChoice)
     if not keyChoice or keyChoice == "None" then return true end
     local pressed = false
@@ -610,7 +619,7 @@ local function isKeyHeld(keyChoice)
         if keyChoice == "Right Click" then
             pressed = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         elseif keyChoice == "Left Click" then
-            pressed = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+            pressed = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or #uis:GetTouches() > 0 or isTouchingScreen
         elseif keyChoice == "Shift" then
             pressed = uis:IsKeyDown(Enum.KeyCode.LeftShift)
         else
@@ -736,7 +745,7 @@ local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
 local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
     Name = "Aimbot Keybind",
     Options = {"Right Click", "Left Click", "E", "Q", "C", "Shift", "None"},
-    CurrentOption = {"Right Click"},
+    CurrentOption = {"Left Click"},
     MultipleOptions = false,
     Callback = function(val)
         local choice = type(val) == "table" and val[1] or val
