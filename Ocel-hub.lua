@@ -813,9 +813,8 @@ _G.SilentAimFOV = 150
 
 local fovCircle = nil
 pcall(function()
-    local drawingLib = rawget(getfenv(), "Drawing")
-    if drawingLib and drawingLib.new then
-        local circle = drawingLib.new("Circle")
+    if Drawing and Drawing.new then
+        local circle = Drawing.new("Circle")
         circle.Thickness = 1.5
         circle.NumSides = 64
         circle.Filled = false
@@ -839,8 +838,8 @@ local function isKeyHeld(keyChoice)
         elseif keyChoice == "Shift" then
             pressed = uis:IsKeyDown(Enum.KeyCode.LeftShift)
         else
-            local keyCode = Enum.KeyCode[keyChoice]
-            if keyCode then
+            local success, keyCode = pcall(function() return Enum.KeyCode[keyChoice] end)
+            if success and keyCode then
                 pressed = uis:IsKeyDown(keyCode)
             end
         end
@@ -1065,11 +1064,11 @@ task.spawn(function()
             CameraMod.GetCFrame = function(...)
                 local origCF = origGetCFrame(...)
                 local success, result = pcall(function()
-                    if _G.SilentAimEnabled then
+                    if _G.SilentAimEnabled and debug and debug.traceback then
                         local traceback = string.lower(debug.traceback())
                         if string.find(traceback, "rangedweaponclient") or string.find(traceback, "bowclient") then
                             local targetPart = getClosestTarget(_G.SilentAimFOV)
-                            if targetPart then
+                            if targetPart and origCF then
                                 -- Direct projectile trajectory toward target position while preserving starting location
                                 return CFrame.new(origCF.Position, targetPart.Position)
                             end
