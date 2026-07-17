@@ -612,7 +612,7 @@ function OcelUI:CreateWindow(options)
             Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
             
-            local BindLabel = Instance.new("TextLabel")
+            local BindLabel = Instance.new("TextButton")
             BindLabel.Parent = KbFrame
             BindLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
             BindLabel.Position = UDim2.new(1, -90, 0.5, -12)
@@ -625,7 +625,52 @@ function OcelUI:CreateWindow(options)
             local BindCorner = Instance.new("UICorner")
             BindCorner.CornerRadius = UDim.new(0, 4)
             BindCorner.Parent = BindLabel
+
+            local currentKey = kOpts.CurrentKeybind
+            local listening = false
+
+            BindLabel.MouseButton1Click:Connect(function()
+                listening = true
+                BindLabel.Text = "..."
+            end)
+
+            UserInputService.InputBegan:Connect(function(input, gp)
+                if listening then
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        currentKey = input.KeyCode.Name
+                        listening = false
+                        BindLabel.Text = currentKey
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        currentKey = input.UserInputType.Name
+                        listening = false
+                        BindLabel.Text = currentKey
+                    end
+                else
+                    if not gp and kOpts.Callback then
+                        local matches = false
+                        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == currentKey then
+                            matches = true
+                        elseif (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3) and input.UserInputType.Name == currentKey then
+                            matches = true
+                        end
+                        if matches then
+                            kOpts.Callback(currentKey)
+                        end
+                    end
+                end
+            end)
+
             UpdateCanvas()
+            
+            local kbObj = {}
+            function kbObj:SetKey(newKey)
+                currentKey = newKey
+                BindLabel.Text = newKey
+            end
+            function kbObj:GetKey()
+                return currentKey
+            end
+            return kbObj
         end
 
         return Tab
@@ -798,6 +843,277 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
         headTransparency = v18;
     end
 });
+
+-- ================= AIMBOT & SILENT AIM SYSTEM =================
+_G.AimbotEnabled = false
+_G.AimbotKey = "MouseButton2" -- Default to Right Click
+_G.AimbotSmoothness = 0.1
+_G.AimbotFOV = 100
+_G.AimbotTargetPart = "Head"
+_G.AimbotShowFOV = false
+_G.AimbotFOVColor = Color3.fromRGB(255, 255, 255)
+
+_G.SilentAimEnabled = false
+_G.SilentAimFOV = 150
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Thickness = 1.5
+fovCircle.NumSides = 64
+fovCircle.Filled = false
+fovCircle.Color = _G.AimbotFOVColor
+fovCircle.Visible = false
+
+local uis = game:GetService("UserInputService")
+local rs = game:GetService("RunService")
+
+local function isKeyHeld(keyName)
+    if not keyName or keyName == "None" then return false end
+    if keyName == "MouseButton1" or keyName == "MouseButton2" or keyName == "MouseButton3" then
+        return uis:IsMouseButtonPressed(Enum.UserInputType[keyName])
+    else
+        local success, keyCode = pcall(function() return Enum.KeyCode[keyName] end)
+        if success and keyCode then
+            return uis:IsKeyDown(keyCode)
+        end
+    end
+    return false
+end
+
+local function isTargetAlive(model)
+    if not model or not model.Parent then return false end
+    local head = model:FindFirstChild("Head")
+    local torso = model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso")
+    if not head or not torso then return false end
+    
+    -- Sleeper Check (LowerTorso -> RootRig -> CurrentAngle ~= 0)
+    local lowerTorso = model:FindFirstChild("LowerTorso")
+    if lowerTorso then
+        local rootRig = lowerTorso:FindFirstChild("RootRig")
+        if rootRig and typeof(rootRig.CurrentAngle) == "number" and rootRig.CurrentAngle ~= 0 then
+            return false
+        end
+    end
+    return true
+end
+
+local function getClosestTarget(maxFOV)
+    local closestTarget = nil
+    local shortestDistance = maxFOV
+    
+    local camera = workspace.CurrentCamera
+    local localPlayer = game:GetService("Players").LocalPlayer
+    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+    
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and model ~= localPlayer.Character and isTargetAlive(model) then
+            local aimPartName = _G.AimbotTargetPart or "Head"
+            local part = model:FindFirstChild(aimPartName)
+            if not part then
+                part = model:FindFirstChild("Head") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso") or model.PrimaryPart
+            end
+            
+            if part then
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestTarget = part
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- UI Controls under AimBot Tab (l_l_v0_Window_0_Tab_0)
+local _ = l_l_v0_Window_0_Tab_0:CreateSection("Aimbot")
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Aimbot",
+    CurrentValue = false,
+    Flag = "AimbotToggle",
+    Callback = function(val)
+        _G.AimbotEnabled = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateKeybind({
+    Name = "Aimbot Keybind",
+    CurrentKeybind = "MouseButton2",
+    Flag = "AimbotKeybind",
+    Callback = function(key)
+        _G.AimbotKey = key
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Aimbot Smoothness",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    CurrentValue = 0.1,
+    Flag = "AimbotSmoothness",
+    Callback = function(val)
+        _G.AimbotSmoothness = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Aimbot FOV",
+    Range = {10, 800},
+    Increment = 5,
+    CurrentValue = 100,
+    Flag = "AimbotFOV",
+    Callback = function(val)
+        _G.AimbotFOV = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSection("Silent Aim")
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Silent Aim",
+    CurrentValue = false,
+    Flag = "SilentAimToggle",
+    Callback = function(val)
+        _G.SilentAimEnabled = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Silent Aim FOV",
+    Range = {10, 800},
+    Increment = 5,
+    CurrentValue = 150,
+    Flag = "SilentAimFOV",
+    Callback = function(val)
+        _G.SilentAimFOV = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateSection("Settings")
+
+local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = false,
+    Flag = "ShowFOVCircle",
+    Callback = function(val)
+        _G.AimbotShowFOV = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateColorPicker({
+    Name = "FOV Circle Color",
+    Color = Color3.fromRGB(255, 255, 255),
+    Flag = "FOVCircleColor",
+    Callback = function(val)
+        _G.AimbotFOVColor = val
+    end
+})
+
+local _ = l_l_v0_Window_0_Tab_0:CreateDropdown({
+    Name = "Target Part",
+    Options = {"Head", "Torso"},
+    CurrentOption = {"Head"},
+    MultipleOptions = false,
+    Flag = "TargetPartDropdown",
+    Callback = function(val)
+        if type(val) == "table" then
+            _G.AimbotTargetPart = val[1]
+        else
+            _G.AimbotTargetPart = val
+        end
+    end
+})
+
+-- State angles for camera hooks (GetX/GetY) to align character body
+local aimbotAngleX = nil
+local aimbotAngleY = nil
+
+-- Regular Aimbot Loop (Priority.Camera + 1)
+rs:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+    if not _G.AimbotEnabled or not isKeyHeld(_G.AimbotKey) then
+        aimbotAngleX = nil
+        aimbotAngleY = nil
+        return
+    end
+    
+    local targetPart = getClosestTarget(_G.AimbotFOV)
+    if targetPart then
+        local camera = workspace.CurrentCamera
+        local targetPos = targetPart.Position
+        local currentCF = camera.CFrame
+        local targetCF = CFrame.new(currentCF.Position, targetPos)
+        
+        -- Lerp the camera to face target
+        camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.1)
+        
+        -- Store angles for Character Body Rotation Hooks
+        local rx, ry, rz = targetCF:ToOrientation()
+        aimbotAngleX = rx
+        aimbotAngleY = ry
+    else
+        aimbotAngleX = nil
+        aimbotAngleY = nil
+    end
+end)
+
+-- FOV Circle Loop
+rs.RenderStepped:Connect(function()
+    if _G.AimbotShowFOV and (_G.AimbotEnabled or _G.SilentAimEnabled) then
+        local camera = workspace.CurrentCamera
+        local viewportSize = camera.ViewportSize
+        fovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+        fovCircle.Radius = _G.SilentAimEnabled and _G.SilentAimFOV or _G.AimbotFOV
+        fovCircle.Color = _G.AimbotFOVColor
+        fovCircle.Visible = true
+    else
+        fovCircle.Visible = false
+    end
+end)
+
+-- Delayed API Hooks to wait for _G.classes to be populated
+task.spawn(function()
+    while not (_G.classes and _G.classes.Camera) do
+        task.wait(0.5)
+    end
+    
+    local CameraMod = _G.classes.Camera
+    
+    -- 1st/3rd Person Silent Aim Hook
+    local origGetCFrame = CameraMod.GetCFrame
+    CameraMod.GetCFrame = function(...)
+        local origCF = origGetCFrame(...)
+        local traceback = debug.traceback()
+        if _G.SilentAimEnabled and (string.find(traceback, "RangedWeaponClient") or string.find(traceback, "BowClient")) then
+            local targetPart = getClosestTarget(_G.SilentAimFOV)
+            if targetPart then
+                -- Direct projectile trajectory toward target position while preserving starting location
+                return CFrame.new(origCF.Position, targetPart.Position)
+            end
+        end
+        return origCF
+    end
+    
+    -- Character Alignment (GetX/GetY) Hooks so physical model faces target
+    local origGetX = CameraMod.GetX
+    CameraMod.GetX = function(...)
+        if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
+            return aimbotAngleX
+        end
+        return origGetX(...)
+    end
+    
+    local origGetY = CameraMod.GetY
+    CameraMod.GetY = function(...)
+        if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
+            return aimbotAngleY
+        end
+        return origGetY(...)
+    end
+end)
+
 local l_l_v0_Window_0_Tab_1 = l_v0_Window_0:CreateTab("ESP", nil);
 local _ = l_l_v0_Window_0_Tab_1:CreateSection("Players");
 local l_RunService_0 = game:GetService("RunService");
