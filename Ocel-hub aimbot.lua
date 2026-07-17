@@ -25,6 +25,7 @@ local OcelUI = {}
 
 function OcelUI:CreateWindow(options)
     local Window = {}
+    local connections = {}
     local Title = options.Name or "Ocel-hub"
     
     local ScreenGui = Instance.new("ScreenGui")
@@ -78,7 +79,7 @@ function OcelUI:CreateWindow(options)
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local dragging, dragInput, dragStart, startPos
-    Topbar.InputBegan:Connect(function(input)
+    local c1 = Topbar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -88,17 +89,20 @@ function OcelUI:CreateWindow(options)
             end)
         end
     end)
-    Topbar.InputChanged:Connect(function(input)
+    local c2 = Topbar.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
-    UserInputService.InputChanged:Connect(function(input)
+    local c3 = UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+    table.insert(connections, c1)
+    table.insert(connections, c2)
+    table.insert(connections, c3)
 
     local TabContainer = Instance.new("ScrollingFrame")
     TabContainer.Name = "TabContainer"
@@ -339,11 +343,12 @@ function OcelUI:CreateWindow(options)
                     update(input)
                 end
             end)
-            UserInputService.InputEnded:Connect(function(input)
+            local sliderEnded = UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     sliding = false
                 end
             end)
+            table.insert(connections, sliderEnded)
             UpdateCanvas()
         end
 
@@ -492,16 +497,42 @@ function OcelUI:CreateWindow(options)
             UpdateCanvas()
         end
         
+        function Tab:CreateButton(bOpts)
+            local BtnFrame = Instance.new("Frame")
+            BtnFrame.Parent = Page
+            BtnFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            BtnFrame.Size = UDim2.new(1, 0, 0, 35)
+            
+            local BtnCorner = Instance.new("UICorner")
+            BtnCorner.CornerRadius = UDim.new(0, 6)
+            BtnCorner.Parent = BtnFrame
+            
+            local Button = Instance.new("TextButton")
+            Button.Parent = BtnFrame
+            Button.BackgroundTransparency = 1
+            Button.Size = UDim2.new(1, 0, 1, 0)
+            Button.Font = Enum.Font.GothamSemibold
+            Button.Text = bOpts.Name
+            Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Button.TextSize = 14
+            
+            Button.MouseButton1Click:Connect(function()
+                if bOpts.Callback then bOpts.Callback() end
+            end)
+            UpdateCanvas()
+        end
+        
         return Tab
     end
     
     local UIVisible = true
-    UserInputService.InputBegan:Connect(function(input, gp)
+    local toggleConnection = UserInputService.InputBegan:Connect(function(input, gp)
         if not gp and input.KeyCode == Enum.KeyCode[options.ToggleUIKeybind or "RightShift"] then
             UIVisible = not UIVisible
             MainFrame.Visible = UIVisible
         end
     end)
+    table.insert(connections, toggleConnection)
     
     if UserInputService.TouchEnabled then
         local MobileToggle = Instance.new("TextButton")
@@ -527,7 +558,7 @@ function OcelUI:CreateWindow(options)
         local dragStart = nil
         local startPos = nil
 
-        MobileToggle.InputBegan:Connect(function(input)
+        local m1 = MobileToggle.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
                 dragStart = input.Position
@@ -535,23 +566,36 @@ function OcelUI:CreateWindow(options)
             end
         end)
 
-        UserInputService.InputChanged:Connect(function(input)
+        local m2 = UserInputService.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 local delta = input.Position - dragStart
                 MobileToggle.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end)
 
-        UserInputService.InputEnded:Connect(function(input)
+        local m3 = UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
             end
         end)
         
-        MobileToggle.MouseButton1Click:Connect(function()
+        local m4 = MobileToggle.MouseButton1Click:Connect(function()
             UIVisible = not UIVisible
             MainFrame.Visible = UIVisible
         end)
+        table.insert(connections, m1)
+        table.insert(connections, m2)
+        table.insert(connections, m3)
+        table.insert(connections, m4)
+    end
+    
+    function Window:Destroy()
+        for _, conn in ipairs(connections) do
+            if conn then
+                pcall(function() conn:Disconnect() end)
+            end
+        end
+        ScreenGui:Destroy()
     end
     
     function Window:Notify(nOpts)
@@ -605,10 +649,10 @@ local rs = game:GetService("RunService")
 
 -- Touch tracking for mobile/tablet devices
 local isTouchingScreen = false
-uis.TouchStarted:Connect(function()
+touchStartedConnection = uis.TouchStarted:Connect(function()
     isTouchingScreen = true
 end)
-uis.TouchEnded:Connect(function()
+touchEndedConnection = uis.TouchEnded:Connect(function()
     isTouchingScreen = false
 end)
 
@@ -659,6 +703,15 @@ local function isTargetAlive(model)
     return true
 end
 
+local touchStartedConnection = nil
+local touchEndedConnection = nil
+local fovConnection = nil
+
+local originalGetX = nil
+local originalGetY = nil
+local originalSendTCP = nil
+local originalCreateProjectile = nil
+
 local function isVisible(part, targetModel)
     if not _G.AimbotVisibleCheck then return true end
     local camera = workspace.CurrentCamera
@@ -666,7 +719,14 @@ local function isVisible(part, targetModel)
     local direction = part.Position - origin
     
     local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = { game:GetService("Players").LocalPlayer.Character, targetModel }
+    local filter = { targetModel }
+    if workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") then
+        table.insert(filter, workspace.Const.Ignore)
+    end
+    if game:GetService("Players").LocalPlayer.Character then
+        table.insert(filter, game:GetService("Players").LocalPlayer.Character)
+    end
+    raycastParams.FilterDescendantsInstances = filter
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.IgnoreWater = true
     
@@ -675,6 +735,58 @@ local function isVisible(part, targetModel)
         return false -- Something is blocking
     end
     return true -- Visible
+end
+
+local function unload()
+    -- Disconnect Touch events
+    if touchStartedConnection then
+        pcall(function() touchStartedConnection:Disconnect() end)
+    end
+    if touchEndedConnection then
+        pcall(function() touchEndedConnection:Disconnect() end)
+    end
+    
+    -- Disconnect RenderStepped FOV connection
+    if fovConnection then
+        pcall(function() fovConnection:Disconnect() end)
+    end
+    
+    -- Unbind RenderStep AimbotUpdate
+    pcall(function()
+        rs:UnbindFromRenderStep("AimbotUpdate")
+    end)
+    
+    -- Destroy FOV Circle
+    if fovCircle then
+        pcall(function() fovCircle:Remove() end)
+    end
+    
+    -- Restore original functions
+    pcall(function()
+        if originalGetX and _G.classes and _G.classes.Camera then
+            _G.classes.Camera.GetX = originalGetX
+        end
+        if originalGetY and _G.classes and _G.classes.Camera then
+            _G.classes.Camera.GetY = originalGetY
+        end
+    end)
+    
+    pcall(function()
+        if originalSendTCP and _G.classes and _G.classes.NetClient then
+            _G.classes.NetClient.SendTCP = originalSendTCP
+        end
+    end)
+    
+    pcall(function()
+        if originalCreateProjectile and _G.classes and _G.classes.RangedWeaponClient then
+            _G.classes.RangedWeaponClient.CreateProjectile = originalCreateProjectile
+        end
+    end)
+    
+    -- Destroy window UI
+    if l_v0_Window_0 then
+        pcall(function() l_v0_Window_0:Destroy() end)
+    end
 end
 
 local function getClosestTarget(maxFOV)
@@ -860,7 +972,7 @@ pcall(function()
 end)
 
 -- FOV Circle Loop
-rs.RenderStepped:Connect(function()
+fovConnection = rs.RenderStepped:Connect(function()
     if fovCircle then
         if _G.AimbotShowFOV and (_G.AimbotEnabled or _G.SilentAimEnabled) then
             local camera = workspace.CurrentCamera
@@ -883,21 +995,21 @@ task.spawn(function()
     local CameraMod = _G.classes.Camera
     pcall(function()
         if CameraMod and CameraMod.GetX then
-            local origGetX = CameraMod.GetX
+            originalGetX = CameraMod.GetX
             CameraMod.GetX = function(...)
                 if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
                     return aimbotAngleX
                 end
-                return origGetX(...)
+                return originalGetX(...)
             end
         end
         if CameraMod and CameraMod.GetY then
-            local origGetY = CameraMod.GetY
+            originalGetY = CameraMod.GetY
             CameraMod.GetY = function(...)
                 if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
                     return aimbotAngleY
                 end
-                return origGetY(...)
+                return originalGetY(...)
             end
         end
     end)
@@ -911,7 +1023,7 @@ task.spawn(function()
     local NetClient = _G.classes.NetClient
     pcall(function()
         if NetClient and NetClient.SendTCP then
-            local origSendTCP = NetClient.SendTCP
+            originalSendTCP = NetClient.SendTCP
             NetClient.SendTCP = function(...)
                 local args = {...}
                 pcall(function()
@@ -950,7 +1062,7 @@ task.spawn(function()
                         end
                     end
                 end)
-                return origSendTCP(unpack(args))
+                return originalSendTCP(unpack(args))
             end
         end
     end)
@@ -964,7 +1076,7 @@ task.spawn(function()
     local RangedWeapon = _G.classes.RangedWeaponClient
     pcall(function()
         if RangedWeapon and RangedWeapon.CreateProjectile then
-            local origCreateProjectile = RangedWeapon.CreateProjectile
+            originalCreateProjectile = RangedWeapon.CreateProjectile
             RangedWeapon.CreateProjectile = function(...)
                 local args = {...}
                 pcall(function()
@@ -977,7 +1089,7 @@ task.spawn(function()
                         end
                     end
                 end)
-                return origCreateProjectile(unpack(args))
+                return originalCreateProjectile(unpack(args))
             end
         end
     end)
@@ -989,8 +1101,6 @@ SettingsTab:CreateSection("System")
 SettingsTab:CreateButton({
     Name = "Unload Menu", 
     Callback = function()
-        v0:Destroy();
+        unload()
     end
 })
-
-return G2L["1"]
