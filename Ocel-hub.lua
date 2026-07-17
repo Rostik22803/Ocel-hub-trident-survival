@@ -813,8 +813,9 @@ _G.SilentAimFOV = 150
 
 local fovCircle = nil
 pcall(function()
-    if Drawing and Drawing.new then
-        local circle = Drawing.new("Circle")
+    local drawingLib = rawget(getfenv(), "Drawing")
+    if drawingLib and drawingLib.new then
+        local circle = drawingLib.new("Circle")
         circle.Thickness = 1.5
         circle.NumSides = 64
         circle.Filled = false
@@ -829,19 +830,22 @@ local rs = game:GetService("RunService")
 
 local function isKeyHeld(keyChoice)
     if not keyChoice or keyChoice == "None" then return true end
-    if keyChoice == "Right Click" then
-        return uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-    elseif keyChoice == "Left Click" then
-        return uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-    elseif keyChoice == "Shift" then
-        return uis:IsKeyDown(Enum.KeyCode.LeftShift)
-    else
-        local success, keyCode = pcall(function() return Enum.KeyCode[keyChoice] end)
-        if success and keyCode then
-            return uis:IsKeyDown(keyCode)
+    local pressed = false
+    pcall(function()
+        if keyChoice == "Right Click" then
+            pressed = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        elseif keyChoice == "Left Click" then
+            pressed = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        elseif keyChoice == "Shift" then
+            pressed = uis:IsKeyDown(Enum.KeyCode.LeftShift)
+        else
+            local keyCode = Enum.KeyCode[keyChoice]
+            if keyCode then
+                pressed = uis:IsKeyDown(keyCode)
+            end
         end
-    end
-    return false
+    end)
+    return pressed
 end
 
 local function isTargetAlive(model)
@@ -1000,31 +1004,33 @@ local aimbotAngleX = nil
 local aimbotAngleY = nil
 
 -- Regular Aimbot Loop (Priority.Camera + 1)
-rs:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
-    if not _G.AimbotEnabled or not isKeyHeld(_G.AimbotKey) then
-        aimbotAngleX = nil
-        aimbotAngleY = nil
-        return
-    end
-    
-    local targetPart = getClosestTarget(_G.AimbotFOV)
-    if targetPart then
-        local camera = workspace.CurrentCamera
-        local targetPos = targetPart.Position
-        local currentCF = camera.CFrame
-        local targetCF = CFrame.new(currentCF.Position, targetPos)
+pcall(function()
+    rs:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+        if not _G.AimbotEnabled or not isKeyHeld(_G.AimbotKey) then
+            aimbotAngleX = nil
+            aimbotAngleY = nil
+            return
+        end
         
-        -- Lerp the camera to face target
-        camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.1)
-        
-        -- Store angles for Character Body Rotation Hooks
-        local rx, ry, rz = targetCF:ToOrientation()
-        aimbotAngleX = rx
-        aimbotAngleY = ry
-    else
-        aimbotAngleX = nil
-        aimbotAngleY = nil
-    end
+        local targetPart = getClosestTarget(_G.AimbotFOV)
+        if targetPart then
+            local camera = workspace.CurrentCamera
+            local targetPos = targetPart.Position
+            local currentCF = camera.CFrame
+            local targetCF = CFrame.new(currentCF.Position, targetPos)
+            
+            -- Lerp the camera to face target
+            camera.CFrame = currentCF:Lerp(targetCF, _G.AimbotSmoothness or 0.1)
+            
+            -- Store angles for Character Body Rotation Hooks
+            local rx, ry, rz = targetCF:ToOrientation()
+            aimbotAngleX = rx
+            aimbotAngleY = ry
+        else
+            aimbotAngleX = nil
+            aimbotAngleY = nil
+        end
+    end)
 end)
 
 -- FOV Circle Loop
@@ -1049,46 +1055,55 @@ task.spawn(function()
         task.wait(0.5)
     end
     
-    local CameraMod = _G.classes.Camera
-    if not CameraMod then return end
-    
-    -- 1st/3rd Person Silent Aim Hook
-    if CameraMod.GetCFrame then
-        local origGetCFrame = CameraMod.GetCFrame
-        CameraMod.GetCFrame = function(...)
-            local origCF = origGetCFrame(...)
-            local traceback = debug.traceback()
-            if _G.SilentAimEnabled and (string.find(traceback, "RangedWeaponClient") or string.find(traceback, "BowClient")) then
-                local targetPart = getClosestTarget(_G.SilentAimFOV)
-                if targetPart then
-                    -- Direct projectile trajectory toward target position while preserving starting location
-                    return CFrame.new(origCF.Position, targetPart.Position)
+    pcall(function()
+        local CameraMod = _G.classes.Camera
+        if not CameraMod then return end
+        
+        -- 1st/3rd Person Silent Aim Hook
+        if CameraMod.GetCFrame then
+            local origGetCFrame = CameraMod.GetCFrame
+            CameraMod.GetCFrame = function(...)
+                local origCF = origGetCFrame(...)
+                local success, result = pcall(function()
+                    if _G.SilentAimEnabled then
+                        local traceback = string.lower(debug.traceback())
+                        if string.find(traceback, "rangedweaponclient") or string.find(traceback, "bowclient") then
+                            local targetPart = getClosestTarget(_G.SilentAimFOV)
+                            if targetPart then
+                                -- Direct projectile trajectory toward target position while preserving starting location
+                                return CFrame.new(origCF.Position, targetPart.Position)
+                            end
+                        end
+                    end
+                end)
+                if success and result then
+                    return result
                 end
+                return origCF
             end
-            return origCF
         end
-    end
-    
-    -- Character Alignment (GetX/GetY) Hooks so physical model faces target
-    if CameraMod.GetX then
-        local origGetX = CameraMod.GetX
-        CameraMod.GetX = function(...)
-            if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
-                return aimbotAngleX
+        
+        -- Character Alignment (GetX/GetY) Hooks so physical model faces target
+        if CameraMod.GetX then
+            local origGetX = CameraMod.GetX
+            CameraMod.GetX = function(...)
+                if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleX then
+                    return aimbotAngleX
+                end
+                return origGetX(...)
             end
-            return origGetX(...)
         end
-    end
-    
-    if CameraMod.GetY then
-        local origGetY = CameraMod.GetY
-        CameraMod.GetY = function(...)
-            if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
-                return aimbotAngleY
+        
+        if CameraMod.GetY then
+            local origGetY = CameraMod.GetY
+            CameraMod.GetY = function(...)
+                if _G.AimbotEnabled and isKeyHeld(_G.AimbotKey) and aimbotAngleY then
+                    return aimbotAngleY
+                end
+                return origGetY(...)
             end
-            return origGetY(...)
         end
-    end
+    end)
 end)
 
 local l_l_v0_Window_0_Tab_1 = l_v0_Window_0:CreateTab("ESP", nil);
