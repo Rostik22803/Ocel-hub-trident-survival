@@ -624,6 +624,8 @@ _G.AimbotTargetPart = "Head"
 _G.AimbotShowFOV = false
 _G.AimbotFOVColor = Color3.fromRGB(255, 255, 255)
 
+_G.AimbotMaxDistance = 300
+
 _G.SilentAimEnabled = true
 _G.SilentAimFOV = 150
 
@@ -711,6 +713,57 @@ local originalGetX = nil
 local originalGetY = nil
 local originalSendTCP = nil
 local originalCreateProjectile = nil
+
+local targetPositions = {}
+local function getTargetVelocity(model, part)
+    local now = os.clock()
+    local pos = part.Position
+    local data = targetPositions[model]
+    
+    local velocity = Vector3.new(0, 0, 0)
+    if part:IsA("BasePart") then
+        velocity = part.AssemblyLinearVelocity
+    end
+    
+    if data then
+        local dt = now - data.time
+        if dt > 0.001 and dt < 0.5 then
+            local calculatedVelocity = (pos - data.pos) / dt
+            if velocity.Magnitude < 1 then
+                velocity = calculatedVelocity
+            end
+        end
+    end
+    
+    targetPositions[model] = { pos = pos, time = now }
+    return velocity
+end
+
+local function getPredictedPosition(targetPart, targetModel, bulletSpeed, bulletGravity)
+    local targetPos = targetPart.Position
+    if not (bulletSpeed and bulletSpeed > 0) then
+        return targetPos
+    end
+    
+    local camera = workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local distance = (targetPos - origin).Magnitude
+    
+    local targetVelocity = getTargetVelocity(targetModel, targetPart)
+    local timeOfFlight = distance / bulletSpeed
+    
+    -- Target movement prediction (lead)
+    targetPos = targetPos + targetVelocity * timeOfFlight
+    
+    -- Gravity drop compensation
+    if bulletGravity then
+        local gravityAcc = bulletGravity * 32.2
+        local dropOffset = 0.5 * gravityAcc * (timeOfFlight ^ 2)
+        targetPos = targetPos + Vector3.new(0, dropOffset, 0)
+    end
+    
+    return targetPos
+end
 
 local function isVisible(part, targetModel)
     if not _G.AimbotVisibleCheck then return true end
@@ -804,13 +857,21 @@ local function getClosestTarget(maxFOV)
                 part = model:FindFirstChild("Head") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso") or model.PrimaryPart
             end
             
-            if part and isVisible(part, model) then
-                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestTarget = part
+            if part then
+                local localChar = localPlayer.Character or (workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore") and workspace.Const.Ignore:FindFirstChild("LocalCharacter"))
+                local localPos = localChar and localChar.PrimaryPart and localChar.PrimaryPart.Position or camera.CFrame.Position
+                local dist = (part.Position - localPos).Magnitude
+                
+                if dist <= (_G.AimbotMaxDistance or 300) then
+                    if isVisible(part, model) then
+                        local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                        if onScreen then
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                closestTarget = part
+                            end
+                        end
                     end
                 end
             end
@@ -885,6 +946,16 @@ local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
     end
 })
 
+local _ = l_l_v0_Window_0_Tab_0:CreateSlider({
+    Name = "Aimbot Max Distance",
+    Range = {50, 2000},
+    Increment = 10,
+    CurrentValue = 300,
+    Callback = function(val)
+        _G.AimbotMaxDistance = val
+    end
+})
+
 local _ = l_l_v0_Window_0_Tab_0:CreateSection("Silent Aim Settings")
 
 local _ = l_l_v0_Window_0_Tab_0:CreateToggle({
@@ -953,7 +1024,18 @@ pcall(function()
         local targetPart = getClosestTarget(_G.AimbotFOV)
         if targetPart then
             local camera = workspace.CurrentCamera
-            local targetPos = targetPart.Position
+            
+            -- Get weapon stats for prediction
+            local equipped = nil
+            pcall(function()
+                if _G.classes and _G.classes.FPS and _G.classes.FPS.GetEquippedItem then
+                    equipped = _G.classes.FPS.GetEquippedItem()
+                end
+            end)
+            local speed = equipped and (equipped.ProjectileSpeed or equipped.projectileSpeed)
+            local drop = equipped and (equipped.ProjectileDrop or equipped.projectileDrop)
+            
+            local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
             local currentCF = camera.CFrame
             local targetCF = CFrame.new(currentCF.Position, targetPos)
             
@@ -1036,7 +1118,16 @@ task.spawn(function()
                             if targetPart then
                                 local origCF = args[4 + offset]
                                 if typeof(origCF) == "CFrame" then
-                                    args[4 + offset] = CFrame.new(origCF.Position, targetPart.Position)
+                                    local equipped = nil
+                                    pcall(function()
+                                        if _G.classes and _G.classes.FPS and _G.classes.FPS.GetEquippedItem then
+                                            equipped = _G.classes.FPS.GetEquippedItem()
+                                        end
+                                    end)
+                                    local speed = equipped and (equipped.ProjectileSpeed or equipped.projectileSpeed)
+                                    local drop = equipped and (equipped.ProjectileDrop or equipped.projectileDrop)
+                                    local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
+                                    args[4 + offset] = CFrame.new(origCF.Position, targetPos)
                                 end
                             end
                         elseif action == "MultiFire" then
@@ -1044,9 +1135,18 @@ task.spawn(function()
                             if targetPart then
                                 local t = args[3 + offset]
                                 if type(t) == "table" then
+                                    local equipped = nil
+                                    pcall(function()
+                                        if _G.classes and _G.classes.FPS and _G.classes.FPS.GetEquippedItem then
+                                            equipped = _G.classes.FPS.GetEquippedItem()
+                                        end
+                                    end)
+                                    local speed = equipped and (equipped.ProjectileSpeed or equipped.projectileSpeed)
+                                    local drop = equipped and (equipped.ProjectileDrop or equipped.projectileDrop)
+                                    local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
                                     for _, item in ipairs(t) do
                                         if type(item) == "table" and typeof(item[1]) == "CFrame" then
-                                            item[1] = CFrame.new(item[1].Position, targetPart.Position)
+                                            item[1] = CFrame.new(item[1].Position, targetPos)
                                         end
                                     end
                                 end
@@ -1056,7 +1156,16 @@ task.spawn(function()
                             if targetPart then
                                 local origCF = args[3 + offset]
                                 if typeof(origCF) == "CFrame" then
-                                    args[3 + offset] = CFrame.new(origCF.Position, targetPart.Position)
+                                    local equipped = nil
+                                    pcall(function()
+                                        if _G.classes and _G.classes.FPS and _G.classes.FPS.GetEquippedItem then
+                                            equipped = _G.classes.FPS.GetEquippedItem()
+                                        end
+                                    end)
+                                    local speed = equipped and (equipped.ProjectileSpeed or equipped.projectileSpeed)
+                                    local drop = equipped and (equipped.ProjectileDrop or equipped.projectileDrop)
+                                    local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
+                                    args[3 + offset] = CFrame.new(origCF.Position, targetPos)
                                 end
                             end
                         end
@@ -1085,7 +1194,11 @@ task.spawn(function()
                         local cf = args[1 + offset]
                         local targetPart = getClosestTarget(_G.SilentAimFOV)
                         if targetPart and typeof(cf) == "CFrame" then
-                            args[1 + offset] = CFrame.new(cf.Position, targetPart.Position)
+                            local weaponConfig = args[2 + offset]
+                            local speed = weaponConfig and (weaponConfig.ProjectileSpeed or weaponConfig.projectileSpeed)
+                            local drop = weaponConfig and (weaponConfig.ProjectileDrop or weaponConfig.projectileDrop)
+                            local targetPos = getPredictedPosition(targetPart, targetPart.Parent, speed, drop)
+                            args[1 + offset] = CFrame.new(cf.Position, targetPos)
                         end
                     end
                 end)
